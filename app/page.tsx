@@ -31,7 +31,6 @@ const products = [
       en: "For any moment when you want a complete and balanced spice experience.",
     },
   },
-
   {
     number: "02",
     name: "Morning Energy",
@@ -58,7 +57,6 @@ const products = [
       en: "A natural fit for mornings or daytime moments when you want freshness with a light warming spice character.",
     },
   },
-
   {
     number: "03",
     name: "Golden Turmeric",
@@ -85,7 +83,6 @@ const products = [
       en: "For those who enjoy turmeric supported by a balanced blend of warm spices.",
     },
   },
-
   {
     number: "04",
     name: "Warm Balance",
@@ -123,7 +120,6 @@ const content = {
       purpose: "Tujuan Kami",
       journal: "Jurnal",
     },
-
     hero: {
       eyebrow: "VARTANA · BOTANICAL WELLNESS",
       title: "Kebaikan dari alam,",
@@ -132,7 +128,6 @@ const content = {
       primary: "Jelajahi Koleksi",
       secondary: "Tentang VARTANA",
     },
-
     philosophy: {
       eyebrow: "FILOSOFI VARTANA",
       title: "Setiap bahan memiliki cerita.",
@@ -140,13 +135,11 @@ const content = {
       text2: "VARTANA membawa cerita itu lebih jauh melalui produk botanikal yang dibuat dengan sederhana, penuh perhatian, dan tetap dekat dengan kekayaan alam Indonesia.",
       quote: "Rooted in Earth, Built for Growth.",
     },
-
     collection: {
       eyebrow: "BOTANICAL COLLECTION",
       title: "Empat racikan, empat karakter.",
       text: "Empat racikan pertama VARTANA dibuat dari rempah pilihan Indonesia. Setiap racikan memiliki karakter rasa, aroma, dan komposisi yang berbeda.",
     },
-
     product: {
       ingredients: "Rempah yang digunakan",
       weight: "Berat per tea bag",
@@ -158,7 +151,6 @@ const content = {
       preparation: "Cara penyajian",
       preparationText: "1 tea bag · ±9 g · 200 ml air · 90–95°C · 3–5 menit",
     },
-
     purpose: {
       eyebrow: "TUJUAN KAMI",
       title: "Tiga hal yang kami percaya.",
@@ -182,7 +174,6 @@ const content = {
       ],
       closing: "Kesehatan dan keseimbangan untuk keseharian. Kesempatan yang lebih baik untuk masa depan.",
     },
-
     way: {
       eyebrow: "CARA KAMI",
       title: "Bahan yang jelas. Cerita yang terhubung.",
@@ -211,41 +202,28 @@ const content = {
         },
       ],
     },
-
     origin: {
       eyebrow: "CERITA VARTANA",
       title: "Mengapa Botanikal?",
       intro: "Ketika Cara Kita Minum Mulai Berubah",
-
       paragraphs: [
         "Kita minum setiap hari.",
         "Kadang untuk menemani pagi. Kadang setelah makan. Kadang hanya karena ingin berhenti sejenak dari kesibukan.",
         "Tapi semakin banyak hal yang kita konsumsi setiap hari, semakin banyak pula pertanyaan sederhana yang mulai muncul.",
       ],
-
       questions: ["Apa sebenarnya yang kita minum?", "Dari mana bahan-bahannya berasal?", "Apakah rasa harus selalu datang dari sesuatu yang terlalu manis atau terlalu kuat?"],
-
       afterQuestions: [
         "Pertanyaan-pertanyaan kecil seperti ini perlahan mengubah cara orang memilih minuman.",
         "Bukan berarti kita harus berhenti menikmati apa yang kita suka. Bukan juga tentang mengatakan bahwa satu jenis minuman lebih baik daripada yang lain.",
       ],
-
       highlight: "Hanya saja, pilihan mulai menjadi lebih sadar.",
-
       simpleTitle: "Dari Rasa yang Sederhana",
-
       simpleParagraphs: ["Di tengah banyaknya pilihan minuman modern, VARTANA justru melihat sesuatu yang sudah lama ada di sekitar kita."],
-
       simpleHighlight: "Tanaman. Rempah. Bahan-bahan yang sejak dahulu digunakan dalam keseharian masyarakat Indonesia.",
-
       ingredientsStory: ["Jahe dengan rasa hangatnya.", "Serai dengan aroma segarnya.", "Kayu manis dengan karakter manis-rempahnya.", "Cengkeh, kapulaga, pala, kunyit, dan berbagai botanikal lainnya dengan karakter masing-masing."],
-
       simpleClosing: ["Bahan-bahan ini sebenarnya tidak pernah benar-benar pergi.", "Mereka hanya perlu dihadirkan kembali dengan cara yang lebih relevan dengan kehidupan hari ini."],
-
       finalLine: "Dari situlah VARTANA Botanical Wellness dimulai.",
-
       notJustTitle: "Bukan Sekadar Minuman",
-
       notJustParagraphs: [
         "VARTANA tidak ingin membuat minuman yang sekadar terlihat alami.",
         "Kami ingin setiap bahan punya alasan untuk berada di dalam sebuah racikan.",
@@ -253,35 +231,23 @@ const content = {
         "Aroma tetap datang dari bahan yang digunakan.",
         "Dan ketika seseorang membaca komposisinya, mereka bisa memahami apa yang sebenarnya ada di dalam satu cangkir.",
       ],
-
       notJustHighlight: "Sederhana. Jelas. Tidak dibuat rumit.",
-
       notJustClosing: ["Karena bagi kami, kembali ke bahan yang sederhana bukan berarti kembali ke masa lalu."],
-
       notJustFinal: "Justru membawa sesuatu yang sudah baik ke dalam kehidupan modern.",
-
       soilTitle: "Dari Tanah, Menuju Cangkir",
-
       soilParagraphs: ["Dan mungkin, inilah alasan paling sederhana mengapa kami memilih botanikal.", "Kami percaya bahwa produk yang baik tidak harus kehilangan cerita tentang dari mana ia berasal."],
-
       journey: ["Dari tanah Indonesia.", "Dari tanaman yang tumbuh di dalamnya.", "Dari tangan orang-orang yang merawatnya.", "Kemudian diracik dengan perhatian dan dibawa ke dalam keseharian."],
-
       soilClosing: "Satu cangkir mungkin terlihat sederhana. Tetapi di baliknya ada perjalanan yang panjang. Dan VARTANA ingin perjalanan itu tetap terasa.",
-
       futureTitle: "Dan Cerita Ini Tidak Berhenti di Cangkir",
-
       futureParagraphs: [
         "Karena pada akhirnya, VARTANA tidak hanya ingin menjual botanical drink.",
         "Kami ingin membangun hubungan yang lebih panjang antara bahan, produk, manusia, dan tanah tempat semuanya bermula.",
         "Ketika bahan pertanian memiliki nilai lebih tinggi, lebih banyak nilai dapat kembali kepada orang-orang di baliknya.",
         "Ketika konsumen mengenal bahan yang mereka konsumsi, hubungan dengan produk menjadi lebih berarti.",
       ],
-
       futureClosing: "Dan ketika produk dibuat dengan cerita yang jelas, sebuah cangkir tidak lagi hanya menjadi minuman. Ia menjadi bagian kecil dari perjalanan yang lebih besar.",
-
       label: "DARI TANAH, MENUJU CANGKIR",
     },
-
     journal: {
       eyebrow: "JURNAL VARTANA",
       title: "Cerita dari alam, pertanian, dan keseharian.",
@@ -289,7 +255,6 @@ const content = {
       button: "BACA CERITA",
       articles: ["Ketika Cara Kita Memilih Minuman Mulai Berubah", "Mengenal Kekayaan Botanikal Indonesia", "Dari Bahan Pertanian Menjadi Produk Bernilai", "Mengapa Rempah Begitu Dekat dengan Keseharian"],
     },
-
     footer: {
       tagline: "More Than Wellness. A Better Future for Farmers.",
       contact: "HUBUNGI KAMI",
@@ -297,6 +262,8 @@ const content = {
       whatsapp: "WhatsApp",
       instagram: "Instagram",
       tiktok: "TikTok",
+      location: "Lokasi",
+      locationValue: "TANGERANG CITY, INDONESIA",
       copyright: "© 2026 VARTANA. All rights reserved.",
     },
   },
@@ -309,7 +276,6 @@ const content = {
       purpose: "Our Purpose",
       journal: "Journal",
     },
-
     hero: {
       eyebrow: "VARTANA · BOTANICAL WELLNESS",
       title: "The goodness of nature,",
@@ -318,7 +284,6 @@ const content = {
       primary: "Explore Collection",
       secondary: "About VARTANA",
     },
-
     philosophy: {
       eyebrow: "THE VARTANA PHILOSOPHY",
       title: "Every ingredient has a story.",
@@ -326,13 +291,11 @@ const content = {
       text2: "VARTANA carries that story forward through botanical products made with simplicity, care, and a close connection to Indonesia's natural richness.",
       quote: "Rooted in Earth, Built for Growth.",
     },
-
     collection: {
       eyebrow: "BOTANICAL COLLECTION",
       title: "Four blends, four distinct characters.",
       text: "VARTANA's first four blends are crafted from selected Indonesian spices. Each one has its own taste, aroma, and botanical composition.",
     },
-
     product: {
       ingredients: "Botanicals used",
       weight: "Weight per tea bag",
@@ -344,7 +307,6 @@ const content = {
       preparation: "How to prepare",
       preparationText: "1 tea bag · ±9 g · 200 ml water · 90–95°C · 3–5 minutes",
     },
-
     purpose: {
       eyebrow: "OUR PURPOSE",
       title: "Three things we believe.",
@@ -368,7 +330,6 @@ const content = {
       ],
       closing: "Balance for everyday life. Better opportunities for the future.",
     },
-
     way: {
       eyebrow: "OUR APPROACH",
       title: "Clear ingredients. Connected stories.",
@@ -397,43 +358,30 @@ const content = {
         },
       ],
     },
-
     origin: {
       eyebrow: "THE VARTANA STORY",
       title: "Why Botanicals?",
       intro: "When the Way We Choose What to Drink Begins to Change",
-
       paragraphs: [
         "We drink every day.",
         "Sometimes to begin the morning. Sometimes after a meal. Sometimes simply to pause in the middle of a busy day.",
         "But as more becomes part of our everyday consumption, a few simple questions begin to emerge.",
       ],
-
       questions: ["What are we really drinking?", "Where do the ingredients come from?", "Does flavour always have to come from something overly sweet or overpowering?"],
-
       afterQuestions: ["Questions like these can gradually change the way we choose what to drink.", "This does not mean giving up everything we enjoy. Nor is it about saying that one kind of drink is better than another."],
-
       highlight: "It simply means becoming a little more conscious of our choices.",
-
       simpleTitle: "A Return to Simple Flavours",
-
       simpleParagraphs: ["Among so many modern beverage choices, VARTANA looked again at something that has been around us for a long time."],
-
       simpleHighlight: "Plants. Spices. Ingredients that have long been part of everyday life in Indonesia.",
-
       ingredientsStory: [
         "Ginger, with its natural warmth.",
         "Lemongrass, with its fresh aroma.",
         "Cinnamon, with its warm and gently sweet spice character.",
         "Clove, cardamom, nutmeg, turmeric, and other botanicals, each with a character of their own.",
       ],
-
       simpleClosing: ["These ingredients never truly disappeared.", "They simply needed to be brought forward in a way that feels more relevant to life today."],
-
       finalLine: "That is where VARTANA Botanical Wellness begins.",
-
       notJustTitle: "More Than Just a Drink",
-
       notJustParagraphs: [
         "VARTANA does not want to create a drink that simply looks natural.",
         "We want every ingredient to have a reason for being part of a blend.",
@@ -441,35 +389,23 @@ const content = {
         "We want aroma to remain connected to what is actually inside.",
         "And when someone reads the composition, we want them to understand what is in their cup.",
       ],
-
       notJustHighlight: "Simple. Clear. Nothing unnecessarily complicated.",
-
       notJustClosing: ["For us, returning to simpler ingredients does not mean going backwards."],
-
       notJustFinal: "It means bringing something valuable into modern everyday life.",
-
       soilTitle: "From Soil to Cup",
-
       soilParagraphs: ["And perhaps that is the simplest reason why we choose botanicals.", "We believe a good product should not lose the story of where it comes from."],
-
       journey: ["From Indonesian soil.", "From plants that grow from it.", "From the hands that care for them.", "Then thoughtfully crafted and brought into everyday life."],
-
       soilClosing: "A cup may look simple. But behind it is a much longer journey. VARTANA wants that journey to remain part of the experience.",
-
       futureTitle: "And the Story Does Not End with the Cup",
-
       futureParagraphs: [
         "Ultimately, VARTANA does not only want to sell botanical drinks.",
         "We want to build a longer connection between ingredients, products, people, and the land where everything begins.",
         "When agricultural ingredients gain greater value, more value can potentially return to the people behind them.",
         "When consumers understand what they consume, their relationship with a product becomes more meaningful.",
       ],
-
       futureClosing: "And when a product carries a clear story, a cup becomes more than just a drink. It becomes a small part of a much larger journey.",
-
       label: "FROM SOIL TO CUP",
     },
-
     journal: {
       eyebrow: "VARTANA JOURNAL",
       title: "Stories from nature, agriculture, and everyday life.",
@@ -477,7 +413,6 @@ const content = {
       button: "READ STORY",
       articles: ["When the Way We Choose What to Drink Begins to Change", "Discovering Indonesia's Botanical Richness", "From Agricultural Ingredients to Greater Value", "Why Spices Remain Close to Everyday Life"],
     },
-
     footer: {
       tagline: "More Than Wellness. A Better Future for Farmers.",
       contact: "CONTACT US",
@@ -485,6 +420,8 @@ const content = {
       whatsapp: "WhatsApp",
       instagram: "Instagram",
       tiktok: "TikTok",
+      location: "Location",
+      locationValue: "TANGERANG CITY, INDONESIA",
       copyright: "© 2026 VARTANA. All rights reserved.",
     },
   },
@@ -1007,13 +944,24 @@ export default function Home() {
                   @vartanabotanical
                 </a>
               </div>
+
+              {/* LOCATION */}
+              <div>
+                <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.location}</p>
+
+                <p className="mt-2 text-[14px] text-white/80">{t.footer.locationValue}</p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* COPYRIGHT */}
-        <div className="mx-auto mt-16 flex max-w-7xl flex-col gap-4 border-t border-white/10 pt-8 md:flex-row md:items-center md:justify-between">
-          <p className="text-[10px] tracking-[0.16em] text-white/25">{t.footer.copyright}</p>
+        <div className="mx-auto mt-16 flex max-w-7xl flex-col gap-5 border-t border-white/10 pt-8 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-[10px] tracking-[0.16em] text-white/25">{t.footer.copyright}</p>
+
+            <p className="mt-4 text-[9px] uppercase tracking-[0.22em] text-white/35">{t.footer.locationValue}</p>
+          </div>
 
           <p className="text-[9px] uppercase tracking-[0.22em] text-white/20">ROOTED IN EARTH · BUILT FOR GROWTH</p>
         </div>

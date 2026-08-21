@@ -4,11 +4,6 @@ import { useState } from "react";
 
 type Language = "id" | "en";
 
-type Localized = {
-  id: string;
-  en: string;
-};
-
 const products = [
   {
     number: "01",
@@ -297,7 +292,11 @@ const content = {
 
     footer: {
       tagline: "More Than Wellness. A Better Future for Farmers.",
-      email: "VARTANA BOTANICAL WELLNESS · INDONESIA",
+      contact: "HUBUNGI KAMI",
+      email: "Email",
+      whatsapp: "WhatsApp",
+      instagram: "Instagram",
+      tiktok: "TikTok",
       copyright: "© 2026 VARTANA. All rights reserved.",
     },
   },
@@ -481,7 +480,11 @@ const content = {
 
     footer: {
       tagline: "More Than Wellness. A Better Future for Farmers.",
-      email: "VARTANA BOTANICAL WELLNESS · INDONESIA",
+      contact: "CONTACT US",
+      email: "Email",
+      whatsapp: "WhatsApp",
+      instagram: "Instagram",
+      tiktok: "TikTok",
       copyright: "© 2026 VARTANA. All rights reserved.",
     },
   },
@@ -567,10 +570,7 @@ export default function Home() {
             <p className="mt-8 max-w-xl text-[15px] leading-8 text-[#627067]">{t.hero.text}</p>
 
             <div className="mt-10 flex flex-wrap gap-3">
-              <a
-                href="#collection"
-                className="rounded-full bg-[#16382A] px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#F6F2E8] transition duration-300 hover:bg-[#214737] hover:shadow-[0_12px_30px_rgba(22,56,42,0.18)]"
-              >
+              <a href="#collection" className="rounded-full bg-[#16382A] px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#F6F2E8] transition duration-300 hover:bg-[#214737]">
                 {t.hero.primary}
               </a>
 
@@ -633,11 +633,6 @@ export default function Home() {
 
       {/* COLLECTION */}
       <section id="collection" className="relative overflow-hidden bg-[#0D261C] px-6 py-28 text-white">
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -left-32 top-20 h-[420px] w-[420px] rounded-full border border-[#B69245]/10" />
-          <div className="absolute -right-40 bottom-[-100px] h-[520px] w-[520px] rounded-full border-[80px] border-[#B69245]/5" />
-        </div>
-
         <div className="relative mx-auto max-w-7xl">
           <div className="max-w-2xl">
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#D8C28B]">{t.collection.eyebrow}</p>
@@ -652,9 +647,7 @@ export default function Home() {
               <button
                 key={item.number}
                 onClick={() => setSelectedProduct(index)}
-                className={`group rounded-2xl border p-7 text-left transition duration-300 ${
-                  selectedProduct === index ? "border-[#D8C28B]/70 bg-white/[0.08] text-white shadow-[0_20px_50px_rgba(0,0,0,0.12)]" : "border-white/[0.08] bg-white/[0.025] hover:border-[#D8C28B]/50 hover:bg-white/[0.06]"
-                }`}
+                className={`group rounded-2xl border p-7 text-left transition duration-300 ${selectedProduct === index ? "border-[#D8C28B]/70 bg-white/[0.08]" : "border-white/[0.08] bg-white/[0.025] hover:border-[#D8C28B]/50"}`}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-serif text-3xl text-[#D8C28B]">{item.number}</span>
@@ -675,9 +668,6 @@ export default function Home() {
           <div className="mt-10 overflow-hidden rounded-[2rem] border border-white/[0.06] shadow-[0_30px_80px_rgba(0,0,0,0.16)]">
             <div className="grid lg:grid-cols-[0.85fr_1.15fr]">
               <div className="relative min-h-[520px] overflow-hidden bg-[#102F23] p-8 md:p-12">
-                <div className="absolute -left-24 top-20 h-96 w-96 rounded-full border-[50px] border-[#B69245]/10" />
-                <div className="absolute -right-32 bottom-[-100px] h-[450px] w-[450px] rounded-full border-[60px] border-[#D8C28B]/5" />
-
                 <div className="relative">
                   <p className="text-[10px] font-semibold tracking-[0.25em] text-[#D8C28B]">BOTANICAL SERIES · {product.number}</p>
 
@@ -740,7 +730,7 @@ export default function Home() {
 
           <div className="mt-20 grid gap-5 md:grid-cols-3">
             {t.purpose.pillars.map((pillar) => (
-              <div key={pillar.number} className="group border border-[#16382A]/8 bg-[#F6F2E8] p-9 transition duration-500 hover:-translate-y-1 hover:border-[#B69245]/40 hover:bg-white hover:shadow-[0_20px_50px_rgba(22,56,42,0.06)]">
+              <div key={pillar.number} className="border border-[#16382A]/8 bg-[#F6F2E8] p-9 transition duration-500 hover:-translate-y-1 hover:border-[#B69245]/40 hover:bg-white">
                 <span className="font-serif text-5xl text-[#B69245]/80">{pillar.number}</span>
 
                 <h3 className="mt-9 font-serif text-[27px] leading-tight text-[#16382A]">{pillar.title}</h3>
@@ -837,7 +827,7 @@ export default function Home() {
 
               <div className="mt-12 grid gap-4 md:grid-cols-2">
                 {t.origin.ingredientsStory.map((item) => (
-                  <div key={item} className="border border-[#16382A]/8 bg-[#F6F2E8] px-7 py-6 text-[14px] leading-7 text-[#627067] transition duration-300 hover:border-[#B69245]/35 hover:bg-[#FBF9F4]">
+                  <div key={item} className="border border-[#16382A]/8 bg-[#F6F2E8] px-7 py-6 text-[14px] leading-7 text-[#627067]">
                     {item}
                   </div>
                 ))}
@@ -855,30 +845,28 @@ export default function Home() {
 
           {/* NOT JUST A DRINK */}
           <div className="relative mt-28 overflow-hidden bg-[#0D261C] px-8 py-20 text-white md:px-16">
-            <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full border-[55px] border-[#B69245]/5" />
-
             <div className="relative mx-auto max-w-3xl">
               <p className="text-[10px] font-semibold tracking-[0.3em] text-[#D8C28B]">02</p>
 
-              <h3 className="relative mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-white md:text-5xl">{t.origin.notJustTitle}</h3>
+              <h3 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-white md:text-5xl">{t.origin.notJustTitle}</h3>
 
-              <div className="relative mt-10 space-y-7 text-[15px] leading-8 text-white/60">
+              <div className="mt-10 space-y-7 text-[15px] leading-8 text-white/60">
                 {t.origin.notJustParagraphs.map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
               </div>
 
-              <div className="relative mt-14 border-y border-[#D8C28B]/20 py-9">
+              <div className="mt-14 border-y border-[#D8C28B]/20 py-9">
                 <p className="font-serif text-3xl leading-10 text-[#D8C28B]">{t.origin.notJustHighlight}</p>
               </div>
 
-              <div className="relative mt-10 space-y-7 text-[15px] leading-8 text-white/60">
+              <div className="mt-10 space-y-7 text-[15px] leading-8 text-white/60">
                 {t.origin.notJustClosing.map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
               </div>
 
-              <p className="relative mt-9 font-serif text-2xl leading-10 text-white md:text-3xl">{t.origin.notJustFinal}</p>
+              <p className="mt-9 font-serif text-2xl leading-10 text-white md:text-3xl">{t.origin.notJustFinal}</p>
             </div>
           </div>
 
@@ -897,7 +885,7 @@ export default function Home() {
 
               <div className="mt-14 grid gap-px overflow-hidden border border-[#B69245]/20 bg-[#B69245]/20 md:grid-cols-2">
                 {t.origin.journey.map((item, index) => (
-                  <div key={item} className="bg-[#FBF9F4] px-8 py-9 text-left transition duration-300 hover:bg-white">
+                  <div key={item} className="bg-[#FBF9F4] px-8 py-9 text-left">
                     <span className="font-serif text-3xl text-[#B69245]">0{index + 1}</span>
 
                     <p className="mt-5 font-serif text-xl leading-8 text-[#16382A]">{item}</p>
@@ -951,14 +939,14 @@ export default function Home() {
 
           <div>
             {t.journal.articles.map((article, index) => (
-              <div key={article} className="group flex items-center justify-between border-b border-[#16382A]/10 py-7 transition">
+              <div key={article} className="group flex items-center justify-between border-b border-[#16382A]/10 py-7">
                 <div className="flex items-center gap-6">
                   <span className="font-serif text-2xl text-[#B69245]/80">0{index + 1}</span>
 
-                  <h3 className="font-serif text-xl leading-7 text-[#16382A] transition duration-300 group-hover:text-[#9E7A32]">{article}</h3>
+                  <h3 className="font-serif text-xl leading-7 text-[#16382A]">{article}</h3>
                 </div>
 
-                <span className="text-lg text-[#B69245] transition duration-300 group-hover:translate-x-1 group-hover:-translate-y-1">↗</span>
+                <span className="text-lg text-[#B69245]">↗</span>
               </div>
             ))}
           </div>
@@ -967,7 +955,8 @@ export default function Home() {
 
       {/* FOOTER */}
       <footer className="bg-[#091D15] px-6 py-20 text-white">
-        <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="mx-auto grid max-w-7xl gap-16 lg:grid-cols-[1.1fr_0.9fr]">
+          {/* BRAND */}
           <div>
             <p className="font-serif text-4xl tracking-[0.2em] text-[#F6F2E8]">VARTANA</p>
 
@@ -978,11 +967,55 @@ export default function Home() {
             <p className="mt-9 max-w-md font-serif text-2xl leading-10 text-white/85">{t.footer.tagline}</p>
           </div>
 
-          <div className="flex flex-col justify-end lg:items-end">
-            <p className="text-[11px] tracking-[0.08em] text-white/45">{t.footer.email}</p>
+          {/* CONTACT */}
+          <div className="lg:border-l lg:border-white/10 lg:pl-16">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#D8C28B]">{t.footer.contact}</p>
 
-            <p className="mt-6 text-[10px] tracking-[0.16em] text-white/25">{t.footer.copyright}</p>
+            <div className="mt-8 space-y-5">
+              {/* EMAIL */}
+              <div>
+                <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.email}</p>
+
+                <a href="mailto:vartana@vartanaglobal.com" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">
+                  vartana@vartanaglobal.com
+                </a>
+              </div>
+
+              {/* WHATSAPP */}
+              <div>
+                <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.whatsapp}</p>
+
+                <a href="https://wa.me/6285777999960" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">
+                  +62 857-7799-9960
+                </a>
+              </div>
+
+              {/* INSTAGRAM */}
+              <div>
+                <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.instagram}</p>
+
+                <a href="https://www.instagram.com/vartanabotanical" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">
+                  @vartanabotanical
+                </a>
+              </div>
+
+              {/* TIKTOK */}
+              <div>
+                <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.tiktok}</p>
+
+                <a href="https://www.tiktok.com/@vartanabotanical" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">
+                  @vartanabotanical
+                </a>
+              </div>
+            </div>
           </div>
+        </div>
+
+        {/* COPYRIGHT */}
+        <div className="mx-auto mt-16 flex max-w-7xl flex-col gap-4 border-t border-white/10 pt-8 md:flex-row md:items-center md:justify-between">
+          <p className="text-[10px] tracking-[0.16em] text-white/25">{t.footer.copyright}</p>
+
+          <p className="text-[9px] uppercase tracking-[0.22em] text-white/20">ROOTED IN EARTH · BUILT FOR GROWTH</p>
         </div>
       </footer>
     </main>

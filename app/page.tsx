@@ -1,20 +1,66 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type Language = "id" | "en";
 
-const products = [
+type LocalizedText = Record<Language, string>;
+
+type Product = {
+  id: string;
+  number: string;
+  name: string;
+  subtitle: string;
+  status: "READY STOCK" | "COMING SOON";
+  image?: string;
+  priceValue: number;
+  regularPrice?: string;
+  promoPrice?: string;
+  quantityInfo?: string;
+  ingredients: string[];
+  description: LocalizedText;
+  taste: LocalizedText;
+  aroma: LocalizedText;
+  difference: LocalizedText;
+  benefit: LocalizedText;
+};
+
+type CartItem = {
+  product: Product;
+  quantity: number;
+};
+
+type CustomerData = {
+  name: string;
+  email: string;
+  phone: string;
+  provinceId: string;
+  provinceName: string;
+  cityId: string;
+  cityName: string;
+  districtId: string;
+  districtName: string;
+  addressDetail: string;
+  notes: string;
+};
+
+type RegionItem = {
+  id: string;
+  name: string;
+};
+
+const products: Product[] = [
   {
+    id: "vartana-01",
     number: "01",
     name: "Signature Blend",
     subtitle: "BLEND No. 01",
     status: "READY STOCK",
     image: "/signature-blend-vartana.png",
+    priceValue: 71000,
     regularPrice: "Rp97.000",
     promoPrice: "Rp71.000",
-    price: 71000,
-    quantity: "1 POUCH · 10 TEA BAGS",
+    quantityInfo: "1 POUCH · 10 TEA BAGS",
     ingredients: ["Jahe", "Serai", "Kayu Manis", "Cengkeh", "Kapulaga", "Adas", "Lada Putih", "Lada Hitam", "Pala"],
     description: {
       id: "Racikan khas VARTANA dengan komposisi rempah paling lengkap. Karakternya hangat, kompleks, aromatik, dan seimbang.",
@@ -38,10 +84,12 @@ const products = [
     },
   },
   {
+    id: "vartana-02",
     number: "02",
     name: "Morning Energy",
     subtitle: "BLEND No. 02",
     status: "COMING SOON",
+    priceValue: 0,
     ingredients: ["Jahe", "Serai", "Kayu Manis", "Cengkeh", "Kapulaga", "Lada Putih", "Lada Hitam", "Pala"],
     description: {
       id: "Racikan dengan karakter jahe dan serai yang lebih terasa, segar di aroma dengan sentuhan rempah hangat.",
@@ -57,65 +105,69 @@ const products = [
     },
     difference: {
       id: "Karakter paling segar di antara empat racikan dengan perpaduan jahe dan serai yang lebih terasa.",
-      en: "The freshest character among the four blends, led by brighter ginger and lemongrass notes.",
+      en: "The freshest character among the four blends, with ginger and lemongrass taking a more prominent role.",
     },
     benefit: {
-      id: "Dirancang untuk menemani awal hari dengan karakter rasa yang segar dan hangat.",
-      en: "Designed to accompany the start of your day with a fresh and warming character.",
+      id: "Cocok dinikmati pada pagi atau siang hari saat ingin minuman dengan aroma segar dan rasa rempah yang ringan untuk membuat hari lebih bersemangat.",
+      en: "A natural fit for mornings or daytime moments when you want freshness with a light warming spice character.",
     },
   },
   {
+    id: "vartana-03",
     number: "03",
     name: "Golden Turmeric",
     subtitle: "BLEND No. 03",
     status: "COMING SOON",
-    ingredients: ["Kunyit", "Jahe", "Kayu Manis", "Serai", "Cengkeh", "Kapulaga", "Adas"],
+    priceValue: 0,
+    ingredients: ["Kunyit", "Jahe", "Serai", "Kayu Manis", "Cengkeh", "Kapulaga", "Lada Putih", "Lada Hitam", "Pala"],
     description: {
-      id: "Racikan kunyit dan jahe dengan karakter hangat, earthy, dan aromatik.",
-      en: "A turmeric and ginger blend with a warm, earthy, and aromatic character.",
+      id: "Racikan dengan kunyit sebagai karakter utama yang dominan, dipadukan dengan jahe dan rempah untuk menghasilkan rasa yang hangat dan kaya.",
+      en: "A turmeric-led blend supported by ginger and selected spices for a warm and fuller character.",
     },
     taste: {
-      id: "Hangat, earthy, dan lembut dengan karakter kunyit yang khas.",
-      en: "Warm, earthy, and smooth with turmeric at its core.",
+      id: "Hangat, earthy, dan kaya rempah dengan kunyit sebagai karakter utama yang dominan.",
+      en: "Warm, earthy, and richly spiced, with turmeric taking the lead.",
     },
     aroma: {
-      id: "Kunyit dan jahe dipadukan dengan aroma kayu manis dan rempah hangat.",
-      en: "Turmeric and ginger are supported by cinnamon and warm spice aromatics.",
+      id: "Kunyit dan jahe menjadi dasar aroma, dilengkapi kayu manis, cengkeh, kapulaga, dan pala.",
+      en: "Turmeric and ginger form the aromatic base, supported by cinnamon, clove, cardamom, and nutmeg.",
     },
     difference: {
-      id: "Menonjolkan karakter kunyit dengan lapisan rempah yang tetap seimbang.",
-      en: "Highlights turmeric while maintaining a balanced spice profile.",
+      id: "Satu-satunya racikan dengan kunyit sebagai karakter utama sehingga memiliki profil rasa dan warna yang paling khas.",
+      en: "The only blend built around turmeric as its leading character, giving it the most distinctive colour and flavour profile.",
     },
     benefit: {
-      id: "Untuk dinikmati saat menginginkan karakter kunyit yang hangat dan nyaman.",
-      en: "For moments when you want a comforting turmeric-forward cup.",
+      id: "Untuk yang menikmati karakter kunyit dengan perpaduan rempah yang tetap seimbang.",
+      en: "For those who enjoy turmeric supported by a balanced blend of warm spices.",
     },
   },
   {
+    id: "vartana-04",
     number: "04",
     name: "Warm Balance",
     subtitle: "BLEND No. 04",
     status: "COMING SOON",
-    ingredients: ["Jahe", "Serai", "Lada Hitam", "Kayu Manis", "Adas", "Cengkeh"],
+    priceValue: 0,
+    ingredients: ["Jahe", "Serai", "Kayu Manis", "Cengkeh", "Kapulaga", "Lada Putih", "Lada Hitam", "Pala"],
     description: {
-      id: "Racikan dengan karakter hangat dan seimbang untuk dinikmati dalam keseharian.",
-      en: "A balanced warming blend designed for everyday moments.",
+      id: "Perpaduan rempah hangat dengan karakter yang seimbang, aromatik, dan terasa lebih dalam.",
+      en: "A balanced blend of warm spices with a deeper aromatic character.",
     },
     taste: {
-      id: "Hangat, ringan, dan seimbang.",
-      en: "Warm, light, and balanced.",
+      id: "Hangat, seimbang, dan aromatik dengan karakter rempah yang lebih dalam.",
+      en: "Warm, balanced, and aromatic with a deeper spice character.",
     },
     aroma: {
-      id: "Jahe dan serai dipadukan dengan sentuhan rempah hangat.",
-      en: "Ginger and lemongrass meet gentle layers of warm spices.",
+      id: "Jahe, kayu manis, cengkeh, kapulaga, dan pala membentuk aroma rempah yang hangat.",
+      en: "Ginger, cinnamon, clove, cardamom, and nutmeg create a warm and inviting spice aroma.",
     },
     difference: {
-      id: "Karakter paling mudah dinikmati untuk rutinitas sehari-hari.",
-      en: "The easiest everyday character among the collection.",
+      id: "Racikan dengan karakter hangat dan seimbang tanpa kunyit sebagai karakter utama.",
+      en: "A warm and balanced blend without turmeric taking the lead.",
     },
     benefit: {
-      id: "Untuk menemani berbagai momen dalam keseharian.",
-      en: "Created to accompany different moments throughout the day.",
+      id: "Cocok dinikmati pada sore atau malam hari saat ingin minuman rempah yang hangat dan nyaman.",
+      en: "A natural fit for afternoon or evening moments when you want a warm, comforting spice drink.",
     },
   },
 ];
@@ -123,103 +175,145 @@ const products = [
 const content = {
   id: {
     nav: {
-      philosophy: "FILOSOFI",
-      collection: "KOLEKSI",
-      origin: "ASAL",
-      purpose: "TUJUAN KAMI",
-      journal: "JURNAL",
+      philosophy: "Filosofi",
+      collection: "Koleksi",
+      origin: "Cerita VARTANA",
+      purpose: "Tujuan Kami",
+      journal: "Jurnal",
     },
     hero: {
       eyebrow: "VARTANA · BOTANICAL WELLNESS",
       title: "Kebaikan dari alam,",
       accent: "untuk keseharian.",
-      text: "Kami membawa kekayaan botanikal Indonesia ke dalam produk yang dirancang dengan perhatian pada bahan, proses, dan cerita di baliknya.",
-      explore: "JELAJAHI KOLEKSI",
-      about: "TENTANG VARTANA",
-      note: "ROOTED IN EARTH · BUILT FOR GROWTH",
+      text: "Kami membawa kekayaan botanikal Indonesia ke dalam produk yang dibuat dengan penuh perhatian pada bahan, proses, dan cerita di baliknya.",
+      primary: "Jelajahi Koleksi",
+      secondary: "Tentang VARTANA",
     },
     philosophy: {
-      eyebrow: "FILOSOFI KAMI",
-      title: "Kami percaya bahwa hal baik sering kali dimulai dari sesuatu yang sederhana.",
-      text: "Dari bahan yang tumbuh dari tanah. Dari proses yang dilakukan dengan perhatian. Dan dari keinginan untuk membawa sesuatu yang baik ke dalam keseharian.",
-      cards: [
-        {
-          number: "01",
-          title: "Berangkat dari alam",
-          text: "Kami memulai dari kekayaan botanikal Indonesia dan menghargai karakter asli dari setiap bahan.",
-        },
-        {
-          number: "02",
-          title: "Dibuat dengan perhatian",
-          text: "Setiap racikan dirancang dengan pendekatan sederhana, jelas, dan penuh perhatian pada keseimbangan karakter.",
-        },
-        {
-          number: "03",
-          title: "Dibawa ke keseharian",
-          text: "Kami ingin botanikal menjadi bagian yang mudah dinikmati dalam rutinitas modern.",
-        },
-      ],
+      eyebrow: "FILOSOFI VARTANA",
+      title: "Setiap bahan memiliki cerita.",
+      text1: "Sebelum menjadi bagian dari satu cangkir, setiap bahan berasal dari tanaman, tanah, musim, dan tangan yang merawatnya.",
+      text2: "VARTANA membawa cerita itu lebih jauh melalui produk botanikal yang dibuat dengan sederhana, penuh perhatian, dan tetap dekat dengan kekayaan alam Indonesia.",
+      quote: "Rooted in Earth, Built for Growth.",
     },
     collection: {
       eyebrow: "BOTANICAL COLLECTION",
-      title: "Empat racikan. Empat karakter.",
-      text: "Setiap racikan memiliki karakter sendiri. Dibuat dari bahan pilihan dan dirancang untuk menghadirkan pengalaman yang berbeda dalam setiap cangkir.",
-      select: "PILIH RACIKAN",
-      ready: "READY STOCK",
-      coming: "COMING SOON",
+      title: "Empat racikan, empat karakter.",
+      text: "Empat racikan pertama VARTANA dibuat dari rempah pilihan Indonesia. Setiap racikan memiliki karakter rasa, aroma, dan komposisi yang berbeda.",
     },
     product: {
-      eyebrow: "VARTANA BOTANICAL WELLNESS",
-      ingredients: "KOMPOSISI",
-      description: "TENTANG RACIKAN",
-      taste: "KARAKTER RASA",
-      aroma: "AROMA",
-      difference: "KARAKTER KHAS",
-      benefit: "UNTUK DINIKMATI",
-      preparation: "CARA MENIKMATI",
-      preparationText: "Seduh 1 tea bag dengan air panas. Diamkan beberapa saat agar karakter rasa dan aroma botanikal berkembang dengan baik.",
-      regular: "HARGA NORMAL",
-      promo: "HARGA PROMO",
-      add: "TAMBAH KE KERANJANG",
-      coming: "SEGERA HADIR",
-    },
-    origin: {
-      eyebrow: "DARI TANAH, MENUJU CANGKIR",
-      title: "Kami percaya sebuah produk yang baik seharusnya tidak melupakan dari mana ia berasal.",
-      paragraphs: ["Indonesia memiliki kekayaan botanikal yang tumbuh dari tanah, iklim, dan tradisi yang berbeda-beda.", "Bagi kami, setiap bahan memiliki perjalanan panjang sebelum sampai ke tangan konsumen."],
-      journey: ["Dari tanah Indonesia.", "Dari tanaman yang tumbuh di dalamnya.", "Dari tangan orang-orang yang merawatnya.", "Kemudian diracik dengan perhatian dan dibawa ke dalam keseharian."],
-      closing: "Satu cangkir mungkin terlihat sederhana. Tetapi di baliknya ada perjalanan yang panjang.",
+      ingredients: "Rempah yang digunakan",
+      weight: "Berat per tea bag",
+      weightValue: "±9 g",
+      taste: "Profil rasa",
+      aroma: "Aroma",
+      difference: "Yang membedakan",
+      benefit: "Cocok untuk",
+      preparation: "Cara penyajian",
+      preparationText: "1 tea bag · ±9 g · 200 ml air · 90–95°C · 3–5 menit",
+      regularPrice: "Harga normal",
+      promoPrice: "Harga promo",
+      pouch: "Isi kemasan",
+      addToCart: "Tambah ke Keranjang",
+      buyNow: "Beli Sekarang",
+      selectQuantity: "Jumlah Pesanan",
     },
     purpose: {
       eyebrow: "TUJUAN KAMI",
-      title: "More Than Wellness. A Better Future for Farmers.",
-      text: "VARTANA ingin membangun nilai yang lebih panjang antara alam, bahan, produk, konsumen, dan orang-orang yang berada di balik proses pertanian.",
+      title: "Tiga hal yang kami percaya.",
+      text: "Bagi VARTANA, memilih botanikal bukan sekadar tentang bahan. Ini tentang bagaimana kita melihat apa yang kita konsumsi, dari mana sesuatu berasal, dan nilai apa yang dapat tercipta di sepanjang perjalanannya.",
       pillars: [
         {
           number: "01",
-          title: "Menghargai bahan",
-          text: "Kami percaya bahan pertanian memiliki nilai lebih ketika diproses menjadi produk yang bermakna.",
+          title: "Lebih Sadar dengan Apa yang Diminum",
+          text: "Pilihan yang baik dimulai dari mengetahui apa yang kita konsumsi. Bukan hanya melihat nama produknya, tetapi mengenal bahan yang digunakan, memahami karakter rasanya, dan tahu dari mana sebuah produk berasal. Tidak perlu istilah yang rumit. Cukup tahu apa yang ada di dalam cangkir kita.",
         },
         {
           number: "02",
-          title: "Membangun nilai",
-          text: "Kami ingin menciptakan produk yang membawa nilai lebih bagi konsumen sekaligus membuka peluang yang lebih baik bagi petani.",
+          title: "Rasa Tidak Harus Selalu Datang dari Manis",
+          text: "Alam menawarkan banyak karakter. Ada hangat dari jahe, aroma segar dari serai, rasa rempah dari kayu manis dan cengkeh, karakter khas dari kapulaga dan pala, serta warna dan aroma dari kunyit. VARTANA memberi kita cara lain untuk menikmati minuman melalui karakter bahan itu sendiri.",
         },
         {
           number: "03",
-          title: "Tumbuh bersama",
-          text: "Pertumbuhan yang baik seharusnya menciptakan manfaat yang dapat dirasakan lebih luas.",
+          title: "Kembali Mengenal Bahan",
+          text: "Satu cangkir minuman berawal dari tanaman yang tumbuh di tanah. Ada petani, tanah, musim, proses, dan pengetahuan di baliknya. Karena itu, bagi VARTANA, botanikal bukan sekadar bahan baku. Di balik setiap bahan ada cerita yang jauh lebih panjang.",
         },
       ],
-      closing: "Karena bagi kami, wellness bukan hanya tentang apa yang kita konsumsi. Tetapi juga tentang bagaimana sesuatu itu tumbuh.",
+      closing: "Kesehatan dan keseimbangan untuk keseharian. Kesempatan yang lebih baik untuk masa depan.",
     },
     way: {
-      eyebrow: "CARA KAMI MELIHAT BOTANIKAL",
-      title: "Tidak perlu dibuat rumit untuk menjadi berarti.",
-      paragraphs: ["Kami ingin rasa tetap terasa sebagai rasa.", "Aroma tetap datang dari bahan yang digunakan.", "Dan ketika seseorang membaca komposisinya, mereka bisa memahami apa yang sebenarnya ada di dalam satu cangkir."],
-      highlight: "Sederhana. Jelas. Tidak dibuat rumit.",
-      closing: "Karena bagi kami, kembali ke bahan yang sederhana bukan berarti kembali ke masa lalu.",
-      final: "Justru membawa sesuatu yang sudah baik ke dalam kehidupan modern.",
+      eyebrow: "CARA KAMI",
+      title: "Bahan yang jelas. Cerita yang terhubung.",
+      text: "Kami memilih botanikal berdasarkan karakter bahan, kualitas, dan kesesuaiannya dalam sebuah racikan. Kami mengolahnya dengan perhatian pada karakter alaminya, kemudian menyusunnya menjadi komposisi yang mudah dipahami dan mudah dinikmati.",
+      closing: "Bukan untuk membuat sesuatu yang terlihat rumit. Tetapi untuk membuat sesuatu yang terasa tepat.",
+      steps: [
+        {
+          number: "01",
+          title: "Pemilihan",
+          text: "Memilih bahan berdasarkan karakter, kualitas, dan kesesuaiannya dalam sebuah racikan.",
+        },
+        {
+          number: "02",
+          title: "Pengolahan",
+          text: "Mengolah bahan dengan perhatian pada karakter alaminya dan menjaga konsistensi setiap racikan.",
+        },
+        {
+          number: "03",
+          title: "Peracikan",
+          text: "Menyusun komposisi yang seimbang agar setiap bahan memiliki perannya.",
+        },
+        {
+          number: "04",
+          title: "Perjalanan",
+          text: "Membawa bahan dari sumbernya menuju keseharian sambil menjaga cerita di baliknya tetap terhubung.",
+        },
+      ],
+    },
+    origin: {
+      eyebrow: "CERITA VARTANA",
+      title: "Mengapa Botanikal?",
+      intro: "Ketika Cara Kita Minum Mulai Berubah",
+      paragraphs: [
+        "Kita minum setiap hari.",
+        "Kadang untuk menemani pagi. Kadang setelah makan. Kadang hanya karena ingin berhenti sejenak dari kesibukan.",
+        "Tapi semakin banyak hal yang kita konsumsi setiap hari, semakin banyak pula pertanyaan sederhana yang mulai muncul.",
+      ],
+      questions: ["Apa sebenarnya yang kita minum?", "Dari mana bahan-bahannya berasal?", "Apakah rasa harus selalu datang dari sesuatu yang terlalu manis atau terlalu kuat?"],
+      afterQuestions: [
+        "Pertanyaan-pertanyaan kecil seperti ini perlahan mengubah cara orang memilih minuman.",
+        "Bukan berarti kita harus berhenti menikmati apa yang kita suka. Bukan juga tentang mengatakan bahwa satu jenis minuman lebih baik daripada yang lain.",
+      ],
+      highlight: "Hanya saja, pilihan mulai menjadi lebih sadar.",
+      simpleTitle: "Dari Rasa yang Sederhana",
+      simpleParagraphs: ["Di tengah banyaknya pilihan minuman modern, VARTANA justru melihat sesuatu yang sudah lama ada di sekitar kita."],
+      simpleHighlight: "Tanaman. Rempah. Bahan-bahan yang sejak dahulu digunakan dalam keseharian masyarakat Indonesia.",
+      ingredientsStory: ["Jahe dengan rasa hangatnya.", "Serai dengan aroma segarnya.", "Kayu manis dengan karakter manis-rempahnya.", "Cengkeh, kapulaga, pala, kunyit, dan berbagai botanikal lainnya dengan karakter masing-masing."],
+      simpleClosing: ["Bahan-bahan ini sebenarnya tidak pernah benar-benar pergi.", "Mereka hanya perlu dihadirkan kembali dengan cara yang lebih relevan dengan kehidupan hari ini."],
+      finalLine: "Dari situlah VARTANA Botanical Wellness dimulai.",
+      notJustTitle: "Bukan Sekadar Minuman",
+      notJustParagraphs: [
+        "VARTANA tidak ingin membuat minuman yang sekadar terlihat alami.",
+        "Kami ingin setiap bahan punya alasan untuk berada di dalam sebuah racikan.",
+        "Kami ingin rasa tetap terasa sebagai rasa.",
+        "Aroma tetap datang dari bahan yang digunakan.",
+        "Dan ketika seseorang membaca komposisinya, mereka bisa memahami apa yang sebenarnya ada di dalam satu cangkir.",
+      ],
+      notJustHighlight: "Sederhana. Jelas. Tidak dibuat rumit.",
+      notJustClosing: ["Karena bagi kami, kembali ke bahan yang sederhana bukan berarti kembali ke masa lalu."],
+      notJustFinal: "Justru membawa sesuatu yang sudah baik ke dalam kehidupan modern.",
+      soilTitle: "Dari Tanah, Menuju Cangkir",
+      soilParagraphs: ["Dan mungkin, inilah alasan paling sederhana mengapa kami memilih botanikal.", "Kami percaya bahwa produk yang baik tidak harus kehilangan cerita tentang dari mana ia berasal."],
+      journey: ["Dari tanah Indonesia.", "Dari tanaman yang tumbuh di dalamnya.", "Dari tangan orang-orang yang merawatnya.", "Kemudian diracik dengan perhatian dan dibawa ke dalam keseharian."],
+      soilClosing: "Satu cangkir mungkin terlihat sederhana. Tetapi di baliknya ada perjalanan yang panjang. Dan VARTANA ingin perjalanan itu tetap terasa.",
+      futureTitle: "Dan Cerita Ini Tidak Berhenti di Cangkir",
+      futureParagraphs: [
+        "Karena pada akhirnya, VARTANA tidak hanya ingin menjual botanical drink.",
+        "Kami ingin membangun hubungan yang lebih panjang antara bahan, produk, manusia, dan tanah tempat semuanya bermula.",
+        "Ketika bahan pertanian memiliki nilai lebih tinggi, lebih banyak nilai dapat kembali kepada orang-orang di baliknya.",
+        "Ketika konsumen mengenal bahan yang mereka konsumsi, hubungan dengan produk menjadi lebih berarti.",
+      ],
+      futureClosing: "Dan ketika produk dibuat dengan cerita yang jelas, sebuah cangkir tidak lagi hanya menjadi minuman. Ia menjadi bagian kecil dari perjalanan yang lebih besar.",
+      label: "DARI TANAH, MENUJU CANGKIR",
     },
     journal: {
       eyebrow: "JURNAL VARTANA",
@@ -239,114 +333,175 @@ const content = {
       locationValue: "TANGERANG CITY, INDONESIA",
       copyright: "© 2026 VARTANA. All rights reserved.",
     },
+    cart: {
+      title: "Keranjang Belanja",
+      empty: "Keranjang belanja kamu masih kosong.",
+      total: "Total Pembayaran",
+      checkoutBtn: "Lanjut Isi Data Pembeli",
+      fillFormTitle: "Data Pembeli & Pengiriman",
+      name: "Nama Lengkap",
+      email: "Email (bukti transaksi)",
+      phone: "Nomor WhatsApp / HP",
+      province: "Provinsi",
+      city: "Kota / Kabupaten",
+      district: "Kecamatan",
+      addressDetail: "Alamat Lengkap (Jalan, No. Rumah, RT/RW, Kode Pos)",
+      notes: "Catatan Pesanan (Opsional)",
+      payNow: "Bayar Sekarang (QRIS / VA / E-Wallet)",
+      backToCart: "Kembali ke Detail Keranjang",
+      requiredError: "Mohon lengkapi Nama, Email, WhatsApp, Provinsi, Kota, Kecamatan, dan Detail Alamat.",
+    },
   },
-
   en: {
     nav: {
-      philosophy: "PHILOSOPHY",
-      collection: "COLLECTION",
-      origin: "ORIGIN",
-      purpose: "OUR PURPOSE",
-      journal: "JOURNAL",
+      philosophy: "Philosophy",
+      collection: "Collection",
+      origin: "The VARTANA Story",
+      purpose: "Our Purpose",
+      journal: "Journal",
     },
     hero: {
       eyebrow: "VARTANA · BOTANICAL WELLNESS",
-      title: "Goodness from nature,",
+      title: "The goodness of nature,",
       accent: "for everyday life.",
-      text: "We bring the richness of Indonesian botanicals into products created with attention to ingredients, process, and the stories behind them.",
-      explore: "EXPLORE COLLECTION",
-      about: "ABOUT VARTANA",
-      note: "ROOTED IN EARTH · BUILT FOR GROWTH",
+      text: "We bring Indonesia's botanical richness into thoughtfully made products, with care for the ingredients, the process, and the stories behind them.",
+      primary: "Explore Collection",
+      secondary: "About VARTANA",
     },
     philosophy: {
-      eyebrow: "OUR PHILOSOPHY",
-      title: "We believe that good things often begin with something simple.",
-      text: "From ingredients that grow from the earth. From processes carried out with care. And from a desire to bring something meaningful into everyday life.",
-      cards: [
-        {
-          number: "01",
-          title: "Rooted in nature",
-          text: "We begin with the richness of Indonesian botanicals and respect the natural character of every ingredient.",
-        },
-        {
-          number: "02",
-          title: "Made with care",
-          text: "Every blend is developed through a simple and thoughtful approach to balance and character.",
-        },
-        {
-          number: "03",
-          title: "For everyday life",
-          text: "We want botanicals to become an easy and meaningful part of modern routines.",
-        },
-      ],
+      eyebrow: "THE VARTANA PHILOSOPHY",
+      title: "Every ingredient has a story.",
+      text1: "Before becoming part of a cup, every ingredient begins with plants, soil, seasons, and the hands that care for them.",
+      text2: "VARTANA carries that story forward through botanical products made with simplicity, care, and a close connection to Indonesia's natural richness.",
+      quote: "Rooted in Earth, Built for Growth.",
     },
     collection: {
       eyebrow: "BOTANICAL COLLECTION",
-      title: "Four blends. Four characters.",
-      text: "Every blend has its own character. Created from selected ingredients and designed to offer a different experience in every cup.",
-      select: "SELECT A BLEND",
-      ready: "READY STOCK",
-      coming: "COMING SOON",
+      title: "Four blends, four distinct characters.",
+      text: "VARTANA's first four blends are crafted from selected Indonesian spices. Each one has its own taste, aroma, and botanical composition.",
     },
     product: {
-      eyebrow: "VARTANA BOTANICAL WELLNESS",
-      ingredients: "INGREDIENTS",
-      description: "ABOUT THE BLEND",
-      taste: "TASTE CHARACTER",
-      aroma: "AROMA",
-      difference: "SIGNATURE CHARACTER",
-      benefit: "ENJOY IT WHEN",
-      preparation: "HOW TO ENJOY",
-      preparationText: "Steep 1 tea bag in hot water. Allow a few moments for the botanical character and aroma to develop.",
-      regular: "REGULAR PRICE",
-      promo: "PROMO PRICE",
-      add: "ADD TO CART",
-      coming: "COMING SOON",
-    },
-    origin: {
-      eyebrow: "FROM EARTH TO CUP",
-      title: "We believe a good product should never forget where it comes from.",
-      paragraphs: ["Indonesia is home to a remarkable richness of botanicals shaped by different soils, climates, and traditions.", "For us, every ingredient carries a long journey before it reaches the hands of the consumer."],
-      journey: ["From Indonesian soil.", "From the plants that grow within it.", "From the hands of people who care for them.", "Then thoughtfully blended and brought into everyday life."],
-      closing: "A cup may look simple. But behind it is a much longer journey.",
+      ingredients: "Botanicals used",
+      weight: "Weight per tea bag",
+      weightValue: "±9 g",
+      taste: "Taste profile",
+      aroma: "Aroma",
+      difference: "What sets it apart",
+      benefit: "Best enjoyed for",
+      preparation: "How to prepare",
+      preparationText: "1 tea bag · ±9 g · 200 ml water · 90–95°C · 3–5 minutes",
+      regularPrice: "Regular price",
+      promoPrice: "Promo price",
+      pouch: "Pack size",
+      addToCart: "Add to Cart",
+      buyNow: "Buy Now",
+      selectQuantity: "Select Quantity",
     },
     purpose: {
       eyebrow: "OUR PURPOSE",
-      title: "More Than Wellness. A Better Future for Farmers.",
-      text: "VARTANA aims to build longer-lasting value between nature, ingredients, products, consumers, and the people behind agriculture.",
+      title: "Three things we believe.",
+      text: "For VARTANA, choosing botanicals is about more than ingredients. It is about how we understand what we consume, where it comes from, and the value that can be created along the way.",
       pillars: [
         {
           number: "01",
-          title: "Value the ingredients",
-          text: "We believe agricultural ingredients gain greater value when transformed into meaningful products.",
+          title: "Know What You Drink",
+          text: "A thoughtful choice begins with knowing what we consume. Not simply recognising a product name, but understanding the ingredients, their character, and where they come from. No complicated language. Just a clearer understanding of what is in your cup.",
         },
         {
           number: "02",
-          title: "Create value",
-          text: "We want to create products that bring value to consumers while opening better opportunities for farmers.",
+          title: "Flavour Does Not Have to Begin with Sweetness",
+          text: "Nature offers many different layers of flavour. Ginger brings warmth. Lemongrass brings freshness. Cinnamon and clove bring spice. Cardamom and nutmeg add their own distinctive character, while turmeric brings colour and aroma. Botanicals give us another reason to enjoy a drink: the character of the ingredients themselves.",
         },
         {
           number: "03",
-          title: "Grow together",
-          text: "Good growth should create benefits that can be felt more widely.",
+          title: "Reconnect with the Ingredients",
+          text: "A cup begins with plants growing in the soil. Behind them are farmers, seasons, processes, and knowledge. For VARTANA, botanicals are not simply raw materials. Every ingredient carries a much longer story.",
         },
       ],
-      closing: "Because for us, wellness is not only about what we consume. It is also about how something grows.",
+      closing: "Balance for everyday life. Better opportunities for the future.",
     },
     way: {
       eyebrow: "OUR APPROACH",
-      title: "It does not have to be complicated to be meaningful.",
-      paragraphs: ["We want taste to remain true to taste.", "We want aroma to come from the ingredients themselves.", "And when someone reads the composition, they should understand what is actually inside a cup."],
-      highlight: "Simple. Clear. Never unnecessarily complicated.",
-      closing: "For us, returning to simple ingredients does not mean returning to the past.",
-      final: "It means bringing something already good into modern life.",
+      title: "Clear ingredients. Connected stories.",
+      text: "We select botanicals based on their character, quality, and place within a blend. We work with attention to their natural character, then bring them together into compositions that are easy to understand and easy to enjoy.",
+      closing: "Not to make something unnecessarily complicated, but to create something that simply feels right.",
+      steps: [
+        {
+          number: "01",
+          title: "Selection",
+          text: "Choosing ingredients with attention to their character, quality, and place within each blend.",
+        },
+        {
+          number: "02",
+          title: "Craft",
+          text: "Working with attention to the natural character of each ingredient and the consistency of every blend.",
+        },
+        {
+          number: "03",
+          title: "Blending",
+          text: "Creating balanced compositions where every ingredient has its own role.",
+        },
+        {
+          number: "04",
+          title: "Journey",
+          text: "Bringing ingredients from their source into everyday life while keeping their stories connected.",
+        },
+      ],
+    },
+    origin: {
+      eyebrow: "THE VARTANA STORY",
+      title: "Why Botanicals?",
+      intro: "When the Way We Choose What to Drink Begins to Change",
+      paragraphs: [
+        "We drink every day.",
+        "Sometimes to begin the morning. Sometimes after a meal. Sometimes simply to pause in the middle of a busy day.",
+        "But as more becomes part of our everyday consumption, a few simple questions begin to emerge.",
+      ],
+      questions: ["What are we really drinking?", "Where do the ingredients come from?", "Does flavour always have to come from something overly sweet or overpowering?"],
+      afterQuestions: ["Questions like these can gradually change the way we choose what to drink.", "This does not mean giving up everything we enjoy. Nor is it about saying that one kind of drink is better than another."],
+      highlight: "It simply means becoming a little more conscious of our choices.",
+      simpleTitle: "A Return to Simple Flavours",
+      simpleParagraphs: ["Among so many modern beverage choices, VARTANA looked again at something that has been around us for a long time."],
+      simpleHighlight: "Plants. Spices. Ingredients that have long been part of everyday life in Indonesia.",
+      ingredientsStory: [
+        "Ginger, with its natural warmth.",
+        "Lemongrass, with its fresh aroma.",
+        "Cinnamon, with its warm and gently sweet spice character.",
+        "Clove, cardamom, nutmeg, turmeric, and other botanicals, each with a character of their own.",
+      ],
+      simpleClosing: ["These ingredients never truly disappeared.", "They simply needed to be brought forward in a way that feels more relevant to life today."],
+      finalLine: "That is where VARTANA Botanical Wellness begins.",
+      notJustTitle: "More Than Just a Drink",
+      notJustParagraphs: [
+        "VARTANA does not want to create a drink that simply looks natural.",
+        "We want every ingredient to have a reason for being part of a blend.",
+        "We want flavour to come from the ingredients themselves.",
+        "We want aroma to remain connected to what is actually inside.",
+        "And when someone reads the composition, we want them to understand what is in their cup.",
+      ],
+      notJustHighlight: "Simple. Clear. Nothing unnecessarily complicated.",
+      notJustClosing: ["For us, returning to simpler ingredients does not mean going backwards."],
+      notJustFinal: "It means bringing something valuable into modern everyday life.",
+      soilTitle: "From Soil to Cup",
+      soilParagraphs: ["And perhaps that is the simplest reason why we choose botanicals.", "We believe a good product should not lose the story of where it comes from."],
+      journey: ["From Indonesian soil.", "From plants that grow from it.", "From the hands that care for them.", "Then thoughtfully crafted and brought into everyday life."],
+      soilClosing: "A cup may look simple. But behind it is a much longer journey. VARTANA wants that journey to remain part of the experience.",
+      futureTitle: "And the Story Does Not End with the Cup",
+      futureParagraphs: [
+        "Ultimately, VARTANA does not only want to sell botanical drinks.",
+        "We want to build a longer connection between ingredients, products, people, and the land where everything begins.",
+        "When agricultural ingredients gain greater value, more value can potentially return to the people behind them.",
+        "When consumers understand what they consume, their relationship with a product becomes more meaningful.",
+      ],
+      futureClosing: "And when a product carries a clear story, a cup becomes more than just a drink. It becomes a small part of a much larger journey.",
+      label: "FROM SOIL TO CUP",
     },
     journal: {
       eyebrow: "VARTANA JOURNAL",
       title: "Stories from nature, agriculture, and everyday life.",
-      text: "A space for stories about Indonesian botanicals, ingredients, process, agriculture, and the VARTANA journey.",
-      button: "READ STORIES",
-      articles: ["When the Way We Choose Drinks Begins to Change", "Discovering the Richness of Indonesian Botanicals", "From Agricultural Ingredients to Meaningful Products", "Why Spices Remain So Close to Everyday Life"],
+      text: "A space for stories about Indonesian botanicals, ingredients, agriculture, and the journey of VARTANA.",
+      button: "READ STORY",
+      articles: ["When the Way We Choose What to Drink Begins to Change", "Discovering Indonesia's Botanical Richness", "From Agricultural Ingredients to Greater Value", "Why Spices Remain Close to Everyday Life"],
     },
     footer: {
       tagline: "More Than Wellness. A Better Future for Farmers.",
@@ -359,76 +514,251 @@ const content = {
       locationValue: "TANGERANG CITY, INDONESIA",
       copyright: "© 2026 VARTANA. All rights reserved.",
     },
+    cart: {
+      title: "Shopping Cart",
+      empty: "Your shopping cart is empty.",
+      total: "Total Payment",
+      checkoutBtn: "Proceed to Customer Info",
+      fillFormTitle: "Customer & Delivery Info",
+      name: "Full Name",
+      email: "Email Address",
+      phone: "Phone / WhatsApp Number",
+      province: "Province",
+      city: "City / Regency",
+      district: "District / Kecamatan",
+      addressDetail: "Full Address Detail (Street, House No, Postal Code)",
+      notes: "Order Notes (Optional)",
+      payNow: "Pay Now (QRIS / VA / E-Wallet)",
+      backToCart: "Back to Cart Details",
+      requiredError: "Please fill in Name, Email, Phone, Province, City, District, and Address Details.",
+    },
   },
 };
 
-function InfoBlock({ title, text }: { title: string; text: string }) {
+function InfoBlock({ title = "", text = "" }: { title?: string; text?: string }) {
   return (
     <div className="border-t border-[#B69245]/20 pt-5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#9E7A32]">{title}</p>
-      <p className="mt-3 text-[14px] leading-7 text-[#627067]">{text}</p>
+      <p className="mt-3 text-[14px] leading-7 text-[#627067]">{text || "—"}</p>
     </div>
   );
 }
 
 export default function Home() {
   const [language, setLanguage] = useState<Language>("id");
-  const [selectedProduct, setSelectedProduct] = useState(0);
-  const [cartQuantity, setCartQuantity] = useState(0);
+  const [selectedProduct, setSelectedProduct] = useState<number>(0);
+  const [productQuantity, setProductQuantity] = useState<number>(1);
+
+  // CART & CHECKOUT STATES
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState<"cart" | "form">("cart");
+  const [formError, setFormError] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // DATA CUSTOMER
+  const [customer, setCustomer] = useState<CustomerData>({
+    name: "",
+    email: "",
+    phone: "",
+    provinceId: "",
+    provinceName: "",
+    cityId: "",
+    cityName: "",
+    districtId: "",
+    districtName: "",
+    addressDetail: "",
+    notes: "",
+  });
+
+  // DATA WILAYAH INDONESIA DROPDOWN
+  const [provinces, setProvinces] = useState<RegionItem[]>([]);
+  const [cities, setCities] = useState<RegionItem[]>([]);
+  const [districts, setDistricts] = useState<RegionItem[]>([]);
+
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
+  const [loadingCities, setLoadingCities] = useState(false);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
 
   const t = content[language];
   const product = products[selectedProduct];
-  const signatureBlend = products[0];
 
-  const formatPrice = (price: number) =>
-    new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(price);
+  const formatRupiah = (amount: number) => {
+    return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(amount);
+  };
 
-  const addToCart = () => {
-    if (product.status !== "READY STOCK") return;
-    setCartQuantity((current) => current + 1);
+  // FETCH PROVINSI SAAT COMPONENT MOUNT
+  useEffect(() => {
+    async function fetchProvinces() {
+      setLoadingProvinces(true);
+      try {
+        const res = await fetch("https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json");
+        const data = await res.json();
+        setProvinces(data);
+      } catch (err) {
+        console.error("Gagal load provinsi:", err);
+      } finally {
+        setLoadingProvinces(false);
+      }
+    }
+    fetchProvinces();
+  }, []);
+
+  // FETCH KOTA KETIKA PROVINSI DIPILIH
+  const handleProvinceChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const provId = e.target.value;
+    const selectedProvObj = provinces.find((p) => p.id === provId);
+
+    setCustomer((prev) => ({
+      ...prev,
+      provinceId: provId,
+      provinceName: selectedProvObj ? selectedProvObj.name : "",
+      cityId: "",
+      cityName: "",
+      districtId: "",
+      districtName: "",
+    }));
+
+    setCities([]);
+    setDistricts([]);
+
+    if (!provId) return;
+
+    setLoadingCities(true);
+    try {
+      const res = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${provId}.json`);
+      const data = await res.json();
+      setCities(data);
+    } catch (err) {
+      console.error("Gagal load kota:", err);
+    } finally {
+      setLoadingCities(false);
+    }
+  };
+
+  // FETCH KECAMATAN KETIKA KOTA DIPILIH
+  const handleCityChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const cId = e.target.value;
+    const selectedCityObj = cities.find((c) => c.id === cId);
+
+    setCustomer((prev) => ({
+      ...prev,
+      cityId: cId,
+      cityName: selectedCityObj ? selectedCityObj.name : "",
+      districtId: "",
+      districtName: "",
+    }));
+
+    setDistricts([]);
+
+    if (!cId) return;
+
+    setLoadingDistricts(true);
+    try {
+      const res = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/districts/${cId}.json`);
+      const data = await res.json();
+      setDistricts(data);
+    } catch (err) {
+      console.error("Gagal load kecamatan:", err);
+    } finally {
+      setLoadingDistricts(false);
+    }
+  };
+
+  // KETIKA KECAMATAN DIPILIH
+  const handleDistrictChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const dId = e.target.value;
+    const selectedDistObj = districts.find((d) => d.id === dId);
+
+    setCustomer((prev) => ({
+      ...prev,
+      districtId: dId,
+      districtName: selectedDistObj ? selectedDistObj.name : "",
+    }));
+  };
+
+  // CART LOGIC
+  const addToCart = (item: Product, qty: number) => {
+    if (item.status !== "READY STOCK" || qty <= 0) return;
+    setCart((prev) => {
+      const existing = prev.find((ci) => ci.product.id === item.id);
+      if (existing) {
+        return prev.map((ci) => (ci.product.id === item.id ? { ...ci, quantity: ci.quantity + qty } : ci));
+      }
+      return [...prev, { product: item, quantity: qty }];
+    });
     setIsCartOpen(true);
+    setCheckoutStep("cart");
   };
 
-  const decreaseCart = () => {
-    setCartQuantity((current) => Math.max(0, current - 1));
+  const updateCartQuantity = (id: string, delta: number) => {
+    setCart((prev) =>
+      prev
+        .map((ci) => {
+          if (ci.product.id === id) {
+            const newQty = ci.quantity + delta;
+            return newQty > 0 ? { ...ci, quantity: newQty } : null;
+          }
+          return ci;
+        })
+        .filter((ci): ci is CartItem => ci !== null),
+    );
   };
 
-  const increaseCart = () => {
-    setCartQuantity((current) => current + 1);
-  };
+  const totalItemsInCart = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const totalPrice = cart.reduce((sum, item) => sum + item.product.priceValue * item.quantity, 0);
 
-  const checkoutWhatsApp = () => {
-    if (cartQuantity === 0) return;
+  // HANDLE PAYMENT GATEWAY
+  const handlePaymentGateway = async () => {
+    if (!customer.name || !customer.email || !customer.phone || !customer.provinceName || !customer.cityName || !customer.districtName || !customer.addressDetail) {
+      setFormError(t.cart.requiredError);
+      return;
+    }
+    setFormError("");
+    setIsProcessing(true);
 
-    const total = signatureBlend.price * cartQuantity;
+    const fullFormattedAddress = `${customer.addressDetail}, Kec. ${customer.districtName}, ${customer.cityName}, Prov. ${customer.provinceName}`;
 
-    const message = `Halo VARTANA 👋
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer: {
+            name: customer.name,
+            email: customer.email,
+            phone: customer.phone,
+            address: fullFormattedAddress,
+            city: customer.cityName,
+            notes: customer.notes,
+          },
+          cart,
+          totalPrice,
+        }),
+      });
 
-Saya ingin memesan:
+      const data = await res.json();
 
-🌿 ${signatureBlend.name}
-📦 ${signatureBlend.quantity}
-🔢 Jumlah: ${cartQuantity} pouch
-💰 Harga: ${formatPrice(signatureBlend.price)} / pouch
-💵 Total: ${formatPrice(total)}
-
-Mohon informasi untuk proses pemesanan. Terima kasih.`;
-
-    window.open(`https://wa.me/6285777999960?text=${encodeURIComponent(message)}`, "_blank");
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+      } else {
+        alert("Gagal membuat transaksi. Mohon periksa kembali Server Key Midtrans lu.");
+      }
+    } catch (err) {
+      alert("Terjadi kesalahan koneksi server.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
     <main className="min-h-screen bg-[#F6F2E8] text-[#16382A] selection:bg-[#B69245] selection:text-white">
       {/* NAVBAR */}
       <nav className="sticky top-0 z-50 border-b border-[#B69245]/15 bg-[#F6F2E8]/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-          <a href="#home" className="font-serif text-xl font-semibold tracking-[0.22em] text-[#16382A] transition hover:text-[#B69245]">
-            VARTANA
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          {/* LOGO BRAND DI POJOK KIRI ATAS */}
+          <a href="#home" className="flex items-center gap-3 transition hover:opacity-85">
+            <img src="/Logo Vartana.png" alt="VARTANA Botanical Wellness" className="h-10 w-auto object-contain md:h-12" />
           </a>
 
           <div className="hidden items-center gap-8 text-[11px] font-medium uppercase tracking-[0.12em] text-[#526158] md:flex">
@@ -449,21 +779,23 @@ Mohon informasi untuk proses pemesanan. Terima kasih.`;
             </a>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setIsCartOpen(true)}
-              className="relative flex h-10 w-10 items-center justify-center rounded-full border border-[#16382A]/10 bg-white/70 transition hover:border-[#B69245] hover:text-[#B69245]"
-              aria-label="Shopping cart"
+              onClick={() => {
+                setIsCartOpen(true);
+                setCheckoutStep("cart");
+              }}
+              className="relative flex items-center gap-2 rounded-full border border-[#16382A]/15 bg-white/70 px-4 py-2 text-[11px] font-semibold transition hover:border-[#B69245]"
             >
-              🛒
-              {cartQuantity > 0 && <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#B69245] text-[9px] font-bold text-white">{cartQuantity}</span>}
+              <span>🛒</span>
+              <span className="hidden sm:inline">{t.cart.title}</span>
+              {totalItemsInCart > 0 && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#16382A] text-[10px] text-[#F6F2E8]">{totalItemsInCart}</span>}
             </button>
 
             <div className="flex rounded-full border border-[#16382A]/10 bg-white/70 p-1 shadow-sm">
               <button onClick={() => setLanguage("id")} className={`rounded-full px-3 py-1.5 text-[10px] font-semibold transition ${language === "id" ? "bg-[#16382A] text-[#F6F2E8] shadow-sm" : "text-[#526158] hover:text-[#B69245]"}`}>
                 ID
               </button>
-
               <button onClick={() => setLanguage("en")} className={`rounded-full px-3 py-1.5 text-[10px] font-semibold transition ${language === "en" ? "bg-[#16382A] text-[#F6F2E8] shadow-sm" : "text-[#526158] hover:text-[#B69245]"}`}>
                 EN
               </button>
@@ -472,7 +804,201 @@ Mohon informasi untuk proses pemesanan. Terima kasih.`;
         </div>
       </nav>
 
-      {/* HERO */}
+      {/* CART DRAWER */}
+      {isCartOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm transition-opacity">
+          <div className="flex h-full w-full max-w-md flex-col bg-[#FBF9F4] p-6 shadow-2xl">
+            {/* Header Drawer */}
+            <div className="flex items-center justify-between border-b border-[#16382A]/10 pb-4">
+              <h3 className="font-serif text-2xl text-[#16382A]">{checkoutStep === "cart" ? t.cart.title : t.cart.fillFormTitle}</h3>
+              <button onClick={() => setIsCartOpen(false)} className="rounded-full bg-[#16382A]/5 px-3 py-1 text-sm font-bold text-[#16382A] hover:bg-[#16382A]/10">
+                ✕
+              </button>
+            </div>
+
+            {/* Body Drawer */}
+            <div className="flex-1 overflow-y-auto py-6">
+              {cart.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center text-center">
+                  <span className="text-4xl">🛍️</span>
+                  <p className="mt-4 text-[#627067]">{t.cart.empty}</p>
+                </div>
+              ) : checkoutStep === "cart" ? (
+                /* STEP 1: KERANJANG */
+                <div className="space-y-4">
+                  {cart.map((item) => (
+                    <div key={item.product.id} className="flex items-center justify-between rounded-xl border border-[#16382A]/10 bg-[#F6F2E8] p-4 shadow-sm">
+                      <div className="pr-2">
+                        <h4 className="font-serif text-lg font-semibold text-[#16382A]">{item.product.name}</h4>
+                        <p className="text-xs text-[#8E6E2E]">{formatRupiah(item.product.priceValue)} / pouch</p>
+                        <p className="mt-1 text-[11px] font-bold text-[#16382A]">Subtotal: {formatRupiah(item.product.priceValue * item.quantity)}</p>
+                      </div>
+
+                      <div className="flex items-center gap-2 rounded-full border border-[#16382A]/20 bg-white px-2 py-1">
+                        <button onClick={() => updateCartQuantity(item.product.id, -1)} className="flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold hover:bg-[#16382A]/10">
+                          -
+                        </button>
+                        <span className="w-5 text-center text-xs font-bold">{item.quantity}</span>
+                        <button onClick={() => updateCartQuantity(item.product.id, 1)} className="flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold hover:bg-[#16382A]/10">
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                /* STEP 2: FORM DATA DIRI & ALAMAT CUSTOM DROPDOWN */
+                <div className="space-y-4 text-xs">
+                  {formError && <p className="rounded-md bg-red-100 p-3 text-red-600 font-medium">{formError}</p>}
+
+                  <div>
+                    <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.name} *</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Budi Santoso"
+                      value={customer.name}
+                      onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
+                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.email} *</label>
+                    <input
+                      type="email"
+                      placeholder="Contoh: budi@gmail.com"
+                      value={customer.email}
+                      onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
+                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.phone} *</label>
+                    <input
+                      type="tel"
+                      placeholder="Contoh: 081234567890"
+                      value={customer.phone}
+                      onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
+                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]"
+                    />
+                  </div>
+
+                  {/* DROPDOWN PROVINSI */}
+                  <div>
+                    <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.province} *</label>
+                    <select
+                      value={customer.provinceId}
+                      onChange={handleProvinceChange}
+                      disabled={loadingProvinces}
+                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]"
+                    >
+                      <option value="">-- {loadingProvinces ? "Memuat Provinsi..." : "Pilih Provinsi"} --</option>
+                      {provinces.map((prov) => (
+                        <option key={prov.id} value={prov.id}>
+                          {prov.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* DROPDOWN KOTA / KABUPATEN */}
+                  <div>
+                    <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.city} *</label>
+                    <select
+                      value={customer.cityId}
+                      onChange={handleCityChange}
+                      disabled={!customer.provinceId || loadingCities}
+                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245] disabled:bg-gray-100 disabled:opacity-60"
+                    >
+                      <option value="">-- {!customer.provinceId ? "Pilih Provinsi Dulu" : loadingCities ? "Memuat Kota..." : "Pilih Kota / Kabupaten"} --</option>
+                      {cities.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* DROPDOWN KECAMATAN */}
+                  <div>
+                    <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.district} *</label>
+                    <select
+                      value={customer.districtId}
+                      onChange={handleDistrictChange}
+                      disabled={!customer.cityId || loadingDistricts}
+                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245] disabled:bg-gray-100 disabled:opacity-60"
+                    >
+                      <option value="">-- {!customer.cityId ? "Pilih Kota Dulu" : loadingDistricts ? "Memuat Kecamatan..." : "Pilih Kecamatan"} --</option>
+                      {districts.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* DETAIL ALAMAT */}
+                  <div>
+                    <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.addressDetail} *</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Nama Jalan, Nomor Rumah, RT/RW, Kelurahan, Kode Pos"
+                      value={customer.addressDetail}
+                      onChange={(e) => setCustomer({ ...customer, addressDetail: e.target.value })}
+                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]"
+                    />
+                  </div>
+
+                  {/* CATATAN (OPSIONAL) */}
+                  <div>
+                    <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.notes}</label>
+                    <input
+                      type="text"
+                      placeholder="Misal: Titip di satpam"
+                      value={customer.notes}
+                      onChange={(e) => setCustomer({ ...customer, notes: e.target.value })}
+                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Drawer */}
+            {cart.length > 0 && (
+              <div className="border-t border-[#16382A]/10 pt-4">
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="text-sm text-[#627067]">{t.cart.total}:</span>
+                  <span className="font-serif text-2xl font-bold text-[#16382A]">{formatRupiah(totalPrice)}</span>
+                </div>
+
+                {checkoutStep === "cart" ? (
+                  <button onClick={() => setCheckoutStep("form")} className="w-full rounded-full bg-[#16382A] py-3.5 text-xs font-semibold uppercase tracking-widest text-[#F6F2E8] transition hover:bg-[#214737]">
+                    {t.cart.checkoutBtn} →
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <button
+                      onClick={handlePaymentGateway}
+                      disabled={isProcessing}
+                      className="w-full rounded-full bg-[#B69245] py-3.5 text-xs font-semibold uppercase tracking-widest text-[#0D261C] transition hover:bg-[#c9a352] disabled:opacity-50"
+                    >
+                      {isProcessing ? "Memproses..." : `💳 ${t.cart.payNow}`}
+                    </button>
+
+                    <button onClick={() => setCheckoutStep("cart")} className="w-full text-center text-xs text-[#627067] hover:underline">
+                      {t.cart.backToCart}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* HERO SECTION */}
       <section id="home" className="relative overflow-hidden border-b border-[#B69245]/20">
         <div className="absolute inset-0 opacity-[0.08]">
           <div className="absolute -left-24 top-24 h-80 w-80 rounded-full border-[35px] border-[#B69245]" />
@@ -491,33 +1017,27 @@ Mohon informasi untuk proses pemesanan. Terima kasih.`;
 
             <p className="mt-8 max-w-xl text-[15px] leading-8 text-[#627067]">{t.hero.text}</p>
 
-            <div className="mt-10 flex flex-wrap items-center gap-5">
-              <a href="#collection" className="rounded-full bg-[#16382A] px-7 py-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#F6F2E8] transition hover:bg-[#214737]">
-                {t.hero.explore}
+            <div className="mt-10 flex flex-wrap gap-3">
+              <a href="#collection" className="rounded-full bg-[#16382A] px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#F6F2E8] transition duration-300 hover:bg-[#214737]">
+                {t.hero.primary}
               </a>
 
-              <a href="#philosophy" className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#16382A] transition hover:text-[#B69245]">
-                {t.hero.about} →
+              <a
+                href="#philosophy"
+                className="rounded-full border border-[#16382A]/15 bg-white/40 px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#16382A] transition duration-300 hover:border-[#B69245]/60 hover:text-[#9E7A32]"
+              >
+                {t.hero.secondary}
               </a>
             </div>
-
-            <p className="mt-12 text-[9px] font-semibold uppercase tracking-[0.28em] text-[#9E7A32]">{t.hero.note}</p>
           </div>
 
-          <div className="relative hidden min-h-[520px] lg:block">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="relative h-[440px] w-[440px] rounded-full border border-[#B69245]/30">
-                <div className="absolute inset-8 rounded-full border border-[#16382A]/10" />
-                <div className="absolute inset-16 rounded-full bg-[#EAE4D6]" />
-              </div>
-            </div>
+          {/* DISPLAY LOGO BULAT BARU VARTANA */}
+          <div className="relative hidden min-h-[500px] items-center justify-center lg:flex">
+            <div className="absolute inset-8 rounded-full border border-[#B69245]/35" />
+            <div className="absolute inset-20 rounded-full border border-[#16382A]/10" />
 
-            <div className="absolute bottom-8 left-0 max-w-xs border-l-2 border-[#B69245] pl-6">
-              <p className="font-serif text-3xl leading-tight text-[#16382A]">
-                Rooted in Earth.
-                <br />
-                Built for Growth.
-              </p>
+            <div className="relative z-10 flex h-80 w-80 items-center justify-center rounded-full bg-[#FBF9F4] p-2 shadow-[0_35px_90px_rgba(22,56,42,0.12)]">
+              <img src="/Logo Vartana Bulat.png" alt="Vartana Botanical Wellness Badge" className="h-full w-full object-contain rounded-full" />
             </div>
           </div>
         </div>
@@ -525,199 +1045,182 @@ Mohon informasi untuk proses pemesanan. Terima kasih.`;
 
       {/* PHILOSOPHY */}
       <section id="philosophy" className="bg-[#FBF9F4] px-6 py-28">
-        <div className="mx-auto max-w-7xl">
-          <div className="mx-auto max-w-3xl text-center">
+        <div className="mx-auto grid max-w-7xl gap-16 lg:grid-cols-[0.85fr_1.15fr]">
+          <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.philosophy.eyebrow}</p>
 
             <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl lg:text-6xl">{t.philosophy.title}</h2>
-
-            <p className="mt-8 text-[15px] leading-8 text-[#627067]">{t.philosophy.text}</p>
           </div>
 
-          <div className="mt-20 grid gap-5 md:grid-cols-3">
-            {t.philosophy.cards.map((card) => (
-              <div key={card.number} className="border border-[#16382A]/8 bg-[#F6F2E8] p-9 transition duration-500 hover:-translate-y-1 hover:border-[#B69245]/40 hover:bg-white">
-                <span className="font-serif text-5xl text-[#B69245]/80">{card.number}</span>
+          <div className="max-w-2xl">
+            <p className="text-[16px] leading-[2] text-[#526158]">{t.philosophy.text1}</p>
 
-                <h3 className="mt-9 font-serif text-[27px] leading-tight text-[#16382A]">{card.title}</h3>
+            <p className="mt-7 text-[16px] leading-[2] text-[#526158]">{t.philosophy.text2}</p>
 
-                <p className="mt-5 text-[14px] leading-8 text-[#627067]">{card.text}</p>
-              </div>
-            ))}
+            <div className="mt-12 flex items-center gap-5">
+              <div className="h-px w-16 bg-[#B69245]" />
+
+              <p className="font-serif text-xl italic text-[#8E6E2E]">{t.philosophy.quote}</p>
+            </div>
           </div>
         </div>
       </section>
 
       {/* COLLECTION */}
-      <section id="collection" className="bg-[#16382A] px-6 py-28 text-[#F6F2E8]">
-        <div className="mx-auto max-w-7xl">
-          <div className="mx-auto max-w-3xl text-center">
+      <section id="collection" className="relative overflow-hidden bg-[#0D261C] px-6 py-28 text-white">
+        <div className="relative mx-auto max-w-7xl">
+          <div className="max-w-2xl">
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#D8C28B]">{t.collection.eyebrow}</p>
 
-            <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.025em] md:text-5xl lg:text-6xl">{t.collection.title}</h2>
+            <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#F6F2E8] md:text-5xl lg:text-6xl">{t.collection.title}</h2>
 
-            <p className="mt-8 text-[15px] leading-8 text-white/60">{t.collection.text}</p>
+            <p className="mt-7 max-w-xl text-[15px] leading-8 text-white/60">{t.collection.text}</p>
           </div>
 
-          <div className="mt-20 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-16 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {products.map((item, index) => (
               <button
                 key={item.number}
-                onClick={() => setSelectedProduct(index)}
-                className={`group relative min-h-[310px] overflow-hidden border p-7 text-left transition duration-500 ${
-                  selectedProduct === index ? "border-[#D8C28B] bg-[#214737]" : "border-white/10 bg-white/[0.03] hover:border-[#D8C28B]/50 hover:bg-white/[0.06]"
-                }`}
+                onClick={() => {
+                  setSelectedProduct(index);
+                  setProductQuantity(1);
+                }}
+                className={`group rounded-2xl border p-7 text-left transition duration-300 ${selectedProduct === index ? "border-[#D8C28B]/70 bg-white/[0.08]" : "border-white/[0.08] bg-white/[0.025] hover:border-[#D8C28B]/50"}`}
               >
-                <div className="flex items-start justify-between">
-                  <span className="font-serif text-4xl text-[#D8C28B]/80">{item.number}</span>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-serif text-3xl text-[#D8C28B]">{item.number}</span>
 
-                  <span className={`rounded-full border px-3 py-1 text-[8px] font-semibold tracking-[0.16em] ${item.status === "READY STOCK" ? "border-[#D8C28B]/50 text-[#F2D993]" : "border-white/15 text-white/45"}`}>
-                    {item.status === "READY STOCK" ? t.collection.ready : t.collection.coming}
+                  <span className="rounded-full border border-[#D8C28B]/25 px-3 py-1 text-[9px] uppercase tracking-[0.14em] text-[#D8C28B]">{item.subtitle}</span>
+                </div>
+
+                <div className="mt-8">
+                  <span
+                    className={`inline-flex rounded-full border px-3 py-1 text-[8px] font-semibold uppercase tracking-[0.16em] ${
+                      item.status === "READY STOCK" ? "border-[#D8C28B]/50 bg-[#D8C28B]/10 text-[#D8C28B]" : "border-white/10 bg-white/[0.03] text-white/40"
+                    }`}
+                  >
+                    {item.status}
                   </span>
                 </div>
 
-                <div className="mt-16">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-[#D8C28B]">{item.subtitle}</p>
+                <div className="mt-6">
+                  <h3 className="font-serif text-2xl text-[#F6F2E8]">{item.name}</h3>
 
-                  <h3 className="mt-3 font-serif text-3xl leading-tight">{item.name}</h3>
-
-                  <p className="mt-5 text-[13px] leading-7 text-white/55">{item.description[language]}</p>
+                  <p className="mt-4 text-[13px] leading-7 text-white/50">{item.difference[language]}</p>
                 </div>
-
-                <div className="absolute bottom-7 left-7 text-[9px] font-semibold uppercase tracking-[0.18em] text-[#D8C28B]">{selectedProduct === index ? "VIEWING" : t.collection.select}</div>
               </button>
             ))}
           </div>
-        </div>
-      </section>
 
-      {/* PRODUCT DETAIL */}
-      <section className="bg-[#F6F2E8] px-6 py-28">
-        <div className="mx-auto max-w-7xl">
-          <div className="grid gap-16 lg:grid-cols-[0.9fr_1.1fr]">
-            <div className="flex min-h-[600px] items-center justify-center border border-[#16382A]/8 bg-[#FBF9F4] p-10">
-              {product.image ? (
-                <img src={product.image} alt={product.name} className="max-h-[520px] w-full object-contain" />
-              ) : (
-                <div className="flex h-[420px] w-full max-w-sm items-center justify-center rounded-full border border-dashed border-[#B69245]/30 text-center">
-                  <div>
-                    <span className="font-serif text-7xl text-[#B69245]/40">{product.number}</span>
-                    <p className="mt-5 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#9E7A32]">{product.status}</p>
+          {/* PRODUCT DETAIL */}
+          <div className="mt-10 overflow-hidden rounded-[2rem] border border-white/[0.06] shadow-[0_30px_80px_rgba(0,0,0,0.16)]">
+            <div className="grid lg:grid-cols-[0.85fr_1.15fr]">
+              <div className="relative min-h-[520px] overflow-hidden bg-[#102F23] p-8 md:p-12">
+                <div className="relative">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <p className="text-[10px] font-semibold tracking-[0.25em] text-[#D8C28B]">BOTANICAL SERIES · {product.number}</p>
+
+                    <span
+                      className={`rounded-full border px-3 py-1.5 text-[8px] font-semibold uppercase tracking-[0.18em] ${
+                        product.status === "READY STOCK" ? "border-[#D8C28B]/50 bg-[#D8C28B]/10 text-[#D8C28B]" : "border-white/10 bg-white/[0.04] text-white/40"
+                      }`}
+                    >
+                      {product.status}
+                    </span>
                   </div>
-                </div>
-              )}
-            </div>
 
-            <div className="lg:py-6">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.product.eyebrow}</p>
+                  <h3 className="mt-6 font-serif text-5xl leading-[1.05] tracking-[-0.025em] text-[#F6F2E8]">{product.name}</h3>
 
-              <div className="mt-5 flex flex-wrap items-end justify-between gap-6">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#9E7A32]">{product.subtitle}</p>
+                  <p className="mt-6 max-w-md text-[15px] leading-8 text-white/60">{product.description[language]}</p>
 
-                  <h2 className="mt-3 font-serif text-5xl leading-none tracking-[-0.025em] text-[#16382A] md:text-6xl">{product.name}</h2>
-                </div>
-
-                <span
-                  className={`rounded-full border px-4 py-2 text-[9px] font-semibold uppercase tracking-[0.16em] ${
-                    product.status === "READY STOCK" ? "border-[#B69245]/50 bg-[#B69245]/10 text-[#8E6E2E]" : "border-[#16382A]/10 text-[#627067]"
-                  }`}
-                >
-                  {product.status}
-                </span>
-              </div>
-
-              <p className="mt-8 max-w-2xl text-[15px] leading-8 text-[#627067]">{product.description[language]}</p>
-
-              {product.status === "READY STOCK" && (
-                <div className="mt-10 border-y border-[#B69245]/25 py-7">
-                  <div className="flex flex-wrap items-end gap-6">
-                    <div>
-                      <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-[#8E6E2E]">{t.product.regular}</p>
-                      <p className="mt-2 text-lg text-[#627067] line-through">{product.regularPrice}</p>
+                  {product.image && (
+                    <div className="mt-10 flex min-h-[340px] items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#0D261C]/40 p-6">
+                      <img src={product.image} alt={product.name} className="max-h-[390px] w-auto max-w-full object-contain" />
                     </div>
+                  )}
 
-                    <div className="border-l border-[#B69245]/30 pl-6">
-                      <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-[#8E6E2E]">{t.product.promo}</p>
-                      <p className="mt-1 font-serif text-4xl text-[#16382A]">{product.promoPrice}</p>
+                  {product.status === "READY STOCK" && product.regularPrice && product.promoPrice && (
+                    <div className="mt-8 border-t border-white/10 pt-7">
+                      <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-[#D8C28B]">{t.product.pouch}</p>
+
+                      <p className="mt-2 text-[13px] font-medium tracking-[0.12em] text-white/70">{product.quantityInfo}</p>
+
+                      <div className="mt-7 grid gap-5 sm:grid-cols-2">
+                        <div>
+                          <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/35">{t.product.regularPrice}</p>
+
+                          <p className="mt-2 font-serif text-xl text-white/35 line-through">{product.regularPrice}</p>
+                        </div>
+
+                        <div>
+                          <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[#D8C28B]">{t.product.promoPrice}</p>
+
+                          <p className="mt-1 font-serif text-4xl text-[#F6F2E8]">{product.promoPrice}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-8 space-y-4">
+                        <div className="flex items-center justify-between rounded-xl border border-white/15 bg-white/[0.03] p-3">
+                          <span className="text-xs font-medium uppercase tracking-wider text-[#D8C28B]">{t.product.selectQuantity}</span>
+
+                          <div className="flex items-center gap-3">
+                            <button onClick={() => setProductQuantity((q) => Math.max(1, q - 1))} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-lg font-bold text-white transition hover:bg-white/20">
+                              -
+                            </button>
+                            <span className="w-6 text-center font-bold text-white">{productQuantity}</span>
+                            <button onClick={() => setProductQuantity((q) => q + 1)} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-lg font-bold text-white transition hover:bg-white/20">
+                              +
+                            </button>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => addToCart(product, productQuantity)}
+                          className="flex w-full items-center justify-center gap-2 rounded-full bg-[#B69245] px-8 py-4 text-xs font-semibold uppercase tracking-widest text-[#0D261C] transition hover:bg-[#c9a352]"
+                        >
+                          🛒 {t.product.addToCart} ({productQuantity})
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-9 flex items-center gap-4">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#D8C28B]">{t.product.weight}</span>
+
+                    <span className="rounded-full border border-white/15 bg-white/[0.025] px-4 py-2 text-[11px] text-white/75">{t.product.weightValue}</span>
+                  </div>
+
+                  <div className="mt-12">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#D8C28B]">{t.product.ingredients}</p>
+
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {product.ingredients.map((ingredient) => (
+                        <span key={ingredient} className="rounded-full border border-white/15 bg-white/[0.025] px-3.5 py-2 text-[11px] text-white/70">
+                          {ingredient}
+                        </span>
+                      ))}
                     </div>
                   </div>
-
-                  <p className="mt-5 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#9E7A32]">{product.quantity}</p>
-
-                  <button onClick={addToCart} className="mt-7 rounded-full bg-[#16382A] px-8 py-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#F6F2E8] transition hover:bg-[#214737]">
-                    🛒 {t.product.add}
-                  </button>
-                </div>
-              )}
-
-              {product.status !== "READY STOCK" && (
-                <div className="mt-10 inline-flex rounded-full border border-[#B69245]/30 bg-[#B69245]/10 px-7 py-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8E6E2E]">{t.product.coming}</div>
-              )}
-
-              <div className="mt-12 grid gap-8 md:grid-cols-2">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#9E7A32]">{t.product.ingredients}</p>
-
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {product.ingredients.map((ingredient) => (
-                      <span key={ingredient} className="rounded-full border border-[#16382A]/10 bg-white px-4 py-2 text-[11px] text-[#526158]">
-                        {ingredient}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <InfoBlock title={t.product.taste} text={product.taste[language]} />
-              </div>
-
-              <div className="mt-10 grid gap-8 md:grid-cols-2">
-                <InfoBlock title={t.product.aroma} text={product.aroma[language]} />
-                <InfoBlock title={t.product.difference} text={product.difference[language]} />
-              </div>
-
-              <div className="mt-10">
-                <InfoBlock title={t.product.benefit} text={product.benefit[language]} />
-              </div>
-
-              <div className="mt-12 border-t border-[#B69245]/20 pt-8">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#9E7A32]">{t.product.preparation}</p>
-
-                <p className="mt-3 text-[14px] leading-7 text-[#627067]">{t.product.preparationText}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ORIGIN */}
-      <section id="origin" className="bg-[#EDE8DC] px-6 py-28">
-        <div className="mx-auto max-w-7xl">
-          <div className="grid gap-16 lg:grid-cols-[0.9fr_1.1fr]">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.origin.eyebrow}</p>
-
-              <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl">{t.origin.title}</h2>
-            </div>
-
-            <div>
-              <div className="space-y-6 text-[15px] leading-8 text-[#627067]">
-                {t.origin.paragraphs.map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
-                ))}
-              </div>
-
-              <div className="mt-12 border-l-2 border-[#B69245] pl-7">
-                <div className="space-y-4">
-                  {t.origin.journey.map((item) => (
-                    <p key={item} className="font-serif text-2xl leading-tight text-[#16382A]">
-                      {item}
-                    </p>
-                  ))}
                 </div>
               </div>
 
-              <p className="mt-12 max-w-2xl font-serif text-2xl leading-10 text-[#8E6E2E]">{t.origin.closing}</p>
+              <div className="bg-[#FBF9F4] p-8 text-[#16382A] md:p-12">
+                <div className="grid gap-x-10 gap-y-10 sm:grid-cols-2">
+                  <InfoBlock title={t.product.taste} text={product.taste[language]} />
+
+                  <InfoBlock title={t.product.aroma} text={product.aroma[language]} />
+
+                  <InfoBlock title={t.product.difference} text={product.difference[language]} />
+
+                  <InfoBlock title={t.product.benefit} text={product.benefit[language]} />
+                </div>
+
+                <div className="mt-12 border-t border-[#B69245]/20 pt-8">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#9E7A32]">{t.product.preparation}</p>
+
+                  <p className="mt-3 text-[14px] leading-7 text-[#627067]">{t.product.preparationText}</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -754,63 +1257,214 @@ Mohon informasi untuk proses pemesanan. Terima kasih.`;
 
       {/* OUR APPROACH */}
       <section className="bg-[#F6F2E8] px-6 py-28">
-        <div className="mx-auto max-w-5xl">
-          <div className="text-center">
+        <div className="mx-auto max-w-7xl">
+          <div className="mx-auto max-w-3xl text-center">
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.way.eyebrow}</p>
 
-            <h2 className="mx-auto mt-5 max-w-4xl font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl lg:text-6xl">{t.way.title}</h2>
+            <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl lg:text-6xl">{t.way.title}</h2>
+
+            <p className="mt-8 text-[15px] leading-8 text-[#627067]">{t.way.text}</p>
+
+            <p className="mt-7 font-serif text-xl italic leading-9 text-[#8E6E2E]">{t.way.closing}</p>
           </div>
 
-          <div className="mx-auto mt-16 max-w-3xl space-y-7 text-[16px] leading-9 text-[#627067]">
-            {t.way.paragraphs.map((paragraph) => (
+          <div className="mt-20 grid gap-10 md:grid-cols-2 lg:grid-cols-4">
+            {t.way.steps.map((step) => (
+              <div key={step.number} className="border-t border-[#B69245]/35 pt-7">
+                <span className="font-serif text-4xl text-[#B69245]">{step.number}</span>
+
+                <h3 className="mt-6 font-serif text-2xl text-[#16382A]">{step.title}</h3>
+
+                <p className="mt-4 text-[14px] leading-8 text-[#627067]">{step.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* VARTANA STORY */}
+      <section id="origin" className="bg-[#FBF9F4] px-6 py-28">
+        <div className="mx-auto max-w-5xl">
+          <div className="text-center">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.origin.eyebrow}</p>
+
+            <h2 className="mx-auto mt-5 max-w-3xl font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-6xl">{t.origin.title}</h2>
+
+            <p className="mt-6 font-serif text-xl italic text-[#8E6E2E]">{t.origin.intro}</p>
+
+            <div className="mx-auto mt-10 h-px w-20 bg-[#B69245]" />
+          </div>
+
+          <div className="mx-auto mt-16 max-w-3xl space-y-7 text-[16px] leading-[2] text-[#526158]">
+            {t.origin.paragraphs.map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
 
-          <div className="mx-auto mt-16 max-w-3xl border-y border-[#B69245]/25 py-10 text-center">
-            <p className="font-serif text-3xl leading-tight text-[#8E6E2E]">{t.way.highlight}</p>
+          <div className="mx-auto mt-16 max-w-3xl border-y border-[#B69245]/20 py-12">
+            <div className="space-y-5 text-center font-serif text-2xl leading-10 text-[#16382A] md:text-3xl">
+              {t.origin.questions.map((question) => (
+                <p key={question}>{question}</p>
+              ))}
+            </div>
           </div>
 
-          <div className="mx-auto mt-16 max-w-3xl space-y-6 text-center">
-            <p className="text-[15px] leading-8 text-[#627067]">{t.way.closing}</p>
+          <div className="mx-auto mt-12 max-w-3xl space-y-7 text-[16px] leading-[2] text-[#526158]">
+            {t.origin.afterQuestions.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
+          </div>
 
-            <p className="font-serif text-2xl leading-10 text-[#16382A]">{t.way.final}</p>
+          <div className="mx-auto mt-12 max-w-3xl border-l-[3px] border-[#B69245] py-2 pl-7">
+            <p className="font-serif text-2xl leading-10 text-[#8E6E2E] md:text-3xl">{t.origin.highlight}</p>
+          </div>
+
+          {/* SIMPLE FLAVOURS */}
+          <div className="mt-28 border-t border-[#16382A]/10 pt-20">
+            <div className="mx-auto max-w-3xl">
+              <p className="text-[10px] font-semibold tracking-[0.3em] text-[#B69245]">01</p>
+
+              <h3 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-[#16382A] md:text-5xl">{t.origin.simpleTitle}</h3>
+
+              <div className="mt-9 space-y-7 text-[16px] leading-[2] text-[#526158]">
+                {t.origin.simpleParagraphs.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+
+                <p className="font-serif text-2xl leading-10 text-[#183C2B] md:text-3xl">{t.origin.simpleHighlight}</p>
+              </div>
+
+              <div className="mt-12 grid gap-4 md:grid-cols-2">
+                {t.origin.ingredientsStory.map((item) => (
+                  <div key={item} className="border border-[#16382A]/8 bg-[#F6F2E8] px-7 py-6 text-[14px] leading-7 text-[#627067]">
+                    {item}
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-12 space-y-7 text-[16px] leading-[2] text-[#526158]">
+                {t.origin.simpleClosing.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+              </div>
+
+              <p className="mt-10 font-serif text-2xl italic leading-10 text-[#8E6E2E]">{t.origin.finalLine}</p>
+            </div>
+          </div>
+
+          {/* NOT JUST A DRINK */}
+          <div className="relative mt-28 overflow-hidden bg-[#0D261C] px-8 py-20 text-white md:px-16">
+            <div className="relative mx-auto max-w-3xl">
+              <p className="text-[10px] font-semibold tracking-[0.3em] text-[#D8C28B]">02</p>
+
+              <h3 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-white md:text-5xl">{t.origin.notJustTitle}</h3>
+
+              <div className="mt-10 space-y-7 text-[15px] leading-8 text-white/60">
+                {t.origin.notJustParagraphs.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+              </div>
+
+              <div className="mt-14 border-y border-[#D8C28B]/20 py-9">
+                <p className="font-serif text-3xl leading-10 text-[#D8C28B]">{t.origin.notJustHighlight}</p>
+              </div>
+
+              <div className="mt-10 space-y-7 text-[15px] leading-8 text-white/60">
+                {t.origin.notJustClosing.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+              </div>
+
+              <p className="mt-9 font-serif text-2xl leading-10 text-white md:text-3xl">{t.origin.notJustFinal}</p>
+            </div>
+          </div>
+
+          {/* FROM SOIL TO CUP */}
+          <div className="mt-28">
+            <div className="mx-auto max-w-3xl text-center">
+              <p className="text-[10px] font-semibold tracking-[0.3em] text-[#B69245]">03</p>
+
+              <h3 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-[#16382A] md:text-5xl">{t.origin.soilTitle}</h3>
+
+              <div className="mt-9 space-y-7 text-[16px] leading-[2] text-[#526158]">
+                {t.origin.soilParagraphs.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+              </div>
+
+              <div className="mt-14 grid gap-px overflow-hidden border border-[#B69245]/20 bg-[#B69245]/20 md:grid-cols-2">
+                {t.origin.journey.map((item, index) => (
+                  <div key={item} className="bg-[#FBF9F4] px-8 py-9 text-left">
+                    <span className="font-serif text-3xl text-[#B69245]">0{index + 1}</span>
+
+                    <p className="mt-5 font-serif text-xl leading-8 text-[#16382A]">{item}</p>
+                  </div>
+                ))}
+              </div>
+
+              <p className="mt-14 text-[16px] leading-[2] text-[#526158]">{t.origin.soilClosing}</p>
+            </div>
+          </div>
+
+          {/* FUTURE */}
+          <div className="mt-28 border-t border-[#16382A]/10 pt-20">
+            <div className="mx-auto max-w-3xl">
+              <p className="text-[10px] font-semibold tracking-[0.3em] text-[#B69245]">04</p>
+
+              <h3 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-[#16382A] md:text-5xl">{t.origin.futureTitle}</h3>
+
+              <div className="mt-10 space-y-7 text-[16px] leading-[2] text-[#526158]">
+                {t.origin.futureParagraphs.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+              </div>
+
+              <div className="mt-14 border-l-[3px] border-[#B69245] bg-[#F6F2E8] py-7 pl-8 pr-8">
+                <p className="font-serif text-2xl leading-10 text-[#16382A] md:text-3xl">{t.origin.futureClosing}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-20 text-center">
+            <div className="inline-flex rounded-full border border-[#B69245]/45 bg-[#F6F2E8] px-7 py-3 text-[10px] font-semibold tracking-[0.2em] text-[#8E6E2E]">{t.origin.label}</div>
           </div>
         </div>
       </section>
 
       {/* JOURNAL */}
-      <section id="journal" className="bg-[#16382A] px-6 py-28 text-[#F6F2E8]">
-        <div className="mx-auto max-w-7xl">
-          <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#D8C28B]">{t.journal.eyebrow}</p>
+      <section id="journal" className="bg-[#EEE8DB] px-6 py-28">
+        <div className="mx-auto grid max-w-7xl gap-16 lg:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.journal.eyebrow}</p>
 
-              <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.025em] md:text-5xl">{t.journal.title}</h2>
+            <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl">{t.journal.title}</h2>
 
-              <p className="mt-8 max-w-md text-[15px] leading-8 text-white/60">{t.journal.text}</p>
+            <p className="mt-7 text-[15px] leading-8 text-[#627067]">{t.journal.text}</p>
 
-              <button className="mt-10 rounded-full border border-[#D8C28B]/40 px-7 py-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#D8C28B] transition hover:bg-[#D8C28B] hover:text-[#16382A]">{t.journal.button}</button>
-            </div>
+            <button className="mt-9 rounded-full border border-[#16382A]/20 bg-[#FBF9F4]/60 px-7 py-3.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#16382A] transition hover:border-[#B69245] hover:text-[#9E7A32]">
+              {t.journal.button}
+            </button>
+          </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              {t.journal.articles.map((article, index) => (
-                <article key={article} className="group min-h-[220px] border border-white/10 bg-white/[0.03] p-7 transition hover:border-[#D8C28B]/40 hover:bg-white/[0.06]">
-                  <p className="text-[10px] font-semibold tracking-[0.2em] text-[#D8C28B]">0{index + 1}</p>
+          <div>
+            {t.journal.articles.map((article, index) => (
+              <div key={article} className="group flex items-center justify-between border-b border-[#16382A]/10 py-7">
+                <div className="flex items-center gap-6">
+                  <span className="font-serif text-2xl text-[#B69245]/80">0{index + 1}</span>
 
-                  <h3 className="mt-10 font-serif text-2xl leading-tight text-white/90">{article}</h3>
+                  <h3 className="font-serif text-xl leading-7 text-[#16382A]">{article}</h3>
+                </div>
 
-                  <p className="mt-7 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#D8C28B]">READ STORY →</p>
-                </article>
-              ))}
-            </div>
+                <span className="text-lg text-[#B69245]">↗</span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* FOOTER */}
-      <footer className="bg-[#102A20] px-6 py-20 text-[#F6F2E8]">
-        <div className="mx-auto grid max-w-7xl gap-16 lg:grid-cols-[1fr_0.9fr]">
+      <footer className="bg-[#091D15] px-6 py-20 text-white">
+        <div className="mx-auto grid max-w-7xl gap-16 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
             <p className="font-serif text-4xl tracking-[0.2em] text-[#F6F2E8]">VARTANA</p>
 
@@ -872,103 +1526,6 @@ Mohon informasi untuk proses pemesanan. Terima kasih.`;
           <p className="text-[9px] uppercase tracking-[0.22em] text-white/20">ROOTED IN EARTH · BUILT FOR GROWTH</p>
         </div>
       </footer>
-
-      {/* CART DRAWER */}
-      {isCartOpen && (
-        <div className="fixed inset-0 z-[100] flex justify-end bg-black/40 backdrop-blur-sm">
-          <div className="flex h-full w-full max-w-md flex-col bg-[#F6F2E8] shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#16382A]/10 px-7 py-6">
-              <div>
-                <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-[#B69245]">VARTANA SHOP</p>
-
-                <h3 className="mt-2 font-serif text-3xl text-[#16382A]">Your Cart</h3>
-              </div>
-
-              <button onClick={() => setIsCartOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-full border border-[#16382A]/10 text-xl text-[#16382A] transition hover:border-[#B69245]">
-                ×
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-7 py-8">
-              {cartQuantity === 0 ? (
-                <div className="flex min-h-[400px] flex-col items-center justify-center text-center">
-                  <div className="text-6xl">🛒</div>
-
-                  <h4 className="mt-6 font-serif text-2xl text-[#16382A]">Your cart is empty</h4>
-
-                  <p className="mt-3 max-w-xs text-sm leading-6 text-[#627067]">Belum ada produk di keranjang kamu.</p>
-
-                  <button
-                    onClick={() => {
-                      setIsCartOpen(false);
-                      document.getElementById("collection")?.scrollIntoView({ behavior: "smooth" });
-                    }}
-                    className="mt-7 rounded-full bg-[#16382A] px-7 py-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#F6F2E8]"
-                  >
-                    Explore Collection
-                  </button>
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-[#16382A]/10 bg-white p-5">
-                  <div className="flex gap-4">
-                    <div className="flex h-28 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F6F2E8]">
-                      <img src="/signature-blend-vartana.png" alt="Signature Blend" className="h-full w-full object-contain p-2" />
-                    </div>
-
-                    <div className="flex flex-1 flex-col">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-[8px] font-semibold uppercase tracking-[0.2em] text-[#B69245]">BLEND No. 01</p>
-
-                          <h4 className="mt-1 font-serif text-xl text-[#16382A]">Signature Blend</h4>
-
-                          <p className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[#627067]">1 POUCH · 10 TEA BAGS</p>
-                        </div>
-
-                        <button onClick={() => setCartQuantity(0)} className="text-[9px] font-semibold text-[#9E7A32]">
-                          REMOVE
-                        </button>
-                      </div>
-
-                      <div className="mt-auto flex items-end justify-between pt-5">
-                        <p className="font-semibold text-[#16382A]">Rp71.000</p>
-
-                        <div className="flex items-center rounded-full border border-[#16382A]/10">
-                          <button onClick={decreaseCart} className="flex h-8 w-8 items-center justify-center text-[#16382A]">
-                            −
-                          </button>
-
-                          <span className="min-w-8 text-center text-xs font-semibold">{cartQuantity}</span>
-
-                          <button onClick={increaseCart} className="flex h-8 w-8 items-center justify-center text-[#16382A]">
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {cartQuantity > 0 && (
-              <div className="border-t border-[#16382A]/10 bg-white px-7 py-6">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#627067]">Subtotal</span>
-
-                  <span className="font-serif text-2xl text-[#16382A]">{formatPrice(signatureBlend.price * cartQuantity)}</span>
-                </div>
-
-                <p className="mt-3 text-[10px] leading-5 text-[#627067]">Harga belum termasuk biaya pengiriman.</p>
-
-                <button onClick={checkoutWhatsApp} className="mt-6 w-full rounded-full bg-[#16382A] px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#F6F2E8] transition hover:bg-[#214737]">
-                  Checkout via WhatsApp
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </main>
   );
 }

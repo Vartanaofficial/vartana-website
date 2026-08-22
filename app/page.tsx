@@ -58,6 +58,18 @@ type RegionItem = {
   name: string;
 };
 
+type SpiceDetail = {
+  name: string;
+  latinName: string;
+  activeCompounds: string;
+  benefits: string;
+  relieves: string;
+  journalTitle: string;
+  journalDetail: string;
+  journalLink: string;
+  pmid: string;
+};
+
 // DATA REKENING VARTANA RESMI
 const BANK_DETAILS = {
   bankName: "BCA (Bank Central Asia)",
@@ -66,6 +78,120 @@ const BANK_DETAILS = {
   whatsappNumber: "6285777999960",
 };
 
+// DATA 10 REMPAH & JURNAL ILMIAH
+const SPICES_DATA: SpiceDetail[] = [
+  {
+    name: "Jahe",
+    latinName: "Zingiber officinale",
+    activeCompounds: "6-Gingerol, 6-Shogaol, Zingerone, Paradol, Seskuiterpen",
+    benefits: "Menghangatkan pencernaan, meredakan mual/spasme lambung, memperlancar sirkulasi darah, dan menghambat enzim pro-inflamasi (COX-2 & 5-LOX).",
+    relieves: "Asam lambung (GERD), peradangan sendi (Osteoarthritis & RA), migrain, dan mual (morning sickness).",
+    journalTitle: "Zingiber Officinale Roscoe: The Antiarthritic Potential of a Popular Spice",
+    journalDetail: "Menjelaskan bahwa ekstrak oleoresin jahe (6-gingerol & 6-shogaol) memiliki efek anti-inflamasi dan analgesik signifikan untuk meredakan nyeri sendi.",
+    journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC10933899/",
+    pmid: "38473062",
+  },
+  {
+    name: "Serai",
+    latinName: "Cymbopogon citratus",
+    activeCompounds: "Citral (Geranial & Neral), Geraniol, Myrcene, Asam Klorogenat",
+    benefits: "Menenangkan sistem saraf pusat (anksiolitik), efek relaksasi aromatik, membantu detoksifikasi ginjal (diuretik ringan).",
+    relieves: "Kecemasan (Anxiety), insomnia/gangguan tidur, tekanan darah tinggi ringan (Hipertensi).",
+    journalTitle: "Scientific Basis for the Therapeutic Use of Cymbopogon citratus (Lemongrass)",
+    journalDetail: "Mengulas sifat farmakologis serai yang kaya citral sebagai penenang saraf alami, antioksidan, dan pelindung mukosa lambung.",
+    journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3217679/",
+    pmid: "22102830",
+  },
+  {
+    name: "Kayu Manis",
+    latinName: "Cinnamomum verum",
+    activeCompounds: "Cinnamaldehyde, Asam Sinamat, Eugenol, Polifenol Oligomerik",
+    benefits: "Meningkatkan sensitivitas reseptor insulin, menghambat enzim α-glucosidase untuk mengontrol gula darah.",
+    relieves: "Resistensi insulin / Diabetes Tipe 2, lonjakan kadar gula darah pasca makan, hiperkolesterolemia (LDL tinggi).",
+    journalTitle: "Are cinnamon derivatives effective and safe for diabetes?",
+    journalDetail: "Menunjukkan aktivitas ekstrak kayu manis dalam menghambat enzim pencernaan karbohidrat untuk menstabilkan glukosa darah.",
+    journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC11913506/",
+    pmid: "38291023",
+  },
+  {
+    name: "Cengkeh",
+    latinName: "Syzygium aromaticum",
+    activeCompounds: "Eugenol (80–90%), β-Caryophyllene, Tanin",
+    benefits: "Agen analgesik (penghilang rasa sakit) alami, antimikroba spektrum luas, serta penguat imun berbasis antioksidan super tinggi.",
+    relieves: "Sakit tenggorokan, batuk, peradangan gusi/mulut, serta infeksi bakteri pencernaan.",
+    journalTitle: "Syzygium aromaticum L. (Myrtaceae): Traditional Uses, Bioactive Chemical Constituents, and Pharmacological Activities",
+    journalDetail: "Membuktikan bahwa konsentrasi tinggi eugenol pada cengkeh bertindak sebagai anti-bakteri, analgesik, dan pereda peradangan.",
+    journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC7072209/",
+    pmid: "32019961",
+  },
+  {
+    name: "Kunyit",
+    latinName: "Curcuma longa",
+    activeCompounds: "Kurkuminoid (Curcumin, Desmethoxycurcumin), Turmeron",
+    benefits: "Anti-inflamasi dan antioksidan seluler alami terkuat, melindungi fungsi hati (hepatoprotektif), serta modulasi respon imun.",
+    relieves: "Peradangan usus/pencernaan, nyeri sendi kronis, gangguan fungsi hati, serta penyakit peradangan kulit.",
+    journalTitle: "Curcumin: A Review of Its Effects on Human Health",
+    journalDetail: "Tinjauan medis menyeluruh mengenai kerja kurkumin dalam meregulasi sitokin inflamasi dan menangkal radikal bebas.",
+    journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC5664031/",
+    pmid: "29065496",
+  },
+  {
+    name: "Kapulaga",
+    latinName: "Elettaria cardamomum",
+    activeCompounds: "1,8-Cineole (Eucalyptol), Terpinyl Acetate, Limonene, Kalium",
+    benefits: "Meredakan kekakuan otot saluran cerna (antispasmodic), menyegarkan napas, serta membantu mengontrol tekanan darah.",
+    relieves: "Perut kembung, begah, kram usus, serta ketidakstabilan tekanan darah ringan.",
+    journalTitle: "Cardamom powder supplementation reduces blood pressure, increases fibrinolysis, and improves antioxidant status",
+    journalDetail: "Studi klinis yang menunjukkan konsumsi kapulaga membantu merelaksasikan pembuluh darah dan mengontrol tekanan darah.",
+    journalLink: "https://pubmed.ncbi.nlm.nih.gov/20361714/",
+    pmid: "20361714",
+  },
+  {
+    name: "Pala",
+    latinName: "Myristica fragrans",
+    activeCompounds: "Myristicin, Elemicin, Safrole, Sabinene, Linalool",
+    benefits: "Memberikan efek relaksasi pada sistem saraf pusat (sedatif alami), menenangkan pikiran, serta membantu menginduksi tidur nyenyak.",
+    relieves: "Insomnia, stres berkepanjangan, gelisah, serta kram perut akibat penumpukan gas.",
+    journalTitle: "Anxiolytic and Sedative Properties of Myristica fragrans",
+    journalDetail: "Menunjukkan bagaimana kandungan myristicin dalam pala berinteraksi dengan sistem saraf untuk mengurangi kecemasan.",
+    journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3249923/",
+    pmid: "21689721",
+  },
+  {
+    name: "Lada Putih & Lada Hitam",
+    latinName: "Piper nigrum",
+    activeCompounds: "Piperine, Piperidine, Piperettine, Chavicine",
+    benefits: "Bioavailability Enhancer (meningkatkan penyerapan nutrisi rempah lain—terutama kurkumin—hingga 2000% di dalam usus).",
+    relieves: "Penyerapan nutrisi yang buruk, lambatnya sistem metabolisme, serta penumpukan gas dalam lambung.",
+    journalTitle: "Influence of piperine on the pharmacokinetics of curcumin in animals and human volunteers",
+    journalDetail: "Studi membuktikan bahwa penambahan piperine dari lada meningkatkan bioavailabilitas kurkumin hingga 2000%.",
+    journalLink: "https://pubmed.ncbi.nlm.nih.gov/9619120/",
+    pmid: "9619120",
+  },
+  {
+    name: "Adas",
+    latinName: "Foeniculum vulgare",
+    activeCompounds: "Trans-Anethole, Fenchone, Estragole, Asam Anisat",
+    benefits: "Menenangkan otot polos usus (antispasmodic), melancarkan dahak pada organ pernapasan (expectorant).",
+    relieves: "Sesak napas ringan, batuk berdahak, kram perut / Irritable Bowel Syndrome (IBS).",
+    journalTitle: "Foeniculum vulgare Mill: A Review of Its Botany, Phytochemistry, Pharmacology",
+    journalDetail: "Mengulas sifat anethole dan fenchone dalam adas yang terbukti secara klinis melancarkan dahak dan merelaksasikan otot saluran cerna.",
+    journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC4137549/",
+    pmid: "25162032",
+  },
+  {
+    name: "Bunga Lawang / Pekak",
+    latinName: "Illicium verum",
+    activeCompounds: "Asam Shikimat (Shikimic Acid), Trans-Anethole, Limonene, Quercetin",
+    benefits: "Bahan alami utama penghasil asam shikimat (senyawa antivirus medis), anti-bakteri, serta meredakan kejang usus.",
+    relieves: "Gejala flu, infeksi saluran pernapasan, batuk kering/berdahak, perut kembung, serta kram pencernaan.",
+    journalTitle: "Illicium verum: A review on its botany, traditional use, phytochemistry and pharmacology",
+    journalDetail: "Tinjauan komprehensif yang membuktikan kandungan shikimic acid dan trans-anethole pada Bunga Lawang sebagai agen antivirus alami.",
+    journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC7120610/",
+    pmid: "22155388",
+  },
+];
+
 const products: Product[] = [
   {
     id: "vartana-01",
@@ -73,13 +199,13 @@ const products: Product[] = [
     name: "Signature Blend",
     subtitle: "BLEND No. 01",
     status: "READY STOCK",
-    image: "/signature-blend-vartana.png",
+    image: "/signature-blend-vartana1.jpeg",
     priceValue: 72800,
     regularPrice: "Rp97.000",
     promoPrice: "Rp72.800",
     discountPercentage: "25% OFF",
     quantityInfo: "1 POUCH · 10 TEA BAGS",
-    ingredients: ["Jahe", "Serai", "Kayu Manis", "Cengkeh", "Kapulaga", "Adas", "Lada Putih", "Lada Hitam", "Pala"],
+    ingredients: ["Jahe", "Serai", "Kayu Manis", "Cengkeh", "Kapulaga", "Adas", "Lada Putih", "Lada Hitam", "Pala", "Bunga Lawang"],
     description: {
       id: "Racikan khas VARTANA dengan komposisi rempah paling lengkap. Karakternya hangat, kompleks, aromatik, dan seimbang.",
       en: "VARTANA's most complete signature blend. Warm, layered, aromatic, and balanced.",
@@ -126,7 +252,7 @@ const products: Product[] = [
       en: "The freshest character among the four blends, with ginger and lemongrass taking a more prominent role.",
     },
     benefit: {
-      id: "Cocok dinikmati pada pagi atau siang hari saat ingin minuman dengan aroma segar dan rasa rempah yang ringan untuk membuat hari lebih bersemangat.",
+      id: "Cocok dinikmati pada pagi atau siang hari saat ingin minuman dengan aroma segar dan rasa rempah yang ringan.",
       en: "A natural fit for mornings or daytime moments when you want freshness with a light warming spice character.",
     },
   },
@@ -139,11 +265,11 @@ const products: Product[] = [
     priceValue: 0,
     ingredients: ["Kunyit", "Jahe", "Serai", "Kayu Manis", "Cengkeh", "Kapulaga", "Lada Putih", "Lada Hitam", "Pala"],
     description: {
-      id: "Racikan dengan kunyit sebagai karakter utama yang dominan, dipadukan dengan jahe dan rempah untuk menghasilkan rasa yang hangat dan kaya.",
+      id: "Racikan dengan kunyit sebagai karakter utama yang dominan, dipadukan dengan jahe dan rempah.",
       en: "A turmeric-led blend supported by ginger and selected spices for a warm and fuller character.",
     },
     taste: {
-      id: "Hangat, earthy, dan kaya rempah dengan kunyit sebagai karakter utama yang dominan.",
+      id: "Hangat, earthy, dan kaya rempah dengan kunyit sebagai karakter utama.",
       en: "Warm, earthy, and richly spiced, with turmeric taking the lead.",
     },
     aroma: {
@@ -151,8 +277,8 @@ const products: Product[] = [
       en: "Turmeric and ginger form the aromatic base, supported by cinnamon, clove, cardamom, and nutmeg.",
     },
     difference: {
-      id: "Satu-satunya racikan dengan kunyit sebagai karakter utama sehingga memiliki profil rasa dan warna yang paling khas.",
-      en: "The only blend built around turmeric as its leading character, giving it the most distinctive colour and flavour profile.",
+      id: "Satu-satunya racikan dengan kunyit sebagai karakter utama dengan warna dan aroma khas.",
+      en: "The only blend built around turmeric as its leading character.",
     },
     benefit: {
       id: "Untuk yang menikmati karakter kunyit dengan perpaduan rempah yang tetap seimbang.",
@@ -184,7 +310,7 @@ const products: Product[] = [
       en: "A warm and balanced blend without turmeric taking the lead.",
     },
     benefit: {
-      id: "Cocok dinikmati pada sore atau malam hari saat ingin minuman rempah yang hangat dan nyaman.",
+      id: "Cocok dinikmati pada sore atau malam hari saat ingin minuman rempah yang hangat.",
       en: "A natural fit for afternoon or evening moments when you want a warm, comforting spice drink.",
     },
   },
@@ -195,6 +321,7 @@ const content = {
     nav: {
       philosophy: "Filosofi",
       collection: "Koleksi",
+      science: "Sains Rempah",
       origin: "Cerita VARTANA",
       purpose: "Tujuan Kami",
       journal: "Jurnal",
@@ -244,17 +371,17 @@ const content = {
         {
           number: "01",
           title: "Lebih Sadar dengan Apa yang Diminum",
-          text: "Pilihan yang baik dimulai dari mengetahui apa yang kita konsumsi. Bukan hanya melihat nama produknya, tetapi mengenal bahan yang digunakan, memahami karakter rasanya, dan tahu dari mana sebuah produk berasal. Tidak perlu istilah yang rumit. Cukup tahu apa yang ada di dalam cangkir kita.",
+          text: "Pilihan yang baik dimulai dari mengetahui apa yang kita konsumsi. Bukan hanya melihat nama produknya, tetapi mengenal bahan yang digunakan, memahami karakter rasanya, dan tahu dari mana sebuah produk berasal.",
         },
         {
           number: "02",
           title: "Rasa Tidak Harus Selalu Datang dari Manis",
-          text: "Alam menawarkan banyak karakter. Ada hangat dari jahe, aroma segar dari serai, rasa rempah dari kayu manis dan cengkeh, karakter khas dari kapulaga dan pala, serta warna dan aroma dari kunyit. VARTANA memberi kita cara lain untuk menikmati minuman melalui karakter bahan itu sendiri.",
+          text: "Alam menawarkan banyak karakter. Ada hangat dari jahe, aroma segar dari serai, rasa rempah dari kayu manis dan cengkeh, serta warna dan aroma dari kunyit. VARTANA memberi cara lain untuk menikmati minuman.",
         },
         {
           number: "03",
           title: "Kembali Mengenal Bahan",
-          text: "Satu cangkir minuman berawal dari tanaman yang tumbuh di tanah. Ada petani, tanah, musim, proses, dan pengetahuan di baliknya. Karena itu, bagi VARTANA, botanikal bukan sekadar bahan baku. Di balik setiap bahan ada cerita yang jauh lebih panjang.",
+          text: "Satu cangkir minuman berawal dari tanaman yang tumbuh di tanah. Ada petani, tanah, musim, proses, dan pengetahuan di baliknya. Setiap bahan membawa cerita yang jauh lebih panjang.",
         },
       ],
       closing: "Kesehatan dan keseimbangan untuk keseharian. Kesempatan yang lebih baik untuk masa depan.",
@@ -262,7 +389,7 @@ const content = {
     way: {
       eyebrow: "CARA KAMI",
       title: "Bahan yang jelas. Cerita yang terhubung.",
-      text: "Kami memilih botanikal berdasarkan karakter bahan, kualitas, dan kesesuaiannya dalam sebuah racikan. Kami mengolahnya dengan perhatian pada karakter alaminya, kemudian menyusunnya menjadi komposisi yang mudah dipahami dan mudah dinikmati.",
+      text: "Kami memilih botanikal berdasarkan karakter bahan, kualitas, dan kesesuaiannya dalam sebuah racikan. Kami mengolahnya dengan perhatian pada karakter alaminya.",
       closing: "Bukan untuk membuat sesuatu yang terlihat rumit. Tetapi untuk membuat sesuatu yang terasa tepat.",
       steps: [
         {
@@ -296,41 +423,34 @@ const content = {
         "Kadang untuk menemani pagi. Kadang setelah makan. Kadang hanya karena ingin berhenti sejenak dari kesibukan.",
         "Tapi semakin banyak hal yang kita konsumsi setiap hari, semakin banyak pula pertanyaan sederhana yang mulai muncul.",
       ],
-      questions: ["Apa sebenarnya yang kita minum?", "Dari mana bahan-bahannya berasal?", "Apakah rasa harus selalu datang dari sesuatu yang terlalu manis atau terlalu kuat?"],
-      afterQuestions: [
-        "Pertanyaan-pertanyaan kecil seperti ini perlahan mengubah cara orang memilih minuman.",
-        "Bukan berarti kita harus berhenti menikmati apa yang kita suka. Bukan juga tentang mengatakan bahwa satu jenis minuman lebih baik daripada yang lain.",
-      ],
+      questions: ["Apa sebenarnya yang kita minum?", "Dari mana bahan-bahannya berasal?", "Apakah rasa harus selalu datang dari sesuatu yang terlalu manis?"],
+      afterQuestions: ["Pertanyaan-pertanyaan kecil seperti ini perlahan mengubah cara orang memilih minuman."],
       highlight: "Hanya saja, pilihan mulai menjadi lebih sadar.",
       simpleTitle: "Dari Rasa yang Sederhana",
       simpleParagraphs: ["Di tengah banyaknya pilihan minuman modern, VARTANA justru melihat sesuatu yang sudah lama ada di sekitar kita."],
       simpleHighlight: "Tanaman. Rempah. Bahan-bahan yang sejak dahulu digunakan dalam keseharian masyarakat Indonesia.",
-      ingredientsStory: ["Jahe dengan rasa hangatnya.", "Serai dengan aroma segarnya.", "Kayu manis dengan karakter manis-rempahnya.", "Cengkeh, kapulaga, pala, kunyit, dan berbagai botanikal lainnya dengan karakter masing-masing."],
-      simpleClosing: ["Bahan-bahan ini sebenarnya tidak pernah benar-benar pergi.", "Mereka hanya perlu dihadirkan kembali dengan cara yang lebih relevan dengan kehidupan hari ini."],
+      ingredientsStory: ["Jahe dengan rasa hangatnya.", "Serai dengan aroma segarnya.", "Kayu manis dengan karakter manis-rempahnya.", "Cengkeh, kapulaga, pala, kunyit, dan berbagai botanikal lainnya."],
+      simpleClosing: ["Bahan-bahan ini sebenarnya tidak pernah benar-benar pergi.", "Mereka hanya perlu dihadirkan kembali dengan cara yang lebih relevan."],
       finalLine: "Dari situlah VARTANA Botanical Wellness dimulai.",
       notJustTitle: "Bukan Sekadar Minuman",
       notJustParagraphs: [
         "VARTANA tidak ingin membuat minuman yang sekadar terlihat alami.",
         "Kami ingin setiap bahan punya alasan untuk berada di dalam sebuah racikan.",
         "Kami ingin rasa tetap terasa sebagai rasa.",
-        "Aroma tetap datang dari bahan yang digunakan.",
-        "Dan ketika seseorang membaca komposisinya, mereka bisa memahami apa yang sebenarnya ada di dalam satu cangkir.",
       ],
       notJustHighlight: "Sederhana. Jelas. Tidak dibuat rumit.",
       notJustClosing: ["Karena bagi kami, kembali ke bahan yang sederhana bukan berarti kembali ke masa lalu."],
       notJustFinal: "Justru membawa sesuatu yang sudah baik ke dalam kehidupan modern.",
       soilTitle: "Dari Tanah, Menuju Cangkir",
-      soilParagraphs: ["Dan mungkin, inilah alasan paling sederhana mengapa kami memilih botanikal.", "Kami percaya bahwa produk yang baik tidak harus kehilangan cerita tentang dari mana ia berasal."],
-      journey: ["Dari tanah Indonesia.", "Dari tanaman yang tumbuh di dalamnya.", "Dari tangan orang-orang yang merawatnya.", "Kemudian diracik dengan perhatian dan dibawa ke dalam keseharian."],
-      soilClosing: "Satu cangkir mungkin terlihat sederhana. Tetapi di baliknya ada perjalanan yang panjang. Dan VARTANA ingin perjalanan itu tetap terasa.",
+      soilParagraphs: ["Dan mungkin, inilah alasan paling sederhana mengapa kami memilih botanikal."],
+      journey: ["Dari tanah Indonesia.", "Dari tanaman yang tumbuh di dalamnya.", "Dari tangan orang-orang yang merawatnya.", "Kemudian diracik dengan perhatian."],
+      soilClosing: "Satu cangkir mungkin terlihat sederhana. Tetapi di baliknya ada perjalanan yang panjang.",
       futureTitle: "Dan Cerita Ini Tidak Berhenti di Cangkir",
       futureParagraphs: [
         "Karena pada akhirnya, VARTANA tidak hanya ingin menjual botanical drink.",
-        "Kami ingin membangun hubungan yang lebih panjang antara bahan, produk, manusia, dan tanah tempat semuanya bermula.",
-        "Ketika bahan pertanian memiliki nilai lebih tinggi, lebih banyak nilai dapat kembali kepada orang-orang di baliknya.",
-        "Ketika konsumen mengenal bahan yang mereka konsumsi, hubungan dengan produk menjadi lebih berarti.",
+        "Kami ingin membangun hubungan yang lebih panjang antara bahan, produk, manusia, dan tanah.",
       ],
-      futureClosing: "Dan ketika produk dibuat dengan cerita yang jelas, sebuah cangkir tidak lagi hanya menjadi minuman. Ia menjadi bagian kecil dari perjalanan yang lebih besar.",
+      futureClosing: "Sebuah cangkir tidak lagi hanya menjadi minuman. Ia menjadi bagian kecil dari perjalanan yang lebih besar.",
       label: "DARI TANAH, MENUJU CANGKIR",
     },
     journal: {
@@ -377,6 +497,7 @@ const content = {
     nav: {
       philosophy: "Philosophy",
       collection: "Collection",
+      science: "Botanical Science",
       origin: "The VARTANA Story",
       purpose: "Our Purpose",
       journal: "Journal",
@@ -426,17 +547,17 @@ const content = {
         {
           number: "01",
           title: "Know What You Drink",
-          text: "A thoughtful choice begins with knowing what we consume. Not simply recognising a product name, but understanding the ingredients, their character, and where they come from. No complicated language. Just a clearer understanding of what is in your cup.",
+          text: "A thoughtful choice begins with knowing what we consume. Not simply recognising a product name, but understanding the ingredients.",
         },
         {
           number: "02",
           title: "Flavour Does Not Have to Begin with Sweetness",
-          text: "Nature offers many different layers of flavour. Ginger brings warmth. Lemongrass brings freshness. Cinnamon and clove bring spice. Cardamom and nutmeg add their own distinctive character, while turmeric brings colour and aroma. Botanicals give us another reason to enjoy a drink: the character of the ingredients themselves.",
+          text: "Nature offers many different layers of flavour. Ginger brings warmth. Lemongrass brings freshness. Cinnamon and clove bring spice.",
         },
         {
           number: "03",
           title: "Reconnect with the Ingredients",
-          text: "A cup begins with plants growing in the soil. Behind them are farmers, seasons, processes, and knowledge. For VARTANA, botanicals are not simply raw materials. Every ingredient carries a much longer story.",
+          text: "A cup begins with plants growing in the soil. Behind them are farmers, seasons, processes, and knowledge.",
         },
       ],
       closing: "Balance for everyday life. Better opportunities for the future.",
@@ -444,7 +565,7 @@ const content = {
     way: {
       eyebrow: "OUR APPROACH",
       title: "Clear ingredients. Connected stories.",
-      text: "We select botanicals based on their character, quality, and place within a blend. We work with attention to their natural character, then bring them together into compositions that are easy to understand and easy to enjoy.",
+      text: "We select botanicals based on their character, quality, and place within a blend.",
       closing: "Not to make something unnecessarily complicated, but to create something that simply feels right.",
       steps: [
         {
@@ -476,45 +597,28 @@ const content = {
       paragraphs: [
         "We drink every day.",
         "Sometimes to begin the morning. Sometimes after a meal. Sometimes simply to pause in the middle of a busy day.",
-        "But as more becomes part of our everyday consumption, a few simple questions begin to emerge.",
       ],
-      questions: ["What are we really drinking?", "Where do the ingredients come from?", "Does flavour always have to come from something overly sweet or overpowering?"],
-      afterQuestions: ["Questions like these can gradually change the way we choose what to drink.", "This does not mean giving up everything we enjoy. Nor is it about saying that one kind of drink is better than another."],
+      questions: ["What are we really drinking?", "Where do the ingredients come from?"],
+      afterQuestions: ["Questions like these can gradually change the way we choose what to drink."],
       highlight: "It simply means becoming a little more conscious of our choices.",
       simpleTitle: "A Return to Simple Flavours",
       simpleParagraphs: ["Among so many modern beverage choices, VARTANA looked again at something that has been around us for a long time."],
       simpleHighlight: "Plants. Spices. Ingredients that have long been part of everyday life in Indonesia.",
-      ingredientsStory: [
-        "Ginger, with its natural warmth.",
-        "Lemongrass, with its fresh aroma.",
-        "Cinnamon, with its warm and gently sweet spice character.",
-        "Clove, cardamom, nutmeg, turmeric, and other botanicals, each with a character of their own.",
-      ],
-      simpleClosing: ["These ingredients never truly disappeared.", "They simply needed to be brought forward in a way that feels more relevant to life today."],
+      ingredientsStory: ["Ginger, with its natural warmth.", "Lemongrass, with its fresh aroma."],
+      simpleClosing: ["These ingredients never truly disappeared."],
       finalLine: "That is where VARTANA Botanical Wellness begins.",
       notJustTitle: "More Than Just a Drink",
-      notJustParagraphs: [
-        "VARTANA does not want to create a drink that simply looks natural.",
-        "We want every ingredient to have a reason for being part of a blend.",
-        "We want flavour to come from the ingredients themselves.",
-        "We want aroma to remain connected to what is actually inside.",
-        "And when someone reads the composition, we want them to understand what is in their cup.",
-      ],
+      notJustParagraphs: ["VARTANA does not want to create a drink that simply looks natural."],
       notJustHighlight: "Simple. Clear. Nothing unnecessarily complicated.",
       notJustClosing: ["For us, returning to simpler ingredients does not mean going backwards."],
       notJustFinal: "It means bringing something valuable into modern everyday life.",
       soilTitle: "From Soil to Cup",
-      soilParagraphs: ["And perhaps that is the simplest reason why we choose botanicals.", "We believe a good product should not lose the story of where it comes from."],
-      journey: ["From Indonesian soil.", "From plants that grow from it.", "From the hands that care for them.", "Then thoughtfully crafted and brought into everyday life."],
-      soilClosing: "A cup may look simple. But behind it is a much longer journey. VARTANA wants that journey to remain part of the experience.",
+      soilParagraphs: ["And perhaps that is the simplest reason why we choose botanicals."],
+      journey: ["From Indonesian soil.", "From plants that grow from it."],
+      soilClosing: "A cup may look simple. But behind it is a much longer journey.",
       futureTitle: "And the Story Does Not End with the Cup",
-      futureParagraphs: [
-        "Ultimately, VARTANA does not only want to sell botanical drinks.",
-        "We want to build a longer connection between ingredients, products, people, and the land where everything begins.",
-        "When agricultural ingredients gain greater value, more value can potentially return to the people behind them.",
-        "When consumers understand what they consume, their relationship with a product becomes more meaningful.",
-      ],
-      futureClosing: "And when a product carries a clear story, a cup becomes more than just a drink. It becomes a small part of a much larger journey.",
+      futureParagraphs: ["Ultimately, VARTANA does not only want to sell botanical drinks."],
+      futureClosing: "A cup becomes more than just a drink. It becomes a small part of a much larger journey.",
       label: "FROM SOIL TO CUP",
     },
     journal: {
@@ -522,7 +626,7 @@ const content = {
       title: "Stories from nature, agriculture, and everyday life.",
       text: "A space for stories about Indonesian botanicals, ingredients, agriculture, and the journey of VARTANA.",
       button: "READ STORY",
-      articles: ["When the Way We Choose What to Drink Begins to Change", "Discovering Indonesia's Botanical Richness", "From Agricultural Ingredients to Greater Value", "Why Spices Remain Close to Everyday Life"],
+      articles: ["When the Way We Choose What to Drink Begins to Change", "Discovering Indonesia's Botanical Richness"],
     },
     footer: {
       tagline: "More Than Wellness. A Better Future for Farmers.",
@@ -538,7 +642,7 @@ const content = {
     cart: {
       title: "Keranjang Belanja",
       empty: "Your shopping cart is empty.",
-      total: "Total Pembayaran",
+      total: "Total Payment",
       checkoutBtn: "Proceed to Delivery Info",
       fillFormTitle: "Customer & Shipping Info",
       name: "Full Name",
@@ -553,7 +657,7 @@ const content = {
       backToCart: "Back to Cart",
       requiredError: "Please complete Name, Email, WhatsApp, Province, City, District, Address Details, and Courier Option.",
       shippingTitle: "Select Shipping Courier",
-      transferTitle: "Instruksi Transfer Bank",
+      transferTitle: "Bank Transfer Instructions",
       confirmWa: "Confirm Order via WhatsApp",
     },
   },
@@ -578,6 +682,9 @@ export default function Home() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<"cart" | "form" | "payment">("cart");
   const [formError, setFormError] = useState("");
+
+  // MODAL JURNAL ILMIAH SPICES
+  const [selectedSpiceModal, setSelectedSpiceModal] = useState<SpiceDetail | null>(null);
 
   // COPY TO CLIPBOARD STATES
   const [copiedAccount, setCopiedAccount] = useState(false);
@@ -705,7 +812,7 @@ export default function Home() {
       setDistricts(data);
     } catch (err) {
       console.error("Gagal load kecamatan:", err);
-    } finally {
+    } fontally {
       setLoadingDistricts(false);
     }
   };
@@ -831,7 +938,7 @@ export default function Home() {
           }
           return ci;
         })
-        .filter((ci): ci is CartItem => ci !== null),
+        .filter((ci): ci is CartItem => ci !== null)
     );
   };
 
@@ -842,7 +949,16 @@ export default function Home() {
 
   // VERIFIKASI SEBELUM MASUK INSTRUKSI TRANSFER
   const handleProceedToPayment = () => {
-    if (!customer.name || !customer.email || !customer.phone || !customer.provinceName || !customer.cityName || !customer.districtName || !customer.addressDetail || !selectedShipping) {
+    if (
+      !customer.name ||
+      !customer.email ||
+      !customer.phone ||
+      !customer.provinceName ||
+      !customer.cityName ||
+      !customer.districtName ||
+      !customer.addressDetail ||
+      !selectedShipping
+    ) {
       setFormError(t.cart.requiredError);
       return;
     }
@@ -882,21 +998,12 @@ export default function Home() {
           </a>
 
           <div className="hidden items-center gap-8 text-[11px] font-medium uppercase tracking-[0.12em] text-[#526158] md:flex">
-            <a href="#philosophy" className="transition hover:text-[#B69245]">
-              {t.nav.philosophy}
-            </a>
-            <a href="#collection" className="transition hover:text-[#B69245]">
-              {t.nav.collection}
-            </a>
-            <a href="#origin" className="transition hover:text-[#B69245]">
-              {t.nav.origin}
-            </a>
-            <a href="#purpose" className="transition hover:text-[#B69245]">
-              {t.nav.purpose}
-            </a>
-            <a href="#journal" className="transition hover:text-[#B69245]">
-              {t.nav.journal}
-            </a>
+            <a href="#philosophy" className="transition hover:text-[#B69245]">{t.nav.philosophy}</a>
+            <a href="#collection" className="transition hover:text-[#B69245]">{t.nav.collection}</a>
+            <a href="#science" className="transition hover:text-[#B69245]">{t.nav.science}</a>
+            <a href="#origin" className="transition hover:text-[#B69245]">{t.nav.origin}</a>
+            <a href="#purpose" className="transition hover:text-[#B69245]">{t.nav.purpose}</a>
+            <a href="#journal" className="transition hover:text-[#B69245]">{t.nav.journal}</a>
           </div>
 
           <div className="flex items-center gap-3">
@@ -909,14 +1016,28 @@ export default function Home() {
             >
               <span>🛒</span>
               <span className="hidden sm:inline">{t.cart.title}</span>
-              {totalItemsInCart > 0 && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#16382A] text-[10px] text-[#F6F2E8]">{totalItemsInCart}</span>}
+              {totalItemsInCart > 0 && (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#16382A] text-[10px] text-[#F6F2E8]">
+                  {totalItemsInCart}
+                </span>
+              )}
             </button>
 
             <div className="flex rounded-full border border-[#16382A]/10 bg-white/70 p-1 shadow-sm">
-              <button onClick={() => setLanguage("id")} className={`rounded-full px-3 py-1.5 text-[10px] font-semibold transition ${language === "id" ? "bg-[#16382A] text-[#F6F2E8] shadow-sm" : "text-[#526158] hover:text-[#B69245]"}`}>
+              <button
+                onClick={() => setLanguage("id")}
+                className={`rounded-full px-3 py-1.5 text-[10px] font-semibold transition ${
+                  language === "id" ? "bg-[#16382A] text-[#F6F2E8] shadow-sm" : "text-[#526158] hover:text-[#B69245]"
+                }`}
+              >
                 ID
               </button>
-              <button onClick={() => setLanguage("en")} className={`rounded-full px-3 py-1.5 text-[10px] font-semibold transition ${language === "en" ? "bg-[#16382A] text-[#F6F2E8] shadow-sm" : "text-[#526158] hover:text-[#B69245]"}`}>
+              <button
+                onClick={() => setLanguage("en")}
+                className={`rounded-full px-3 py-1.5 text-[10px] font-semibold transition ${
+                  language === "en" ? "bg-[#16382A] text-[#F6F2E8] shadow-sm" : "text-[#526158] hover:text-[#B69245]"
+                }`}
+              >
                 EN
               </button>
             </div>
@@ -930,23 +1051,38 @@ export default function Home() {
           <div className="flex h-full w-full max-w-md flex-col bg-[#FBF9F4] p-6 shadow-2xl">
             {/* Header Drawer */}
             <div className="flex items-center justify-between border-b border-[#16382A]/10 pb-4">
-              <h3 className="font-serif text-2xl text-[#16382A]">{checkoutStep === "cart" ? t.cart.title : checkoutStep === "form" ? t.cart.fillFormTitle : t.cart.transferTitle}</h3>
-              <button onClick={() => setIsCartOpen(false)} className="rounded-full bg-[#16382A]/5 px-3 py-1 text-sm font-bold text-[#16382A] hover:bg-[#16382A]/10">
+              <h3 className="font-serif text-2xl text-[#16382A]">
+                {checkoutStep === "cart"
+                  ? t.cart.title
+                  : checkoutStep === "form"
+                  ? t.cart.fillFormTitle
+                  : t.cart.transferTitle}
+              </h3>
+              <button
+                onClick={() => setIsCartOpen(false)}
+                className="rounded-full bg-[#16382A]/5 px-3 py-1 text-sm font-bold text-[#16382A] hover:bg-[#16382A]/10"
+              >
                 ✕
               </button>
             </div>
 
-            {/* BANNER PROMO ONGKIR LEBIH BESAR & GLOWING */}
+            {/* BANNER PROMO ONGKIR */}
             {cart.length > 0 && (
               <div className="mt-4 overflow-hidden rounded-2xl bg-gradient-to-r from-[#0D261C] via-[#16382A] to-[#0D261C] p-4 text-center text-xs text-[#F6F2E8] shadow-xl border border-[#B69245]/30 animate-pulse">
                 {totalQuantity >= 2 ? (
                   <div>
-                    <p className="text-sm font-extrabold text-[#D8C28B] uppercase tracking-wider">🎉 SELAMAT! KAMU DAPAT GRATIS ONGKIR 100%</p>
-                    <p className="mt-1 text-[11px] text-white/90">Seluruh biaya pengiriman otomatis di-potong Rp0!</p>
+                    <p className="text-sm font-extrabold text-[#D8C28B] uppercase tracking-wider">
+                      🎉 SELAMAT! KAMU DAPAT GRATIS ONGKIR 100%
+                    </p>
+                    <p className="mt-1 text-[11px] text-white/90">
+                      Seluruh biaya pengiriman otomatis dipotong Rp0!
+                    </p>
                   </div>
                 ) : (
                   <div>
-                    <p className="text-sm font-extrabold text-[#D8C28B] uppercase tracking-wider">⚡ PROMO AKTIF: SUBSIDI ONGKIR RP7.000</p>
+                    <p className="text-sm font-extrabold text-[#D8C28B] uppercase tracking-wider">
+                      ⚡ PROMO AKTIF: SUBSIDI ONGKIR RP7.000
+                    </p>
                     <p className="mt-1.5 text-xs text-white">
                       Beli <span className="font-bold text-[#D8C28B]">1 POUCH LAGI</span> untuk klaim <span className="underline font-bold text-[#D8C28B]">GRATIS ONGKIR 100%!</span>
                     </p>
@@ -978,13 +1114,9 @@ export default function Home() {
                       </div>
 
                       <div className="flex items-center gap-2 rounded-full border border-[#16382A]/20 bg-white px-2 py-1">
-                        <button onClick={() => updateCartQuantity(item.product.id, -1)} className="flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold hover:bg-[#16382A]/10">
-                          -
-                        </button>
+                        <button onClick={() => updateCartQuantity(item.product.id, -1)} className="flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold hover:bg-[#16382A]/10">-</button>
                         <span className="w-5 text-center text-xs font-bold">{item.quantity}</span>
-                        <button onClick={() => updateCartQuantity(item.product.id, 1)} className="flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold hover:bg-[#16382A]/10">
-                          +
-                        </button>
+                        <button onClick={() => updateCartQuantity(item.product.id, 1)} className="flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold hover:bg-[#16382A]/10">+</button>
                       </div>
                     </div>
                   ))}
@@ -996,51 +1128,26 @@ export default function Home() {
 
                   <div>
                     <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.name} *</label>
-                    <input
-                      type="text"
-                      placeholder="Contoh: Budi Santoso"
-                      value={customer.name}
-                      onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
-                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]"
-                    />
+                    <input type="text" placeholder="Contoh: Budi Santoso" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]" />
                   </div>
 
                   <div>
                     <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.email} *</label>
-                    <input
-                      type="email"
-                      placeholder="Contoh: budi@gmail.com"
-                      value={customer.email}
-                      onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
-                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]"
-                    />
+                    <input type="email" placeholder="Contoh: budi@gmail.com" value={customer.email} onChange={(e) => setCustomer({ ...customer, email: e.target.value })} className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]" />
                   </div>
 
                   <div>
                     <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.phone} *</label>
-                    <input
-                      type="tel"
-                      placeholder="Contoh: 081234567890"
-                      value={customer.phone}
-                      onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
-                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]"
-                    />
+                    <input type="tel" placeholder="Contoh: 081234567890" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]" />
                   </div>
 
                   {/* PROVINSI */}
                   <div>
                     <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.province} *</label>
-                    <select
-                      value={customer.provinceId}
-                      onChange={handleProvinceChange}
-                      disabled={loadingProvinces}
-                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]"
-                    >
+                    <select value={customer.provinceId} onChange={handleProvinceChange} disabled={loadingProvinces} className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]">
                       <option value="">-- {loadingProvinces ? "Memuat..." : "Pilih Provinsi"} --</option>
                       {provinces.map((prov) => (
-                        <option key={prov.id} value={prov.id}>
-                          {prov.name}
-                        </option>
+                        <option key={prov.id} value={prov.id}>{prov.name}</option>
                       ))}
                     </select>
                   </div>
@@ -1048,17 +1155,10 @@ export default function Home() {
                   {/* KOTA */}
                   <div>
                     <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.city} *</label>
-                    <select
-                      value={customer.cityId}
-                      onChange={handleCityChange}
-                      disabled={!customer.provinceId || loadingCities}
-                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245] disabled:bg-gray-100"
-                    >
+                    <select value={customer.cityId} onChange={handleCityChange} disabled={!customer.provinceId || loadingCities} className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245] disabled:bg-gray-100">
                       <option value="">-- {!customer.provinceId ? "Pilih Provinsi Dulu" : loadingCities ? "Memuat..." : "Pilih Kota / Kabupaten"} --</option>
                       {cities.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
+                        <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
                   </div>
@@ -1066,17 +1166,10 @@ export default function Home() {
                   {/* KECAMATAN */}
                   <div>
                     <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.district} *</label>
-                    <select
-                      value={customer.districtId}
-                      onChange={handleDistrictChange}
-                      disabled={!customer.cityId || loadingDistricts}
-                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245] disabled:bg-gray-100"
-                    >
+                    <select value={customer.districtId} onChange={handleDistrictChange} disabled={!customer.cityId || loadingDistricts} className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245] disabled:bg-gray-100">
                       <option value="">-- {!customer.cityId ? "Pilih Kota Dulu" : loadingDistricts ? "Memuat..." : "Pilih Kecamatan"} --</option>
                       {districts.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
+                        <option key={d.id} value={d.id}>{d.name}</option>
                       ))}
                     </select>
                   </div>
@@ -1084,13 +1177,7 @@ export default function Home() {
                   {/* DETAIL ALAMAT */}
                   <div>
                     <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.addressDetail} *</label>
-                    <textarea
-                      rows={2}
-                      placeholder="Nama Jalan, Nomor Rumah, RT/RW, Kode Pos"
-                      value={customer.addressDetail}
-                      onChange={(e) => setCustomer({ ...customer, addressDetail: e.target.value })}
-                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]"
-                    />
+                    <textarea rows={2} placeholder="Nama Jalan, Nomor Rumah, RT/RW, Kode Pos" value={customer.addressDetail} onChange={(e) => setCustomer({ ...customer, addressDetail: e.target.value })} className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]" />
                   </div>
 
                   {/* PILIH KURIR ONGKIR REALTIME */}
@@ -1108,9 +1195,7 @@ export default function Home() {
                               <div className="flex items-center gap-2">
                                 <input type="radio" name="shipping" checked={selectedShipping?.name === option.name} onChange={() => setSelectedShipping(option)} className="accent-[#16382A]" />
                                 <div>
-                                  <p className="font-bold text-[#16382A] uppercase">
-                                    {option.company} - {option.name}
-                                  </p>
+                                  <p className="font-bold text-[#16382A] uppercase">{option.company} - {option.name}</p>
                                   <p className="text-[10px] text-[#627067]">Estimasi: {option.etd}</p>
                                 </div>
                               </div>
@@ -1135,7 +1220,7 @@ export default function Home() {
                   )}
                 </div>
               ) : (
-                /* STEP 3: INSTRUKSI TRANSFER BANK MANUAL + TOMBOL SALIN NOMINAL & REKENING */
+                /* STEP 3: INSTRUKSI TRANSFER BANK MANUAL + TOMBOL SALIN REKENING & NOMINAL */
                 <div className="space-y-5 text-sm">
                   <div className="rounded-2xl border border-[#B69245]/30 bg-white p-5 shadow-sm text-center">
                     <p className="text-xs font-semibold uppercase tracking-widest text-[#8E6E2E]">Transfer Pembayaran Ke:</p>
@@ -1168,15 +1253,12 @@ export default function Home() {
 
                   <div className="rounded-xl border border-[#16382A]/10 bg-[#F6F2E8] p-4 text-xs space-y-2">
                     <p className="font-bold text-[#16382A]">Ringkasan Pesanan:</p>
+                    <p>• Subtotal ({totalQuantity} pouch): {formatRupiah(subtotalPrice)}</p>
                     <p>
-                      • Subtotal ({totalQuantity} pouch): {formatRupiah(subtotalPrice)}
+                      • Kurir: {selectedShipping?.company.toUpperCase()} (
+                      {shippingCost === 0 ? "FREE ONGKIR" : formatRupiah(shippingCost)})
                     </p>
-                    <p>
-                      • Kurir: {selectedShipping?.company.toUpperCase()} ({shippingCost === 0 ? "FREE ONGKIR" : formatRupiah(shippingCost)})
-                    </p>
-                    <p>
-                      • Alamat: {customer.addressDetail}, Kec. {customer.districtName}, {customer.cityName}
-                    </p>
+                    <p>• Alamat: {customer.addressDetail}, Kec. {customer.districtName}, {customer.cityName}</p>
                   </div>
                 </div>
               )}
@@ -1205,12 +1287,7 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <a
-                      href={generateWhatsAppUrl()}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex w-full items-center justify-center gap-2 rounded-full bg-[#25D366] py-3.5 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-[#20ba5a]"
-                    >
+                    <a href={generateWhatsAppUrl()} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center gap-2 rounded-full bg-[#25D366] py-3.5 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-[#20ba5a]">
                       💬 {t.cart.confirmWa}
                     </a>
                     <button onClick={() => setCheckoutStep("form")} className="w-full text-center text-xs text-[#627067] hover:underline">
@@ -1220,6 +1297,61 @@ export default function Home() {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL JURNAL ILMIAH REMPAH */}
+      {selectedSpiceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-[#FBF9F4] p-7 shadow-2xl border border-[#B69245]/30">
+            <div className="flex items-center justify-between border-b border-[#16382A]/10 pb-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#B69245]">EVIDENCE-BASED BOTANICAL</p>
+                <h3 className="font-serif text-3xl text-[#16382A]">{selectedSpiceModal.name}</h3>
+                <p className="text-xs italic text-[#627067]">{selectedSpiceModal.latinName}</p>
+              </div>
+              <button onClick={() => setSelectedSpiceModal(null)} className="rounded-full bg-[#16382A]/5 px-3 py-1 text-sm font-bold text-[#16382A] hover:bg-[#16382A]/10">
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-4 text-xs">
+              <div>
+                <p className="font-bold uppercase tracking-wider text-[#9E7A32]">Kandungan Aktif Utama:</p>
+                <p className="mt-1 text-[#16382A] bg-white p-2.5 rounded-lg border border-[#16382A]/10 font-medium">{selectedSpiceModal.activeCompounds}</p>
+              </div>
+
+              <div>
+                <p className="font-bold uppercase tracking-wider text-[#9E7A32]">Manfaat Kesehatan:</p>
+                <p className="mt-1 text-[#526158] leading-relaxed">{selectedSpiceModal.benefits}</p>
+              </div>
+
+              <div>
+                <p className="font-bold uppercase tracking-wider text-[#9E7A32]">Membantu Meredakan:</p>
+                <p className="mt-1 text-[#16382A] font-semibold bg-[#F6F2E8] p-2.5 rounded-lg">{selectedSpiceModal.relieves}</p>
+              </div>
+
+              <div className="border-t border-[#B69245]/20 pt-4">
+                <p className="font-bold uppercase tracking-wider text-[#16382A] flex items-center gap-1.5">
+                  🔬 Rujukan Jurnal Ilmiah (PubMed / NCBI):
+                </p>
+                <div className="mt-2 rounded-xl border border-[#B69245]/30 bg-white p-3.5">
+                  <p className="font-serif text-sm font-bold text-[#16382A]">"{selectedSpiceModal.journalTitle}"</p>
+                  <p className="mt-2 text-[#627067] leading-relaxed">{selectedSpiceModal.journalDetail}</p>
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-gray-400">PMID: {selectedSpiceModal.pmid}</span>
+                    <a href={selectedSpiceModal.journalLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-bold text-[#B69245] hover:underline">
+                      Baca Jurnal Resmi ↗
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button onClick={() => setSelectedSpiceModal(null)} className="mt-6 w-full rounded-full bg-[#16382A] py-3 text-xs font-semibold text-[#F6F2E8] hover:bg-[#214737]">
+              Tutup Penjelasan
+            </button>
           </div>
         </div>
       )}
@@ -1235,21 +1367,13 @@ export default function Home() {
           <div>
             <p className="mb-6 text-[10px] font-semibold uppercase tracking-[0.32em] text-[#B69245]">{t.hero.eyebrow}</p>
             <h1 className="font-serif text-5xl leading-[1.02] tracking-[-0.03em] text-[#16382A] sm:text-6xl lg:text-7xl xl:text-[5.8rem]">
-              {t.hero.title}
-              <br />
+              {t.hero.title}<br />
               <span className="text-[#9E7A32]">{t.hero.accent}</span>
             </h1>
             <p className="mt-8 max-w-xl text-[15px] leading-8 text-[#627067]">{t.hero.text}</p>
             <div className="mt-10 flex flex-wrap gap-3">
-              <a href="#collection" className="rounded-full bg-[#16382A] px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#F6F2E8] transition duration-300 hover:bg-[#214737]">
-                {t.hero.primary}
-              </a>
-              <a
-                href="#philosophy"
-                className="rounded-full border border-[#16382A]/15 bg-white/40 px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#16382A] transition duration-300 hover:border-[#B69245]/60 hover:text-[#9E7A32]"
-              >
-                {t.hero.secondary}
-              </a>
+              <a href="#collection" className="rounded-full bg-[#16382A] px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#F6F2E8] transition duration-300 hover:bg-[#214737]">{t.hero.primary}</a>
+              <a href="#philosophy" className="rounded-full border border-[#16382A]/15 bg-white/40 px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#16382A] transition duration-300 hover:border-[#B69245]/60 hover:text-[#9E7A32]">{t.hero.secondary}</a>
             </div>
           </div>
 
@@ -1292,24 +1416,13 @@ export default function Home() {
 
           <div className="mt-16 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {products.map((item, index) => (
-              <button
-                key={item.number}
-                onClick={() => {
-                  setSelectedProduct(index);
-                  setProductQuantity(1);
-                }}
-                className={`group rounded-2xl border p-7 text-left transition duration-300 ${selectedProduct === index ? "border-[#D8C28B]/70 bg-white/[0.08]" : "border-white/[0.08] bg-white/[0.025] hover:border-[#D8C28B]/50"}`}
-              >
+              <button key={item.number} onClick={() => { setSelectedProduct(index); setProductQuantity(1); }} className={`group rounded-2xl border p-7 text-left transition duration-300 ${selectedProduct === index ? "border-[#D8C28B]/70 bg-white/[0.08]" : "border-white/[0.08] bg-white/[0.025] hover:border-[#D8C28B]/50"}`}>
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-serif text-3xl text-[#D8C28B]">{item.number}</span>
                   <span className="rounded-full border border-[#D8C28B]/25 px-3 py-1 text-[9px] uppercase tracking-[0.14em] text-[#D8C28B]">{item.subtitle}</span>
                 </div>
                 <div className="mt-8">
-                  <span
-                    className={`inline-flex rounded-full border px-3 py-1 text-[8px] font-semibold uppercase tracking-[0.16em] ${item.status === "READY STOCK" ? "border-[#D8C28B]/50 bg-[#D8C28B]/10 text-[#D8C28B]" : "border-white/10 bg-white/[0.03] text-white/40"}`}
-                  >
-                    {item.status}
-                  </span>
+                  <span className={`inline-flex rounded-full border px-3 py-1 text-[8px] font-semibold uppercase tracking-[0.16em] ${item.status === "READY STOCK" ? "border-[#D8C28B]/50 bg-[#D8C28B]/10 text-[#D8C28B]" : "border-white/10 bg-white/[0.03] text-white/40"}`}>{item.status}</span>
                 </div>
                 <div className="mt-6">
                   <h3 className="font-serif text-2xl text-[#F6F2E8]">{item.name}</h3>
@@ -1326,19 +1439,15 @@ export default function Home() {
                 <div className="relative">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <p className="text-[10px] font-semibold tracking-[0.25em] text-[#D8C28B]">BOTANICAL SERIES · {product.number}</p>
-                    <span
-                      className={`rounded-full border px-3 py-1.5 text-[8px] font-semibold uppercase tracking-[0.18em] ${product.status === "READY STOCK" ? "border-[#D8C28B]/50 bg-[#D8C28B]/10 text-[#D8C28B]" : "border-white/10 bg-white/[0.04] text-white/40"}`}
-                    >
-                      {product.status}
-                    </span>
+                    <span className={`rounded-full border px-3 py-1.5 text-[8px] font-semibold uppercase tracking-[0.18em] ${product.status === "READY STOCK" ? "border-[#D8C28B]/50 bg-[#D8C28B]/10 text-[#D8C28B]" : "border-white/10 bg-white/[0.04] text-white/40"}`}>{product.status}</span>
                   </div>
 
                   <h3 className="mt-6 font-serif text-5xl leading-[1.05] tracking-[-0.025em] text-[#F6F2E8]">{product.name}</h3>
                   <p className="mt-6 max-w-md text-[15px] leading-8 text-white/60">{product.description[language]}</p>
 
                   {product.image && (
-                    <div className="mt-10 flex min-h-[340px] items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#0D261C]/40 p-6">
-                      <img src={product.image} alt={product.name} className="max-h-[390px] w-auto max-w-full object-contain" />
+                    <div className="mt-10 flex min-h-[340px] items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#0D261C]/40 p-4">
+                      <img src={product.image} alt={product.name} className="max-h-[390px] w-auto max-w-full object-contain rounded-xl shadow-2xl" />
                     </div>
                   )}
 
@@ -1365,20 +1474,13 @@ export default function Home() {
                         <div className="flex items-center justify-between rounded-xl border border-white/15 bg-white/[0.03] p-3">
                           <span className="text-xs font-medium uppercase tracking-wider text-[#D8C28B]">{t.product.selectQuantity}</span>
                           <div className="flex items-center gap-3">
-                            <button onClick={() => setProductQuantity((q) => Math.max(1, q - 1))} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-lg font-bold text-white transition hover:bg-white/20">
-                              -
-                            </button>
+                            <button onClick={() => setProductQuantity((q) => Math.max(1, q - 1))} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-lg font-bold text-white transition hover:bg-white/20">-</button>
                             <span className="w-6 text-center font-bold text-white">{productQuantity}</span>
-                            <button onClick={() => setProductQuantity((q) => q + 1)} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-lg font-bold text-white transition hover:bg-white/20">
-                              +
-                            </button>
+                            <button onClick={() => setProductQuantity((q) => q + 1)} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-lg font-bold text-white transition hover:bg-white/20">+</button>
                           </div>
                         </div>
 
-                        <button
-                          onClick={() => addToCart(product, productQuantity)}
-                          className="flex w-full items-center justify-center gap-2 rounded-full bg-[#B69245] px-8 py-4 text-xs font-semibold uppercase tracking-widest text-[#0D261C] transition hover:bg-[#c9a352]"
-                        >
+                        <button onClick={() => addToCart(product, productQuantity)} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#B69245] px-8 py-4 text-xs font-semibold uppercase tracking-widest text-[#0D261C] transition hover:bg-[#c9a352]">
                           🛒 {t.product.addToCart} ({productQuantity})
                         </button>
                       </div>
@@ -1394,9 +1496,7 @@ export default function Home() {
                     <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#D8C28B]">{t.product.ingredients}</p>
                     <div className="mt-5 flex flex-wrap gap-2">
                       {product.ingredients.map((ingredient) => (
-                        <span key={ingredient} className="rounded-full border border-white/15 bg-white/[0.025] px-3.5 py-2 text-[11px] text-white/70">
-                          {ingredient}
-                        </span>
+                        <span key={ingredient} className="rounded-full border border-white/15 bg-white/[0.025] px-3.5 py-2 text-[11px] text-white/70">{ingredient}</span>
                       ))}
                     </div>
                   </div>
@@ -1416,6 +1516,48 @@ export default function Home() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION BARU: SAINS & BUKTI ILMIAH 10 REMPAH VARTANA */}
+      <section id="science" className="bg-[#FBF9F4] px-6 py-28 border-y border-[#B69245]/20">
+        <div className="mx-auto max-w-7xl">
+          <div className="text-center max-w-3xl mx-auto">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">EVIDENCE-BASED HERBAL</p>
+            <h2 className="mt-4 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl">
+              Sains & Bukti Ilmiah 10 Rempah VARTANA
+            </h2>
+            <p className="mt-6 text-[15px] leading-8 text-[#627067]">
+              Setiap bahan baku racikan VARTANA dipilih berdasarkan tradisi dan didukung oleh rujukan penelitian medis klinis (PubMed / NCBI). Klik pada setiap kartu untuk membaca penjelasan lengkapnya.
+            </p>
+          </div>
+
+          {/* BANNER FOTO FLATLAY 10 REMPAH */}
+          <div className="mt-12 overflow-hidden rounded-3xl border border-[#B69245]/30 shadow-2xl">
+            <img src="/vartana-spices-hero.jpg" alt="10 Bahan Rempah Alami VARTANA" className="w-full max-h-[480px] object-cover" />
+          </div>
+
+          {/* GRID 10 REMPAH INTERAKTIF */}
+          <div className="mt-12 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+            {SPICES_DATA.map((spice) => (
+              <button
+                key={spice.name}
+                onClick={() => setSelectedSpiceModal(spice)}
+                className="group flex flex-col justify-between rounded-2xl border border-[#16382A]/10 bg-white p-5 text-left transition duration-300 hover:-translate-y-1 hover:border-[#B69245] hover:shadow-lg"
+              >
+                <div>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-[#B69245]">BOTANICAL INGREDIENT</span>
+                  <h4 className="mt-1 font-serif text-xl font-bold text-[#16382A]">{spice.name}</h4>
+                  <p className="text-[11px] italic text-[#627067]">{spice.latinName}</p>
+                  <p className="mt-3 text-xs text-[#526158] line-clamp-2">{spice.benefits}</p>
+                </div>
+                <div className="mt-5 flex items-center justify-between border-t border-gray-100 pt-3">
+                  <span className="text-[10px] font-bold text-[#16382A] group-hover:text-[#B69245]">Lihat Jurnal →</span>
+                  <span className="text-xs">🔬</span>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       </section>
@@ -1512,9 +1654,7 @@ export default function Home() {
 
               <div className="mt-12 grid gap-4 md:grid-cols-2">
                 {t.origin.ingredientsStory.map((item) => (
-                  <div key={item} className="border border-[#16382A]/8 bg-[#F6F2E8] px-7 py-6 text-[14px] leading-7 text-[#627067]">
-                    {item}
-                  </div>
+                  <div key={item} className="border border-[#16382A]/8 bg-[#F6F2E8] px-7 py-6 text-[14px] leading-7 text-[#627067]">{item}</div>
                 ))}
               </div>
 
@@ -1634,27 +1774,19 @@ export default function Home() {
             <div className="mt-8 space-y-5">
               <div>
                 <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.email}</p>
-                <a href="mailto:vartana@vartanaglobal.com" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">
-                  vartana@vartanaglobal.com
-                </a>
+                <a href="mailto:vartana@vartanaglobal.com" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">vartana@vartanaglobal.com</a>
               </div>
               <div>
                 <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.whatsapp}</p>
-                <a href="https://wa.me/6285777999960" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">
-                  +62 857-7799-9960
-                </a>
+                <a href="https://wa.me/6285777999960" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">+62 857-7799-9960</a>
               </div>
               <div>
                 <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.instagram}</p>
-                <a href="https://www.instagram.com/vartanabotanical" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">
-                  @vartanabotanical
-                </a>
+                <a href="https://www.instagram.com/vartanabotanical" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">@vartanabotanical</a>
               </div>
               <div>
                 <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.tiktok}</p>
-                <a href="https://www.tiktok.com/@vartanabotanical" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">
-                  @vartanabotanical
-                </a>
+                <a href="https://www.tiktok.com/@vartanabotanical" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">@vartanabotanical</a>
               </div>
               <div>
                 <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.location}</p>

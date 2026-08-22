@@ -59,13 +59,13 @@ type RegionItem = {
 };
 
 type SpiceDetail = {
-  name: string;
+  name: LocalizedText;
   latinName: string;
   activeCompounds: string;
-  benefits: string;
-  relieves: string;
+  benefits: LocalizedText;
+  relieves: LocalizedText;
   journalTitle: string;
-  journalDetail: string;
+  journalDetail: LocalizedText;
   journalLink: string;
   pmid: string;
 };
@@ -78,115 +78,205 @@ const BANK_DETAILS = {
   whatsappNumber: "6285777999960",
 };
 
-// DATA 10 REMPAH & JURNAL ILMIAH
+// DATA 10 REMPAH & JURNAL ILMIAH (FULL BILINGUAL ID & EN)
 const SPICES_DATA: SpiceDetail[] = [
   {
-    name: "Jahe",
+    name: { id: "Jahe", en: "Ginger" },
     latinName: "Zingiber officinale",
-    activeCompounds: "6-Gingerol, 6-Shogaol, Zingerone, Paradol, Seskuiterpen",
-    benefits: "Menghangatkan pencernaan, meredakan mual/spasme lambung, memperlancar sirkulasi darah, dan menghambat enzim pro-inflamasi (COX-2 & 5-LOX).",
-    relieves: "Asam lambung (GERD), peradangan sendi (Osteoarthritis & RA), migrain, dan mual (morning sickness).",
+    activeCompounds: "6-Gingerol, 6-Shogaol, Zingerone, Paradol, Sesquiterpenes",
+    benefits: {
+      id: "Menghangatkan pencernaan, meredakan mual/spasme lambung, memperlancar sirkulasi darah, dan menghambat enzim pro-inflamasi (COX-2 & 5-LOX).",
+      en: "Warms the digestive tract, relieves nausea/gastric spasms, improves blood circulation, and inhibits pro-inflammatory enzymes (COX-2 & 5-LOX).",
+    },
+    relieves: {
+      id: "Asam lambung (GERD), peradangan sendi (Osteoarthritis & RA), migrain, dan mual (morning sickness).",
+      en: "Acid reflux (GERD), joint inflammation (Osteoarthritis & RA), migraines, and nausea.",
+    },
     journalTitle: "Zingiber Officinale Roscoe: The Antiarthritic Potential of a Popular Spice",
-    journalDetail: "Menjelaskan bahwa ekstrak oleoresin jahe (6-gingerol & 6-shogaol) memiliki efek anti-inflamasi dan analgesik signifikan untuk meredakan nyeri sendi.",
+    journalDetail: {
+      id: "Menjelaskan bahwa ekstrak oleoresin jahe (6-gingerol & 6-shogaol) memiliki efek anti-inflamasi dan analgesik signifikan untuk meredakan nyeri sendi.",
+      en: "Demonstrates that ginger oleoresin extract (6-gingerol & 6-shogaol) exerts significant anti-inflammatory and analgesic effects to relieve joint pain.",
+    },
     journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC10933899/",
     pmid: "38473062",
   },
   {
-    name: "Serai",
+    name: { id: "Serai", en: "Lemongrass" },
     latinName: "Cymbopogon citratus",
-    activeCompounds: "Citral (Geranial & Neral), Geraniol, Myrcene, Asam Klorogenat",
-    benefits: "Menenangkan sistem saraf pusat (anksiolitik), efek relaksasi aromatik, membantu detoksifikasi ginjal (diuretik ringan).",
-    relieves: "Kecemasan (Anxiety), insomnia/gangguan tidur, tekanan darah tinggi ringan (Hipertensi).",
+    activeCompounds: "Citral (Geranial & Neral), Geraniol, Myrcene, Chlorogenic Acid",
+    benefits: {
+      id: "Menenangkan sistem saraf pusat (anksiolitik), efek relaksasi aromatik, membantu detoksifikasi ginjal (diuretik ringan).",
+      en: "Calms the central nervous system (anxiolytic), provides aromatic relaxation, and supports mild kidney detoxification.",
+    },
+    relieves: {
+      id: "Kecemasan (Anxiety), insomnia/gangguan tidur, tekanan darah tinggi ringan (Hipertensi).",
+      en: "Anxiety, insomnia/sleep disturbances, and mild high blood pressure.",
+    },
     journalTitle: "Scientific Basis for the Therapeutic Use of Cymbopogon citratus (Lemongrass)",
-    journalDetail: "Mengulas sifat farmakologis serai yang kaya citral sebagai penenang saraf alami, antioksidan, dan pelindung mukosa lambung.",
+    journalDetail: {
+      id: "Mengulas sifat farmakologis serai yang kaya citral sebagai penenang saraf alami, antioksidan, dan pelindung mukosa lambung.",
+      en: "Reviews the pharmacological properties of citral-rich lemongrass as a natural nerve sedative, antioxidant, and gastric mucosa protector.",
+    },
     journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3217679/",
     pmid: "22102830",
   },
   {
-    name: "Kayu Manis",
+    name: { id: "Kayu Manis", en: "Cinnamon" },
     latinName: "Cinnamomum verum",
-    activeCompounds: "Cinnamaldehyde, Asam Sinamat, Eugenol, Polifenol Oligomerik",
-    benefits: "Meningkatkan sensitivitas reseptor insulin, menghambat enzim α-glucosidase untuk mengontrol gula darah.",
-    relieves: "Resistensi insulin / Diabetes Tipe 2, lonjakan kadar gula darah pasca makan, hiperkolesterolemia (LDL tinggi).",
+    activeCompounds: "Cinnamaldehyde, Cinnamic Acid, Eugenol, Oligomeric Polyphenols",
+    benefits: {
+      id: "Meningkatkan sensitivitas reseptor insulin, menghambat enzim α-glucosidase untuk mengontrol gula darah.",
+      en: "Enhances insulin receptor sensitivity and inhibits α-glucosidase enzymes to help manage blood sugar levels.",
+    },
+    relieves: {
+      id: "Resistensi insulin / Diabetes Tipe 2, lonjakan kadar gula darah pasca makan, hiperkolesterolemia (LDL tinggi).",
+      en: "Insulin resistance / Type 2 Diabetes, post-meal blood sugar spikes, and elevated LDL cholesterol.",
+    },
     journalTitle: "Are cinnamon derivatives effective and safe for diabetes?",
-    journalDetail: "Menunjukkan aktivitas ekstrak kayu manis dalam menghambat enzim pencernaan karbohidrat untuk menstabilkan glukosa darah.",
+    journalDetail: {
+      id: "Menunjukkan aktivitas ekstrak kayu manis dalam menghambat enzim pencernaan karbohidrat untuk menstabilkan glukosa darah.",
+      en: "Highlights cinnamon extract activity in inhibiting carbohydrate digestive enzymes to stabilize blood glucose.",
+    },
     journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC11913506/",
     pmid: "38291023",
   },
   {
-    name: "Cengkeh",
+    name: { id: "Cengkeh", en: "Clove" },
     latinName: "Syzygium aromaticum",
-    activeCompounds: "Eugenol (80–90%), β-Caryophyllene, Tanin",
-    benefits: "Agen analgesik (penghilang rasa sakit) alami, antimikroba spektrum luas, serta penguat imun berbasis antioksidan super tinggi.",
-    relieves: "Sakit tenggorokan, batuk, peradangan gusi/mulut, serta infeksi bakteri pencernaan.",
+    activeCompounds: "Eugenol (80–90%), β-Caryophyllene, Tannins",
+    benefits: {
+      id: "Agen analgesik (penghilang rasa sakit) alami, antimikroba spektrum luas, serta penguat imun berbasis antioksidan super tinggi.",
+      en: "Natural analgesic (pain reliever), broad-spectrum antimicrobial, and potent antioxidant immune booster.",
+    },
+    relieves: {
+      id: "Sakit tenggorokan, batuk, peradangan gusi/mulut, serta infeksi bakteri pencernaan.",
+      en: "Sore throat, coughs, gum/oral inflammation, and digestive bacterial infections.",
+    },
     journalTitle: "Syzygium aromaticum L. (Myrtaceae): Traditional Uses, Bioactive Chemical Constituents, and Pharmacological Activities",
-    journalDetail: "Membuktikan bahwa konsentrasi tinggi eugenol pada cengkeh bertindak sebagai anti-bakteri, analgesik, dan pereda peradangan.",
+    journalDetail: {
+      id: "Membuktikan bahwa konsentrasi tinggi eugenol pada cengkeh bertindak sebagai anti-bakteri, analgesik, dan pereda peradangan.",
+      en: "Proves that high eugenol concentration in cloves acts as an antibacterial, analgesic, and anti-inflammatory agent.",
+    },
     journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC7072209/",
     pmid: "32019961",
   },
   {
-    name: "Kunyit",
+    name: { id: "Kunyit", en: "Turmeric" },
     latinName: "Curcuma longa",
-    activeCompounds: "Kurkuminoid (Curcumin, Desmethoxycurcumin), Turmeron",
-    benefits: "Anti-inflamasi dan antioksidan seluler alami terkuat, melindungi fungsi hati (hepatoprotektif), serta modulasi respon imun.",
-    relieves: "Peradangan usus/pencernaan, nyeri sendi kronis, gangguan fungsi hati, serta penyakit peradangan kulit.",
+    activeCompounds: "Curcuminoids (Curcumin, Desmethoxycurcumin), Turmerones",
+    benefits: {
+      id: "Anti-inflamasi dan antioksidan seluler alami terkuat, melindungi fungsi hati (hepatoprotektif), serta modulasi respon imun.",
+      en: "Powerful cellular anti-inflammatory and antioxidant, protects liver function (hepatoprotective), and modulates immune response.",
+    },
+    relieves: {
+      id: "Peradangan usus/pencernaan, nyeri sendi kronis, gangguan fungsi hati, serta penyakit peradangan kulit.",
+      en: "Intestinal/digestive inflammation, chronic joint pain, liver stress, and inflammatory skin conditions.",
+    },
     journalTitle: "Curcumin: A Review of Its Effects on Human Health",
-    journalDetail: "Tinjauan medis menyeluruh mengenai kerja kurkumin dalam meregulasi sitokin inflamasi dan menangkal radikal bebas.",
+    journalDetail: {
+      id: "Tinjauan medis menyeluruh mengenai kerja kurkumin dalam meregulasi sitokin inflamasi dan menangkal radikal bebas.",
+      en: "A comprehensive medical review of curcumin's mechanism in regulating inflammatory cytokines and neutralizing free radicals.",
+    },
     journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC5664031/",
     pmid: "29065496",
   },
   {
-    name: "Kapulaga",
+    name: { id: "Kapulaga", en: "Cardamom" },
     latinName: "Elettaria cardamomum",
-    activeCompounds: "1,8-Cineole (Eucalyptol), Terpinyl Acetate, Limonene, Kalium",
-    benefits: "Meredakan kekakuan otot saluran cerna (antispasmodic), menyegarkan napas, serta membantu mengontrol tekanan darah.",
-    relieves: "Perut kembung, begah, kram usus, serta ketidakstabilan tekanan darah ringan.",
+    activeCompounds: "1,8-Cineole (Eucalyptol), Terpinyl Acetate, Limonene, Potassium",
+    benefits: {
+      id: "Meredakan kekakuan otot saluran cerna (antispasmodic), menyegarkan napas, serta membantu mengontrol tekanan darah.",
+      en: "Relieves digestive muscle spasms (antispasmodic), freshens breath, and assists in blood pressure regulation.",
+    },
+    relieves: {
+      id: "Perut kembung, begah, kram usus, serta ketidakstabilan tekanan darah ringan.",
+      en: "Bloating, abdominal fullness, intestinal cramps, and mild blood pressure fluctuations.",
+    },
     journalTitle: "Cardamom powder supplementation reduces blood pressure, increases fibrinolysis, and improves antioxidant status",
-    journalDetail: "Studi klinis yang menunjukkan konsumsi kapulaga membantu merelaksasikan pembuluh darah dan mengontrol tekanan darah.",
+    journalDetail: {
+      id: "Studi klinis yang menunjukkan konsumsi kapulaga membantu merelaksasikan pembuluh darah dan mengontrol tekanan darah.",
+      en: "Clinical study demonstrating that cardamom consumption helps relax blood vessels and support blood pressure control.",
+    },
     journalLink: "https://pubmed.ncbi.nlm.nih.gov/20361714/",
     pmid: "20361714",
   },
   {
-    name: "Pala",
+    name: { id: "Pala", en: "Nutmeg" },
     latinName: "Myristica fragrans",
     activeCompounds: "Myristicin, Elemicin, Safrole, Sabinene, Linalool",
-    benefits: "Memberikan efek relaksasi pada sistem saraf pusat (sedatif alami), menenangkan pikiran, serta membantu menginduksi tidur nyenyak.",
-    relieves: "Insomnia, stres berkepanjangan, gelisah, serta kram perut akibat penumpukan gas.",
+    benefits: {
+      id: "Memberikan efek relaksasi pada sistem saraf pusat (sedatif alami), menenangkan pikiran, serta membantu menginduksi tidur nyenyak.",
+      en: "Provides central nervous system relaxation (natural sedative), calms the mind, and promotes restful sleep.",
+    },
+    relieves: {
+      id: "Insomnia, stres berkepanjangan, gelisah, serta kram perut akibat penumpukan gas.",
+      en: "Insomnia, prolonged stress, restlessness, and stomach cramps caused by trapped gas.",
+    },
     journalTitle: "Anxiolytic and Sedative Properties of Myristica fragrans",
-    journalDetail: "Menunjukkan bagaimana kandungan myristicin dalam pala berinteraksi dengan sistem saraf untuk mengurangi kecemasan.",
+    journalDetail: {
+      id: "Menunjukkan bagaimana kandungan myristicin dalam pala berinteraksi dengan sistem saraf untuk mengurangi kecemasan.",
+      en: "Demonstrates how myristicin content in nutmeg interacts with the nervous system to ease anxiety.",
+    },
     journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3249923/",
     pmid: "21689721",
   },
   {
-    name: "Lada Putih & Lada Hitam",
+    name: { id: "Lada Putih & Lada Hitam", en: "White & Black Pepper" },
     latinName: "Piper nigrum",
     activeCompounds: "Piperine, Piperidine, Piperettine, Chavicine",
-    benefits: "Bioavailability Enhancer (meningkatkan penyerapan nutrisi rempah lain—terutama kurkumin—hingga 2000% di dalam usus).",
-    relieves: "Penyerapan nutrisi yang buruk, lambatnya sistem metabolisme, serta penumpukan gas dalam lambung.",
+    benefits: {
+      id: "Bioavailability Enhancer (meningkatkan penyerapan nutrisi rempah lain—terutama kurkumin—hingga 2000% di dalam usus).",
+      en: "Bioavailability Enhancer (boosts the absorption of other botanical nutrients—especially curcumin—by up to 2000% in the gut).",
+    },
+    relieves: {
+      id: "Penyerapan nutrisi yang buruk, lambatnya sistem metabolisme, serta penumpukan gas dalam lambung.",
+      en: "Poor nutrient absorption, sluggish metabolic function, and gastric gas accumulation.",
+    },
     journalTitle: "Influence of piperine on the pharmacokinetics of curcumin in animals and human volunteers",
-    journalDetail: "Studi membuktikan bahwa penambahan piperine dari lada meningkatkan bioavailabilitas kurkumin hingga 2000%.",
+    journalDetail: {
+      id: "Studi membuktikan bahwa penambahan piperine dari lada meningkatkan bioavailabilitas kurkumin hingga 2000%.",
+      en: "Study proves that adding piperine from pepper increases curcumin bioavailability by up to 2000%.",
+    },
     journalLink: "https://pubmed.ncbi.nlm.nih.gov/9619120/",
     pmid: "9619120",
   },
   {
-    name: "Adas",
+    name: { id: "Adas", en: "Fennel" },
     latinName: "Foeniculum vulgare",
-    activeCompounds: "Trans-Anethole, Fenchone, Estragole, Asam Anisat",
-    benefits: "Menenangkan otot polos usus (antispasmodic), melancarkan dahak pada organ pernapasan (expectorant).",
-    relieves: "Sesak napas ringan, batuk berdahak, kram perut / Irritable Bowel Syndrome (IBS).",
+    activeCompounds: "Trans-Anethole, Fenchone, Estragole, Anisic Acid",
+    benefits: {
+      id: "Menenangkan otot polos usus (antispasmodic), melancarkan dahak pada organ pernapasan (expectorant).",
+      en: "Soothes intestinal smooth muscles (antispasmodic) and acts as an expectorant for respiratory clearings.",
+    },
+    relieves: {
+      id: "Sesak napas ringan, batuk berdahak, kram perut / Irritable Bowel Syndrome (IBS).",
+      en: "Mild respiratory tightness, chesty coughs, and stomach cramps / Irritable Bowel Syndrome (IBS).",
+    },
     journalTitle: "Foeniculum vulgare Mill: A Review of Its Botany, Phytochemistry, Pharmacology",
-    journalDetail: "Mengulas sifat anethole dan fenchone dalam adas yang terbukti secara klinis melancarkan dahak dan merelaksasikan otot saluran cerna.",
+    journalDetail: {
+      id: "Mengulas sifat anethole dan fenchone dalam adas yang terbukti secara klinis melancarkan dahak dan merelaksasikan otot saluran cerna.",
+      en: "Reviews anethole and fenchone properties in fennel clinically shown to ease mucus clearance and relax digestive muscles.",
+    },
     journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC4137549/",
     pmid: "25162032",
   },
   {
-    name: "Bunga Lawang / Pekak",
+    name: { id: "Bunga Lawang / Pekak", en: "Star Anise" },
     latinName: "Illicium verum",
-    activeCompounds: "Asam Shikimat (Shikimic Acid), Trans-Anethole, Limonene, Quercetin",
-    benefits: "Bahan alami utama penghasil asam shikimat (senyawa antivirus medis), anti-bakteri, serta meredakan kejang usus.",
-    relieves: "Gejala flu, infeksi saluran pernapasan, batuk kering/berdahak, perut kembung, serta kram pencernaan.",
+    activeCompounds: "Shikimic Acid, Trans-Anethole, Limonene, Quercetin",
+    benefits: {
+      id: "Bahan alami utama penghasil asam shikimat (senyawa antivirus medis), anti-bakteri, serta meredakan kejang usus.",
+      en: "Primary natural source of shikimic acid (medical antiviral compound), antibacterial, and relieves gut spasms.",
+    },
+    relieves: {
+      id: "Gejala flu, infeksi saluran pernapasan, batuk kering/berdahak, perut kembung, serta kram pencernaan.",
+      en: "Flu symptoms, respiratory tract irritation, coughs, bloating, and digestive discomfort.",
+    },
     journalTitle: "Illicium verum: A review on its botany, traditional use, phytochemistry and pharmacology",
-    journalDetail: "Tinjauan komprehensif yang membuktikan kandungan shikimic acid dan trans-anethole pada Bunga Lawang sebagai agen antivirus alami.",
+    journalDetail: {
+      id: "Tinjauan komprehensif yang membuktikan kandungan shikimic acid dan trans-anethole pada Bunga Lawang sebagai agen antivirus alami.",
+      en: "Comprehensive review validating shikimic acid and trans-anethole content in Star Anise as a natural antiviral agent.",
+    },
     journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC7120610/",
     pmid: "22155388",
   },
@@ -363,6 +453,19 @@ const content = {
       buyNow: "Beli Sekarang",
       selectQuantity: "Jumlah Pesanan",
     },
+    science: {
+      eyebrow: "EVIDENCE-BASED BOTANICAL",
+      title: "Riset & Khasiat Rempah VARTANA",
+      text: "Setiap bahan baku racikan VARTANA dipilih berdasarkan tradisi dan didukung oleh rujukan penelitian medis klinis (PubMed / NCBI). Klik pada setiap kartu untuk membaca penjelasan lengkapnya.",
+      cardBadge: "BOTANICAL INGREDIENT",
+      cardLink: "Lihat Jurnal →",
+      modalActive: "Kandungan Aktif Utama:",
+      modalBenefits: "Manfaat Kesehatan:",
+      modalRelieves: "Membantu Meredakan:",
+      modalJournalHeading: "🔬 Rujukan Jurnal Ilmiah (PubMed / NCBI):",
+      modalReadOfficial: "Baca Jurnal Resmi ↗",
+      modalClose: "Tutup Penjelasan",
+    },
     purpose: {
       eyebrow: "TUJUAN KAMI",
       title: "Tiga hal yang kami percaya.",
@@ -532,6 +635,19 @@ const content = {
       buyNow: "Buy Now",
       selectQuantity: "Select Quantity",
     },
+    science: {
+      eyebrow: "EVIDENCE-BASED BOTANICAL",
+      title: "VARTANA Spice Research & Benefits",
+      text: "Every ingredient in VARTANA's blends is selected based on tradition and backed by clinical research references (PubMed / NCBI). Click on each card to read the full breakdown.",
+      cardBadge: "BOTANICAL INGREDIENT",
+      cardLink: "View Journal →",
+      modalActive: "Main Active Compounds:",
+      modalBenefits: "Health Benefits:",
+      modalRelieves: "Helps Relieve:",
+      modalJournalHeading: "🔬 Medical Research Reference (PubMed / NCBI):",
+      modalReadOfficial: "Read Official Journal ↗",
+      modalClose: "Close Details",
+    },
     purpose: {
       eyebrow: "OUR PURPOSE",
       title: "Three things we believe.",
@@ -630,7 +746,7 @@ const content = {
       copyright: "© 2026 VARTANA. All rights reserved.",
     },
     cart: {
-      title: "Keranjang Belanja",
+      title: "Shopping Cart",
       empty: "Your shopping cart is empty.",
       total: "Total Payment",
       checkoutBtn: "Proceed to Delivery Info",
@@ -1330,8 +1446,8 @@ export default function Home() {
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-[#FBF9F4] p-7 shadow-2xl border border-[#B69245]/30">
             <div className="flex items-center justify-between border-b border-[#16382A]/10 pb-4">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#B69245]">EVIDENCE-BASED BOTANICAL</p>
-                <h3 className="font-serif text-3xl text-[#16382A]">{selectedSpiceModal.name}</h3>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#B69245]">{t.science.eyebrow}</p>
+                <h3 className="font-serif text-3xl text-[#16382A]">{selectedSpiceModal.name[language]}</h3>
                 <p className="text-xs italic text-[#627067]">{selectedSpiceModal.latinName}</p>
               </div>
               <button onClick={() => setSelectedSpiceModal(null)} className="rounded-full bg-[#16382A]/5 px-3 py-1 text-sm font-bold text-[#16382A] hover:bg-[#16382A]/10">
@@ -1341,29 +1457,29 @@ export default function Home() {
 
             <div className="mt-5 space-y-4 text-xs">
               <div>
-                <p className="font-bold uppercase tracking-wider text-[#9E7A32]">Kandungan Aktif Utama:</p>
+                <p className="font-bold uppercase tracking-wider text-[#9E7A32]">{t.science.modalActive}</p>
                 <p className="mt-1 text-[#16382A] bg-white p-2.5 rounded-lg border border-[#16382A]/10 font-medium">{selectedSpiceModal.activeCompounds}</p>
               </div>
 
               <div>
-                <p className="font-bold uppercase tracking-wider text-[#9E7A32]">Manfaat Kesehatan:</p>
-                <p className="mt-1 text-[#526158] leading-relaxed">{selectedSpiceModal.benefits}</p>
+                <p className="font-bold uppercase tracking-wider text-[#9E7A32]">{t.science.modalBenefits}</p>
+                <p className="mt-1 text-[#526158] leading-relaxed">{selectedSpiceModal.benefits[language]}</p>
               </div>
 
               <div>
-                <p className="font-bold uppercase tracking-wider text-[#9E7A32]">Membantu Meredakan:</p>
-                <p className="mt-1 text-[#16382A] font-semibold bg-[#F6F2E8] p-2.5 rounded-lg">{selectedSpiceModal.relieves}</p>
+                <p className="font-bold uppercase tracking-wider text-[#9E7A32]">{t.science.modalRelieves}</p>
+                <p className="mt-1 text-[#16382A] font-semibold bg-[#F6F2E8] p-2.5 rounded-lg">{selectedSpiceModal.relieves[language]}</p>
               </div>
 
               <div className="border-t border-[#B69245]/20 pt-4">
-                <p className="font-bold uppercase tracking-wider text-[#16382A] flex items-center gap-1.5">🔬 Rujukan Jurnal Ilmiah (PubMed / NCBI):</p>
+                <p className="font-bold uppercase tracking-wider text-[#16382A] flex items-center gap-1.5">{t.science.modalJournalHeading}</p>
                 <div className="mt-2 rounded-xl border border-[#B69245]/30 bg-white p-3.5">
                   <p className="font-serif text-sm font-bold text-[#16382A]">"{selectedSpiceModal.journalTitle}"</p>
-                  <p className="mt-2 text-[#627067] leading-relaxed">{selectedSpiceModal.journalDetail}</p>
+                  <p className="mt-2 text-[#627067] leading-relaxed">{selectedSpiceModal.journalDetail[language]}</p>
                   <div className="mt-3 flex items-center justify-between">
                     <span className="text-[10px] font-bold text-gray-400">PMID: {selectedSpiceModal.pmid}</span>
                     <a href={selectedSpiceModal.journalLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-bold text-[#B69245] hover:underline">
-                      Baca Jurnal Resmi ↗
+                      {t.science.modalReadOfficial}
                     </a>
                   </div>
                 </div>
@@ -1371,7 +1487,7 @@ export default function Home() {
             </div>
 
             <button onClick={() => setSelectedSpiceModal(null)} className="mt-6 w-full rounded-full bg-[#16382A] py-3 text-xs font-semibold text-[#F6F2E8] hover:bg-[#214737]">
-              Tutup Penjelasan
+              {t.science.modalClose}
             </button>
           </div>
         </div>
@@ -1573,15 +1689,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* SECTION BARU: RISET & KHASIAT REMPAH VARTANA */}
+      {/* SECTION BILINGUAL: RISET & KHASIAT REMPAH VARTANA */}
       <section id="science" className="bg-[#FBF9F4] px-6 py-28 border-y border-[#B69245]/20">
         <div className="mx-auto max-w-7xl">
           <div className="text-center max-w-3xl mx-auto">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">EVIDENCE-BASED BOTANICAL</p>
-            <h2 className="mt-4 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl">Riset & Khasiat Rempah VARTANA</h2>
-            <p className="mt-6 text-[15px] leading-8 text-[#627067]">
-              Setiap bahan baku racikan VARTANA dipilih berdasarkan tradisi dan didukung oleh rujukan penelitian medis klinis (PubMed / NCBI). Klik pada setiap kartu untuk membaca penjelasan lengkapnya.
-            </p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.science.eyebrow}</p>
+            <h2 className="mt-4 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl">{t.science.title}</h2>
+            <p className="mt-6 text-[15px] leading-8 text-[#627067]">{t.science.text}</p>
           </div>
 
           {/* BANNER FOTO FLATLAY 10 REMPAH */}
@@ -1589,22 +1703,22 @@ export default function Home() {
             <img src="/vartana-spices-hero.jpg" alt="10 Bahan Rempah Alami VARTANA" className="w-full max-h-[480px] object-cover" />
           </div>
 
-          {/* GRID 10 REMPAH INTERAKTIF */}
+          {/* GRID 10 REMPAH INTERAKTIF BILINGUAL */}
           <div className="mt-12 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
             {SPICES_DATA.map((spice) => (
               <button
-                key={spice.name}
+                key={spice.name.id}
                 onClick={() => setSelectedSpiceModal(spice)}
                 className="group flex flex-col justify-between rounded-2xl border border-[#16382A]/10 bg-white p-5 text-left transition duration-300 hover:-translate-y-1 hover:border-[#B69245] hover:shadow-lg"
               >
                 <div>
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-[#B69245]">BOTANICAL INGREDIENT</span>
-                  <h4 className="mt-1 font-serif text-xl font-bold text-[#16382A]">{spice.name}</h4>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-[#B69245]">{t.science.cardBadge}</span>
+                  <h4 className="mt-1 font-serif text-xl font-bold text-[#16382A]">{spice.name[language]}</h4>
                   <p className="text-[11px] italic text-[#627067]">{spice.latinName}</p>
-                  <p className="mt-3 text-xs text-[#526158] line-clamp-2">{spice.benefits}</p>
+                  <p className="mt-3 text-xs text-[#526158] line-clamp-2">{spice.benefits[language]}</p>
                 </div>
                 <div className="mt-5 flex items-center justify-between border-t border-gray-100 pt-3">
-                  <span className="text-[10px] font-bold text-[#16382A] group-hover:text-[#B69245]">Lihat Jurnal →</span>
+                  <span className="text-[10px] font-bold text-[#16382A] group-hover:text-[#B69245]">{t.science.cardLink}</span>
                   <span className="text-xs">🔬</span>
                 </div>
               </button>

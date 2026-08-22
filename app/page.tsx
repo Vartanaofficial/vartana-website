@@ -321,7 +321,7 @@ const content = {
     nav: {
       philosophy: "Filosofi",
       collection: "Koleksi",
-      science: "Sains Rempah",
+      science: "Riset & Khasiat Rempah",
       origin: "Cerita VARTANA",
       purpose: "Tujuan Kami",
       journal: "Jurnal",
@@ -490,7 +490,7 @@ const content = {
     nav: {
       philosophy: "Philosophy",
       collection: "Collection",
-      science: "Botanical Science",
+      science: "Spice Research & Benefits",
       origin: "The VARTANA Story",
       purpose: "Our Purpose",
       journal: "Journal",
@@ -1573,12 +1573,12 @@ export default function Home() {
         </div>
       </section>
 
-      {/* SECTION BARU: SAINS & BUKTI ILMIAH 10 REMPAH VARTANA */}
+      {/* SECTION BARU: RISET & KHASIAT REMPAH VARTANA */}
       <section id="science" className="bg-[#FBF9F4] px-6 py-28 border-y border-[#B69245]/20">
         <div className="mx-auto max-w-7xl">
           <div className="text-center max-w-3xl mx-auto">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">EVIDENCE-BASED HERBAL</p>
-            <h2 className="mt-4 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl">Sains & Bukti Ilmiah 10 Rempah VARTANA</h2>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">EVIDENCE-BASED BOTANICAL</p>
+            <h2 className="mt-4 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl">Riset & Khasiat Rempah VARTANA</h2>
             <p className="mt-6 text-[15px] leading-8 text-[#627067]">
               Setiap bahan baku racikan VARTANA dipilih berdasarkan tradisi dan didukung oleh rujukan penelitian medis klinis (PubMed / NCBI). Klik pada setiap kartu untuk membaca penjelasan lengkapnya.
             </p>

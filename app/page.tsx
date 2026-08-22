@@ -33,6 +33,7 @@ type ShippingOption = {
   company: string;
   name: string;
   service_type: string;
+  originalRate: number;
   rate: number;
   etd: string;
 };
@@ -533,7 +534,7 @@ const content = {
       copyright: "© 2026 VARTANA. All rights reserved.",
     },
     cart: {
-      title: "Shopping Cart",
+      title: "Keranjang Belanja",
       empty: "Your shopping cart is empty.",
       total: "Total Payment",
       checkoutBtn: "Proceed to Delivery Info",
@@ -612,6 +613,8 @@ export default function Home() {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(amount);
   };
 
+  const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+
   // FETCH PROVINSI
   useEffect(() => {
     async function fetchProvinces() {
@@ -628,6 +631,13 @@ export default function Home() {
     }
     fetchProvinces();
   }, []);
+
+  // RE-CALCULATE ONGKIR BILA JUMLAH PRODUK DI KERANJANG BERUBAH
+  useEffect(() => {
+    if (customer.districtId) {
+      fetchShippingRates(customer.districtId);
+    }
+  }, [totalQuantity]);
 
   // PROVINCE CHANGE
   const handleProvinceChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -694,23 +704,9 @@ export default function Home() {
     }
   };
 
-  // DISTRICT CHANGE ➔ FETCH ONGKIR REALTIME
-  const handleDistrictChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const dId = e.target.value;
-    const selectedDistObj = districts.find((d) => d.id === dId);
-
-    setCustomer((prev) => ({
-      ...prev,
-      districtId: dId,
-      districtName: selectedDistObj ? selectedDistObj.name : "",
-    }));
-
-    if (!dId) {
-      setShippingOptions([]);
-      setSelectedShipping(null);
-      return;
-    }
-
+  // FUNCTION FETCH ONGKIR REALTIME + LOGIKA SUBSIDI Rp7.000 & GRATIS ONGKIR ≥2 POUCH
+  const fetchShippingRates = async (dId: string) => {
+    if (!dId) return;
     const totalWeightGram = cart.reduce((sum, item) => sum + item.quantity * 100, 0);
 
     setLoadingShipping(true);
@@ -726,36 +722,83 @@ export default function Home() {
 
       const data = await res.json();
 
+      let rawRates = [
+        { courier_name: "JNE", courier_service_name: "JNE REG", courier_service_code: "REG", price: 12000, duration: "1-2 Hari" },
+        { courier_name: "J&T", courier_service_name: "J&T EZ", courier_service_code: "EZ", price: 13000, duration: "2-3 Hari" },
+      ];
+
       if (data.pricing && Array.isArray(data.pricing) && data.pricing.length > 0) {
-        const parsedRates: ShippingOption[] = data.pricing.map((item: any) => ({
+        rawRates = data.pricing;
+      }
+
+      const parsedRates: ShippingOption[] = rawRates.map((item: any) => {
+        const origRate = item.price;
+        let finalRate = origRate;
+
+        // LOGIKA SUBSIDI ONGKIR
+        if (totalQuantity >= 2) {
+          finalRate = 0; // Free Ongkir 100% untuk 2 pouch atau lebih
+        } else if (totalQuantity === 1) {
+          finalRate = Math.max(0, origRate - 7000); // Potongan Rp7.000 untuk 1 pouch
+        }
+
+        return {
           company: item.courier_name,
           name: item.courier_service_name,
           service_type: item.courier_service_code,
-          rate: item.price,
+          originalRate: origRate,
+          rate: finalRate,
           etd: item.duration,
-        }));
-        setShippingOptions(parsedRates);
-        setSelectedShipping(parsedRates[0]);
-      } else {
-        // Fallback ongkir jika API lokasi belum disetel
-        const fallbackRates: ShippingOption[] = [
-          { company: "JNE", name: "JNE REG", service_type: "REG", rate: 12000, etd: "1-2 Hari" },
-          { company: "J&T", name: "J&T EZ", service_type: "EZ", rate: 13000, etd: "2-3 Hari" },
-        ];
-        setShippingOptions(fallbackRates);
-        setSelectedShipping(fallbackRates[0]);
-      }
+        };
+      });
+
+      setShippingOptions(parsedRates);
+      setSelectedShipping(parsedRates[0]);
     } catch (err) {
       console.error("Gagal ambil ongkir:", err);
       const fallbackRates: ShippingOption[] = [
-        { company: "JNE", name: "JNE REG", service_type: "REG", rate: 12000, etd: "1-2 Hari" },
-        { company: "J&T", name: "J&T EZ", service_type: "EZ", rate: 13000, etd: "2-3 Hari" },
+        {
+          company: "JNE",
+          name: "JNE REG",
+          service_type: "REG",
+          originalRate: 12000,
+          rate: totalQuantity >= 2 ? 0 : Math.max(0, 12000 - 7000),
+          etd: "1-2 Hari",
+        },
+        {
+          company: "J&T",
+          name: "J&T EZ",
+          service_type: "EZ",
+          originalRate: 13000,
+          rate: totalQuantity >= 2 ? 0 : Math.max(0, 13000 - 7000),
+          etd: "2-3 Hari",
+        },
       ];
       setShippingOptions(fallbackRates);
       setSelectedShipping(fallbackRates[0]);
     } finally {
       setLoadingShipping(false);
     }
+  };
+
+  // DISTRICT CHANGE
+  const handleDistrictChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const dId = e.target.value;
+    const selectedDistObj = districts.find((d) => d.id === dId);
+
+    setCustomer((prev) => ({
+      ...prev,
+      districtId: dId,
+      districtName: selectedDistObj ? selectedDistObj.name : "",
+    }));
+
+    if (!dId) {
+      setShippingOptions([]);
+      setSelectedShipping(null);
+      return;
+    }
+
+    fetchShippingRates(dId);
   };
 
   // CART LOGIC
@@ -804,7 +847,9 @@ export default function Home() {
   // GENERATE WHATSAPP URL
   const generateWhatsAppUrl = () => {
     const itemsList = cart.map((ci) => `- ${ci.product.name} (${ci.quantity}x)`).join("\n");
-    const message = `Halo VARTANA, saya ingin konfirmasi pesanan:\n\n*Nama:* ${customer.name}\n*Email:* ${customer.email}\n*HP/WA:* ${customer.phone}\n*Alamat:* ${customer.addressDetail}, Kec. ${customer.districtName}, ${customer.cityName}, ${customer.provinceName}\n\n*Detail Pesanan:*\n${itemsList}\n\n*Subtotal:* ${formatRupiah(subtotalPrice)}\n*Pengiriman:* ${selectedShipping?.company.toUpperCase()} - ${selectedShipping?.name} (${formatRupiah(shippingCost)})\n*Total Transfer:* ${formatRupiah(grandTotal)}\n\nSaya akan segera mengirimkan bukti transfer ke BCA ${BANK_DETAILS.accountNumber} a.n ${BANK_DETAILS.accountHolder}. Terima kasih!`;
+    const promoInfo = totalQuantity >= 2 ? "GRATIS ONGKIR 100%" : "Subsidi Ongkir Rp7.000";
+
+    const message = `Halo VARTANA, saya ingin konfirmasi pesanan:\n\n*Nama:* ${customer.name}\n*Email:* ${customer.email}\n*HP/WA:* ${customer.phone}\n*Alamat:* ${customer.addressDetail}, Kec. ${customer.districtName}, ${customer.cityName}, ${customer.provinceName}\n\n*Detail Pesanan:*\n${itemsList}\n\n*Subtotal:* ${formatRupiah(subtotalPrice)}\n*Pengiriman:* ${selectedShipping?.company.toUpperCase()} - ${selectedShipping?.name}\n*Biaya Ongkir:* ${shippingCost === 0 ? "GRATIS ONGKIR" : formatRupiah(shippingCost)} (${promoInfo})\n*Total Transfer:* ${formatRupiah(grandTotal)}\n\nSaya akan segera mengirimkan bukti transfer ke BCA ${BANK_DETAILS.accountNumber} a.n ${BANK_DETAILS.accountHolder}. Terima kasih!`;
 
     return `https://wa.me/${BANK_DETAILS.whatsappNumber}?text=${encodeURIComponent(message)}`;
   };
@@ -873,6 +918,23 @@ export default function Home() {
               </button>
             </div>
 
+            {/* BANNER PROMO ONGKIR */}
+            {cart.length > 0 && (
+              <div className="mt-3 rounded-xl bg-[#16382A] p-3 text-center text-xs text-[#F6F2E8]">
+                {totalQuantity >= 2 ? (
+                  <p className="font-semibold text-[#D8C28B]">🎉 SELAMAT! Kamu Mendapatkan GRATIS ONGKIR 100%</p>
+                ) : (
+                  <p>
+                    ⚡ Promo Aktif: <span className="font-bold text-[#D8C28B]">Subsidi Ongkir Rp7.000</span>.
+                    <br />
+                    <span className="text-[11px] text-white/80">
+                      Tambah 1 pouch lagi untuk <b>GRATIS ONGKIR!</b>
+                    </span>
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Body Drawer */}
             <div className="flex-1 overflow-y-auto py-6">
               {cart.length === 0 ? (
@@ -904,7 +966,7 @@ export default function Home() {
                   ))}
                 </div>
               ) : checkoutStep === "form" ? (
-                /* STEP 2: FORM DATA DIRI, ALAMAT, & PILIH ONGKIR J&T / JNE */
+                /* STEP 2: FORM DATA DIRI & PILIH ONGKIR J&T / JNE */
                 <div className="space-y-4 text-xs">
                   {formError && <p className="rounded-md bg-red-100 p-3 text-red-600 font-medium">{formError}</p>}
 
@@ -1007,7 +1069,7 @@ export default function Home() {
                     />
                   </div>
 
-                  {/* PILIH KURIR ONGKIR REALTIME (J&T / JNE) */}
+                  {/* PILIH KURIR ONGKIR REALTIME */}
                   {customer.districtId && (
                     <div className="mt-4 rounded-xl border border-[#B69245]/30 bg-white p-3">
                       <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-2">{t.cart.shippingTitle} *</label>
@@ -1028,7 +1090,19 @@ export default function Home() {
                                   <p className="text-[10px] text-[#627067]">Estimasi: {option.etd}</p>
                                 </div>
                               </div>
-                              <span className="font-bold text-[#16382A]">{formatRupiah(option.rate)}</span>
+                              <div className="text-right">
+                                {totalQuantity >= 2 ? (
+                                  <div>
+                                    <span className="text-[10px] text-gray-400 line-through block">{formatRupiah(option.originalRate)}</span>
+                                    <span className="font-bold text-green-600">FREE ONGKIR</span>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <span className="text-[10px] text-gray-400 line-through block">{formatRupiah(option.originalRate)}</span>
+                                    <span className="font-bold text-[#16382A]">{formatRupiah(option.rate)}</span>
+                                  </div>
+                                )}
+                              </div>
                             </label>
                           ))}
                         </div>
@@ -1054,7 +1128,7 @@ export default function Home() {
                     <p className="font-bold text-[#16382A]">Ringkasan Pesanan:</p>
                     <p>• Subtotal: {formatRupiah(subtotalPrice)}</p>
                     <p>
-                      • Kurir: {selectedShipping?.company.toUpperCase()} ({formatRupiah(shippingCost)})
+                      • Kurir: {selectedShipping?.company.toUpperCase()} ({shippingCost === 0 ? "FREE ONGKIR" : formatRupiah(shippingCost)})
                     </p>
                     <p>
                       • Alamat: {customer.addressDetail}, Kec. {customer.districtName}, {customer.cityName}

@@ -437,7 +437,7 @@ const content = {
       text: "Empat racikan pertama VARTANA dibuat dari rempah pilihan Indonesia. Setiap racikan memiliki karakter rasa, aroma, dan komposisi yang berbeda.",
     },
     product: {
-      ingredients: "Rempah yang digunakan",
+      ingredients: "Rempah yang digunakan (klik untuk lihat manfaat)",
       weight: "Berat per tea bag",
       weightValue: "±9 g",
       taste: "Profil rasa",
@@ -619,7 +619,7 @@ const content = {
       text: "VARTANA's first four blends are crafted from selected Indonesian spices. Each one has its own taste, aroma, and botanical composition.",
     },
     product: {
-      ingredients: "Botanicals used",
+      ingredients: "Botanicals used (click to view details)",
       weight: "Weight per tea bag",
       weightValue: "±9 g",
       taste: "Taste profile",
@@ -783,7 +783,7 @@ export default function Home() {
   const [selectedProduct, setSelectedProduct] = useState<number>(0);
   const [productQuantity, setProductQuantity] = useState<number>(1);
 
-  // MOBILE STORY TAB STATE (UX REVISION)
+  // MOBILE STORY TAB STATE
   const [activeStoryTab, setActiveStoryTab] = useState<number>(0);
 
   // CART & CHECKOUT STATES
@@ -836,6 +836,20 @@ export default function Home() {
   };
 
   const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  // HELPER MENCARI SPICE DETAIL BERDASARKAN NAMA INGREDIENT
+  const openSpiceModalByName = (ingredientName: string) => {
+    const nameLower = ingredientName.toLowerCase().trim();
+    const foundSpice = SPICES_DATA.find((spice) => {
+      const idName = spice.name.id.toLowerCase();
+      const enName = spice.name.en.toLowerCase();
+      return idName.includes(nameLower) || enName.includes(nameLower) || nameLower.includes(idName) || nameLower.includes(enName);
+    });
+
+    if (foundSpice) {
+      setSelectedSpiceModal(foundSpice);
+    }
+  };
 
   // FETCH PROVINSI
   useEffect(() => {
@@ -1716,13 +1730,19 @@ export default function Home() {
                     <span className="rounded-full border border-white/15 bg-white/[0.025] px-4 py-2 text-[11px] text-white/75">{t.product.weightValue}</span>
                   </div>
 
+                  {/* REMPAH YANG DIGUNAKAN (SEKARANG BISA DI-KLIK UNTUK MODAL RISET & KHASIAT) */}
                   <div className="mt-8 md:mt-12">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#D8C28B]">{t.product.ingredients}</p>
                     <div className="mt-4 flex flex-wrap gap-2 md:mt-5">
                       {product.ingredients.map((ingredient) => (
-                        <span key={ingredient} className="rounded-full border border-white/15 bg-white/[0.025] px-3 py-1.5 text-[10px] text-white/70 md:px-3.5 md:py-2 md:text-[11px]">
-                          {ingredient}
-                        </span>
+                        <button
+                          key={ingredient}
+                          onClick={() => openSpiceModalByName(ingredient)}
+                          className="group flex items-center gap-1.5 rounded-full border border-[#D8C28B]/30 bg-white/[0.05] px-3.5 py-2 text-[11px] text-white/80 transition duration-200 hover:scale-105 hover:border-[#D8C28B] hover:bg-[#D8C28B] hover:text-[#0D261C]"
+                        >
+                          <span>{ingredient}</span>
+                          <span className="text-[9px] opacity-60 group-hover:opacity-100">🔍</span>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -1784,7 +1804,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* VARTANA STORY (WITH MOBILE SUB-TAB UX OPTIMIZATION) */}
+      {/* VARTANA STORY */}
       <section id="origin" className="bg-[#FBF9F4] px-6 py-16 md:py-28">
         <div className="mx-auto max-w-5xl">
           <div className="text-center">

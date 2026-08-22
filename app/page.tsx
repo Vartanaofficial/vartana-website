@@ -15,6 +15,7 @@ type Product = {
   priceValue: number;
   regularPrice?: string;
   promoPrice?: string;
+  discountPercentage?: string;
   quantityInfo?: string;
   ingredients: string[];
   description: LocalizedText;
@@ -73,9 +74,10 @@ const products: Product[] = [
     subtitle: "BLEND No. 01",
     status: "READY STOCK",
     image: "/signature-blend-vartana.png",
-    priceValue: 71000,
+    priceValue: 72800,
     regularPrice: "Rp97.000",
-    promoPrice: "Rp71.000",
+    promoPrice: "Rp72.800",
+    discountPercentage: "25% OFF",
     quantityInfo: "1 POUCH · 10 TEA BAGS",
     ingredients: ["Jahe", "Serai", "Kayu Manis", "Cengkeh", "Kapulaga", "Adas", "Lada Putih", "Lada Hitam", "Pala"],
     description: {
@@ -536,7 +538,7 @@ const content = {
     cart: {
       title: "Keranjang Belanja",
       empty: "Your shopping cart is empty.",
-      total: "Total Payment",
+      total: "Total Pembayaran",
       checkoutBtn: "Proceed to Delivery Info",
       fillFormTitle: "Customer & Shipping Info",
       name: "Full Name",
@@ -551,7 +553,7 @@ const content = {
       backToCart: "Back to Cart",
       requiredError: "Please complete Name, Email, WhatsApp, Province, City, District, Address Details, and Courier Option.",
       shippingTitle: "Select Shipping Courier",
-      transferTitle: "Bank Transfer Instructions",
+      transferTitle: "Instruksi Transfer Bank",
       confirmWa: "Confirm Order via WhatsApp",
     },
   },
@@ -576,6 +578,10 @@ export default function Home() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<"cart" | "form" | "payment">("cart");
   const [formError, setFormError] = useState("");
+
+  // COPY TO CLIPBOARD STATES
+  const [copiedAccount, setCopiedAccount] = useState(false);
+  const [copiedAmount, setCopiedAmount] = useState(false);
 
   // SHIPPING STATES
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
@@ -844,6 +850,18 @@ export default function Home() {
     setCheckoutStep("payment");
   };
 
+  // SALIN REKENING
+  const copyToClipboard = (text: string, isAmount = false) => {
+    navigator.clipboard.writeText(text);
+    if (isAmount) {
+      setCopiedAmount(true);
+      setTimeout(() => setCopiedAmount(false), 2000);
+    } else {
+      setCopiedAccount(true);
+      setTimeout(() => setCopiedAccount(false), 2000);
+    }
+  };
+
   // GENERATE WHATSAPP URL
   const generateWhatsAppUrl = () => {
     const itemsList = cart.map((ci) => `- ${ci.product.name} (${ci.quantity}x)`).join("\n");
@@ -918,19 +936,21 @@ export default function Home() {
               </button>
             </div>
 
-            {/* BANNER PROMO ONGKIR */}
+            {/* BANNER PROMO ONGKIR LEBIH BESAR & GLOWING */}
             {cart.length > 0 && (
-              <div className="mt-3 rounded-xl bg-[#16382A] p-3 text-center text-xs text-[#F6F2E8]">
+              <div className="mt-4 overflow-hidden rounded-2xl bg-gradient-to-r from-[#0D261C] via-[#16382A] to-[#0D261C] p-4 text-center text-xs text-[#F6F2E8] shadow-xl border border-[#B69245]/30 animate-pulse">
                 {totalQuantity >= 2 ? (
-                  <p className="font-semibold text-[#D8C28B]">🎉 SELAMAT! Kamu Mendapatkan GRATIS ONGKIR 100%</p>
+                  <div>
+                    <p className="text-sm font-extrabold text-[#D8C28B] uppercase tracking-wider">🎉 SELAMAT! KAMU DAPAT GRATIS ONGKIR 100%</p>
+                    <p className="mt-1 text-[11px] text-white/90">Seluruh biaya pengiriman otomatis di-potong Rp0!</p>
+                  </div>
                 ) : (
-                  <p>
-                    ⚡ Promo Aktif: <span className="font-bold text-[#D8C28B]">Subsidi Ongkir Rp7.000</span>.
-                    <br />
-                    <span className="text-[11px] text-white/80">
-                      Tambah 1 pouch lagi untuk <b>GRATIS ONGKIR!</b>
-                    </span>
-                  </p>
+                  <div>
+                    <p className="text-sm font-extrabold text-[#D8C28B] uppercase tracking-wider">⚡ PROMO AKTIF: SUBSIDI ONGKIR RP7.000</p>
+                    <p className="mt-1.5 text-xs text-white">
+                      Beli <span className="font-bold text-[#D8C28B]">1 POUCH LAGI</span> untuk klaim <span className="underline font-bold text-[#D8C28B]">GRATIS ONGKIR 100%!</span>
+                    </p>
+                  </div>
                 )}
               </div>
             )}
@@ -949,8 +969,12 @@ export default function Home() {
                     <div key={item.product.id} className="flex items-center justify-between rounded-xl border border-[#16382A]/10 bg-[#F6F2E8] p-4 shadow-sm">
                       <div className="pr-2">
                         <h4 className="font-serif text-lg font-semibold text-[#16382A]">{item.product.name}</h4>
-                        <p className="text-xs text-[#8E6E2E]">{formatRupiah(item.product.priceValue)} / pouch</p>
-                        <p className="mt-1 text-[11px] font-bold text-[#16382A]">Subtotal: {formatRupiah(item.product.priceValue * item.quantity)}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs font-bold text-[#16382A]">{formatRupiah(item.product.priceValue)}</span>
+                          <span className="text-[10px] text-gray-400 line-through">Rp97.000</span>
+                          <span className="rounded-full bg-[#B69245]/20 px-2 py-0.5 text-[9px] font-bold text-[#8E6E2E]">25% OFF</span>
+                        </div>
+                        <p className="mt-2 text-[11px] font-bold text-[#16382A]">Subtotal: {formatRupiah(item.product.priceValue * item.quantity)}</p>
                       </div>
 
                       <div className="flex items-center gap-2 rounded-full border border-[#16382A]/20 bg-white px-2 py-1">
@@ -1111,22 +1135,42 @@ export default function Home() {
                   )}
                 </div>
               ) : (
-                /* STEP 3: INSTRUKSI TRANSFER BANK MANUAL */
+                /* STEP 3: INSTRUKSI TRANSFER BANK MANUAL + TOMBOL SALIN NOMINAL & REKENING */
                 <div className="space-y-5 text-sm">
                   <div className="rounded-2xl border border-[#B69245]/30 bg-white p-5 shadow-sm text-center">
                     <p className="text-xs font-semibold uppercase tracking-widest text-[#8E6E2E]">Transfer Pembayaran Ke:</p>
                     <h4 className="mt-2 font-serif text-2xl font-bold text-[#16382A]">{BANK_DETAILS.bankName}</h4>
-                    <div className="my-3 rounded-lg bg-[#F6F2E8] p-3">
+
+                    {/* BOX REKENING + TOMBOL SALIN */}
+                    <div className="my-3 rounded-xl bg-[#F6F2E8] p-4 border border-[#16382A]/10">
                       <p className="font-mono text-2xl font-bold tracking-wider text-[#16382A]">{BANK_DETAILS.accountNumber}</p>
                       <p className="mt-1 text-xs text-[#627067] font-semibold">a.n {BANK_DETAILS.accountHolder}</p>
+                      <button
+                        onClick={() => copyToClipboard(BANK_DETAILS.accountNumber, false)}
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#16382A] px-4 py-1.5 text-[11px] font-semibold text-[#F6F2E8] transition hover:bg-[#214737]"
+                      >
+                        📋 {copiedAccount ? "Tersalin ke Clipboard!" : "Salin Nomor Rekening"}
+                      </button>
                     </div>
-                    <p className="text-xs text-[#627067]">Total Nominal yang Harus Ditransfer:</p>
-                    <p className="font-serif text-3xl font-bold text-[#8E6E2E]">{formatRupiah(grandTotal)}</p>
+
+                    {/* BOX NOMINAL + TOMBOL SALIN NOMINAL */}
+                    <div className="mt-4 rounded-xl bg-[#FFFDF9] p-4 border border-[#B69245]/30">
+                      <p className="text-xs text-[#627067] font-medium">Total Nominal Transfer:</p>
+                      <p className="font-serif text-3xl font-bold text-[#8E6E2E] my-1">{formatRupiah(grandTotal)}</p>
+                      <button
+                        onClick={() => copyToClipboard(grandTotal.toString(), true)}
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#B69245] px-4 py-1.5 text-[11px] font-semibold text-[#0D261C] transition hover:bg-[#c9a352]"
+                      >
+                        💰 {copiedAmount ? "Nominal Tersalin!" : "Salin Nominal Transfer"}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="rounded-xl border border-[#16382A]/10 bg-[#F6F2E8] p-4 text-xs space-y-2">
                     <p className="font-bold text-[#16382A]">Ringkasan Pesanan:</p>
-                    <p>• Subtotal: {formatRupiah(subtotalPrice)}</p>
+                    <p>
+                      • Subtotal ({totalQuantity} pouch): {formatRupiah(subtotalPrice)}
+                    </p>
                     <p>
                       • Kurir: {selectedShipping?.company.toUpperCase()} ({shippingCost === 0 ? "FREE ONGKIR" : formatRupiah(shippingCost)})
                     </p>
@@ -1309,7 +1353,10 @@ export default function Home() {
                           <p className="mt-2 font-serif text-xl text-white/35 line-through">{product.regularPrice}</p>
                         </div>
                         <div>
-                          <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[#D8C28B]">{t.product.promoPrice}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[#D8C28B]">{t.product.promoPrice}</p>
+                            <span className="rounded-full bg-[#D8C28B] px-2 py-0.5 text-[9px] font-extrabold text-[#0D261C]">{product.discountPercentage}</span>
+                          </div>
                           <p className="mt-1 font-serif text-4xl text-[#F6F2E8]">{product.promoPrice}</p>
                         </div>
                       </div>

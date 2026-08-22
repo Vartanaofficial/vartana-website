@@ -78,7 +78,7 @@ const BANK_DETAILS = {
   whatsappNumber: "6285777999960",
 };
 
-// DATA 10 REMPAH & JURNAL ILMIAH (FULL BILINGUAL ID & EN)
+// DATA 10 REMPAH & JURNAL ILMIAH (BILINGUAL ID & EN)
 const SPICES_DATA: SpiceDetail[] = [
   {
     name: { id: "Jahe", en: "Ginger" },
@@ -411,9 +411,9 @@ const content = {
     nav: {
       philosophy: "Filosofi",
       collection: "Koleksi",
-      science: "Riset & Khasiat Rempah",
-      origin: "Cerita VARTANA",
-      purpose: "Tujuan Kami",
+      science: "Riset & Khasiat",
+      origin: "Cerita",
+      purpose: "Tujuan",
       journal: "Jurnal",
     },
     hero: {
@@ -593,9 +593,9 @@ const content = {
     nav: {
       philosophy: "Philosophy",
       collection: "Collection",
-      science: "Spice Research & Benefits",
-      origin: "The VARTANA Story",
-      purpose: "Our Purpose",
+      science: "Spice Benefits",
+      origin: "Story",
+      purpose: "Purpose",
       journal: "Journal",
     },
     hero: {
@@ -782,6 +782,9 @@ export default function Home() {
   const [language, setLanguage] = useState<Language>("id");
   const [selectedProduct, setSelectedProduct] = useState<number>(0);
   const [productQuantity, setProductQuantity] = useState<number>(1);
+
+  // MOBILE STORY TAB STATE (UX REVISION)
+  const [activeStoryTab, setActiveStoryTab] = useState<number>(0);
 
   // CART & CHECKOUT STATES
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -1086,14 +1089,15 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-[#F6F2E8] text-[#16382A] selection:bg-[#B69245] selection:text-white">
-      {/* NAVBAR */}
-      <nav className="sticky top-0 z-50 border-b border-[#B69245]/15 bg-[#F6F2E8]/90 backdrop-blur-xl">
+    <main className="min-h-screen bg-[#F6F2E8] pb-20 text-[#16382A] selection:bg-[#B69245] selection:text-white md:pb-0">
+      {/* NAVBAR TOP DESKTOP & MOBILE HEADER */}
+      <nav className="sticky top-0 z-40 border-b border-[#B69245]/15 bg-[#F6F2E8]/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <a href="#home" className="flex items-center gap-3 transition hover:opacity-85">
-            <img src="/Logo Vartana.png" alt="VARTANA Botanical Wellness" className="h-10 w-auto object-contain md:h-12" />
+            <img src="/Logo Vartana.png" alt="VARTANA Botanical Wellness" className="h-9 w-auto object-contain md:h-12" />
           </a>
 
+          {/* MENU DESKTOP */}
           <div className="hidden items-center gap-8 text-[11px] font-medium uppercase tracking-[0.12em] text-[#526158] md:flex">
             <a href="#philosophy" className="transition hover:text-[#B69245]">
               {t.nav.philosophy}
@@ -1138,7 +1142,59 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        {/* HORIZONTAL QUICK NAV BAR FOR MOBILE */}
+        <div className="no-scrollbar flex overflow-x-auto border-t border-[#B69245]/10 bg-[#FBF9F4] px-4 py-2.5 md:hidden">
+          <a href="#collection" className="shrink-0 rounded-full bg-[#16382A]/5 px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#16382A] mr-2">
+            🛍️ {t.nav.collection}
+          </a>
+          <a href="#science" className="shrink-0 rounded-full bg-[#16382A]/5 px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#16382A] mr-2">
+            🔬 {t.nav.science}
+          </a>
+          <a href="#origin" className="shrink-0 rounded-full bg-[#16382A]/5 px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#16382A] mr-2">
+            📖 {t.nav.origin}
+          </a>
+          <a href="#philosophy" className="shrink-0 rounded-full bg-[#16382A]/5 px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#16382A] mr-2">
+            🌱 {t.nav.philosophy}
+          </a>
+          <a href="#purpose" className="shrink-0 rounded-full bg-[#16382A]/5 px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
+            🎯 {t.nav.purpose}
+          </a>
+        </div>
       </nav>
+
+      {/* MOBILE BOTTOM STICKY NAVIGATION BAR */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#B69245]/20 bg-[#FBF9F4]/95 px-4 py-2 backdrop-blur-lg md:hidden">
+        <div className="grid grid-cols-5 items-center text-center">
+          <a href="#home" className="flex flex-col items-center py-1 text-[#16382A]">
+            <span className="text-base">🏠</span>
+            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-tighter">Home</span>
+          </a>
+          <a href="#collection" className="flex flex-col items-center py-1 text-[#16382A]">
+            <span className="text-base">🛍️</span>
+            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-tighter">{t.nav.collection}</span>
+          </a>
+          <a href="#science" className="flex flex-col items-center py-1 text-[#16382A]">
+            <span className="text-base">🔬</span>
+            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-tighter">{t.nav.science}</span>
+          </a>
+          <a href="#origin" className="flex flex-col items-center py-1 text-[#16382A]">
+            <span className="text-base">📖</span>
+            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-tighter">{t.nav.origin}</span>
+          </a>
+          <button
+            onClick={() => {
+              setIsCartOpen(true);
+              setCheckoutStep("cart");
+            }}
+            className="relative flex flex-col items-center py-1 text-[#16382A]"
+          >
+            <span className="text-base">🛒</span>
+            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-tighter">Cart</span>
+            {totalItemsInCart > 0 && <span className="absolute right-2 top-0 flex h-4 w-4 items-center justify-center rounded-full bg-[#B69245] text-[8px] font-bold text-[#0D261C]">{totalItemsInCart}</span>}
+          </button>
+        </div>
+      </div>
 
       {/* CART DRAWER */}
       {isCartOpen && (
@@ -1500,22 +1556,22 @@ export default function Home() {
           <div className="absolute -right-20 bottom-0 h-[420px] w-[420px] rounded-full border-[45px] border-[#16382A]" />
         </div>
 
-        <div className="relative mx-auto grid min-h-[700px] max-w-7xl items-center gap-12 px-6 py-24 lg:grid-cols-2">
+        <div className="relative mx-auto grid min-h-[600px] max-w-7xl items-center gap-12 px-6 py-16 lg:grid-cols-2 lg:py-24">
           <div>
-            <p className="mb-6 text-[10px] font-semibold uppercase tracking-[0.32em] text-[#B69245]">{t.hero.eyebrow}</p>
-            <h1 className="font-serif text-5xl leading-[1.02] tracking-[-0.03em] text-[#16382A] sm:text-6xl lg:text-7xl xl:text-[5.8rem]">
+            <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.32em] text-[#B69245] md:mb-6">{t.hero.eyebrow}</p>
+            <h1 className="font-serif text-4xl leading-[1.05] tracking-[-0.03em] text-[#16382A] sm:text-6xl lg:text-7xl xl:text-[5.8rem]">
               {t.hero.title}
               <br />
               <span className="text-[#9E7A32]">{t.hero.accent}</span>
             </h1>
-            <p className="mt-8 max-w-xl text-[15px] leading-8 text-[#627067]">{t.hero.text}</p>
-            <div className="mt-10 flex flex-wrap gap-3">
-              <a href="#collection" className="rounded-full bg-[#16382A] px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#F6F2E8] transition duration-300 hover:bg-[#214737]">
+            <p className="mt-6 max-w-xl text-[14px] leading-7 text-[#627067] md:mt-8 md:text-[15px] md:leading-8">{t.hero.text}</p>
+            <div className="mt-8 flex flex-wrap gap-3 md:mt-10">
+              <a href="#collection" className="rounded-full bg-[#16382A] px-7 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#F6F2E8] transition duration-300 hover:bg-[#214737] md:px-8 md:py-3.5 md:text-[11px]">
                 {t.hero.primary}
               </a>
               <a
                 href="#philosophy"
-                className="rounded-full border border-[#16382A]/15 bg-white/40 px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#16382A] transition duration-300 hover:border-[#B69245]/60 hover:text-[#9E7A32]"
+                className="rounded-full border border-[#16382A]/15 bg-white/40 px-7 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#16382A] transition duration-300 hover:border-[#B69245]/60 hover:text-[#9E7A32] md:px-8 md:py-3.5 md:text-[11px]"
               >
                 {t.hero.secondary}
               </a>
@@ -1533,33 +1589,34 @@ export default function Home() {
       </section>
 
       {/* PHILOSOPHY */}
-      <section id="philosophy" className="bg-[#FBF9F4] px-6 py-28">
-        <div className="mx-auto grid max-w-7xl gap-16 lg:grid-cols-[0.85fr_1.15fr]">
+      <section id="philosophy" className="bg-[#FBF9F4] px-6 py-16 md:py-28">
+        <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.philosophy.eyebrow}</p>
-            <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl lg:text-6xl">{t.philosophy.title}</h2>
+            <h2 className="mt-4 font-serif text-3xl leading-[1.15] tracking-[-0.025em] text-[#16382A] md:mt-5 md:text-5xl lg:text-6xl">{t.philosophy.title}</h2>
           </div>
           <div className="max-w-2xl">
-            <p className="text-[16px] leading-[2] text-[#526158]">{t.philosophy.text1}</p>
-            <p className="mt-7 text-[16px] leading-[2] text-[#526158]">{t.philosophy.text2}</p>
-            <div className="mt-12 flex items-center gap-5">
+            <p className="text-[15px] leading-8 text-[#526158] md:text-[16px] md:leading-[2]">{t.philosophy.text1}</p>
+            <p className="mt-5 text-[15px] leading-8 text-[#526158] md:mt-7 md:text-[16px] md:leading-[2]">{t.philosophy.text2}</p>
+            <div className="mt-8 flex items-center gap-5 md:mt-12">
               <div className="h-px w-16 bg-[#B69245]" />
-              <p className="font-serif text-xl italic text-[#8E6E2E]">{t.philosophy.quote}</p>
+              <p className="font-serif text-lg italic text-[#8E6E2E] md:text-xl">{t.philosophy.quote}</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* COLLECTION */}
-      <section id="collection" className="relative overflow-hidden bg-[#0D261C] px-6 py-28 text-white">
+      <section id="collection" className="relative overflow-hidden bg-[#0D261C] px-6 py-16 text-white md:py-28">
         <div className="relative mx-auto max-w-7xl">
           <div className="max-w-2xl">
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#D8C28B]">{t.collection.eyebrow}</p>
-            <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#F6F2E8] md:text-5xl lg:text-6xl">{t.collection.title}</h2>
-            <p className="mt-7 max-w-xl text-[15px] leading-8 text-white/60">{t.collection.text}</p>
+            <h2 className="mt-4 font-serif text-3xl leading-[1.15] tracking-[-0.025em] text-[#F6F2E8] md:mt-5 md:text-5xl lg:text-6xl">{t.collection.title}</h2>
+            <p className="mt-5 max-w-xl text-[14px] leading-7 text-white/60 md:mt-7 md:text-[15px] md:leading-8">{t.collection.text}</p>
           </div>
 
-          <div className="mt-16 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {/* HORIZONTAL SWIPE FOR PRODUCTS ON MOBILE */}
+          <div className="no-scrollbar mt-10 flex gap-4 overflow-x-auto pb-4 md:grid md:grid-cols-2 md:overflow-visible xl:grid-cols-4">
             {products.map((item, index) => (
               <button
                 key={item.number}
@@ -1567,31 +1624,31 @@ export default function Home() {
                   setSelectedProduct(index);
                   setProductQuantity(1);
                 }}
-                className={`group rounded-2xl border p-7 text-left transition duration-300 ${selectedProduct === index ? "border-[#D8C28B]/70 bg-white/[0.08]" : "border-white/[0.08] bg-white/[0.025] hover:border-[#D8C28B]/50"}`}
+                className={`group shrink-0 w-[260px] rounded-2xl border p-6 text-left transition duration-300 md:w-auto md:p-7 ${selectedProduct === index ? "border-[#D8C28B]/70 bg-white/[0.08]" : "border-white/[0.08] bg-white/[0.025] hover:border-[#D8C28B]/50"}`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-serif text-3xl text-[#D8C28B]">{item.number}</span>
                   <span className="rounded-full border border-[#D8C28B]/25 px-3 py-1 text-[9px] uppercase tracking-[0.14em] text-[#D8C28B]">{item.subtitle}</span>
                 </div>
-                <div className="mt-8">
+                <div className="mt-6 md:mt-8">
                   <span
                     className={`inline-flex rounded-full border px-3 py-1 text-[8px] font-semibold uppercase tracking-[0.16em] ${item.status === "READY STOCK" ? "border-[#D8C28B]/50 bg-[#D8C28B]/10 text-[#D8C28B]" : "border-white/10 bg-white/[0.03] text-white/40"}`}
                   >
                     {item.status}
                   </span>
                 </div>
-                <div className="mt-6">
-                  <h3 className="font-serif text-2xl text-[#F6F2E8]">{item.name}</h3>
-                  <p className="mt-4 text-[13px] leading-7 text-white/50">{item.difference[language]}</p>
+                <div className="mt-5 md:mt-6">
+                  <h3 className="font-serif text-xl text-[#F6F2E8] md:text-2xl">{item.name}</h3>
+                  <p className="mt-3 text-[12px] leading-6 text-white/50 line-clamp-2 md:mt-4 md:text-[13px] md:leading-7">{item.difference[language]}</p>
                 </div>
               </button>
             ))}
           </div>
 
           {/* PRODUCT DETAIL */}
-          <div className="mt-10 overflow-hidden rounded-[2rem] border border-white/[0.06] shadow-[0_30px_80px_rgba(0,0,0,0.16)]">
+          <div className="mt-8 overflow-hidden rounded-[2rem] border border-white/[0.06] shadow-[0_30px_80px_rgba(0,0,0,0.16)] md:mt-10">
             <div className="grid lg:grid-cols-[0.85fr_1.15fr]">
-              <div className="relative min-h-[520px] overflow-hidden bg-[#102F23] p-8 md:p-12">
+              <div className="relative overflow-hidden bg-[#102F23] p-6 md:p-12">
                 <div className="relative">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <p className="text-[10px] font-semibold tracking-[0.25em] text-[#D8C28B]">BOTANICAL SERIES · {product.number}</p>
@@ -1602,35 +1659,35 @@ export default function Home() {
                     </span>
                   </div>
 
-                  <h3 className="mt-6 font-serif text-5xl leading-[1.05] tracking-[-0.025em] text-[#F6F2E8]">{product.name}</h3>
-                  <p className="mt-6 max-w-md text-[15px] leading-8 text-white/60">{product.description[language]}</p>
+                  <h3 className="mt-4 font-serif text-3xl leading-[1.05] tracking-[-0.025em] text-[#F6F2E8] md:mt-6 md:text-5xl">{product.name}</h3>
+                  <p className="mt-4 max-w-md text-[14px] leading-7 text-white/60 md:mt-6 md:text-[15px] md:leading-8">{product.description[language]}</p>
 
                   {product.image && (
-                    <div className="mt-10 flex min-h-[340px] items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#0D261C]/40 p-4">
-                      <img src={product.image} alt={product.name} className="max-h-[390px] w-auto max-w-full object-contain rounded-xl shadow-2xl" />
+                    <div className="mt-6 flex min-h-[260px] items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#0D261C]/40 p-4 md:mt-10 md:min-h-[340px]">
+                      <img src={product.image} alt={product.name} className="max-h-[300px] w-auto max-w-full object-contain rounded-xl shadow-2xl md:max-h-[390px]" />
                     </div>
                   )}
 
                   {product.status === "READY STOCK" && product.regularPrice && product.promoPrice && (
-                    <div className="mt-8 border-t border-white/10 pt-7">
+                    <div className="mt-6 border-t border-white/10 pt-6 md:mt-8 md:pt-7">
                       <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-[#D8C28B]">{t.product.pouch}</p>
-                      <p className="mt-2 text-[13px] font-medium tracking-[0.12em] text-white/70">{product.quantityInfo}</p>
+                      <p className="mt-1 text-[12px] font-medium tracking-[0.12em] text-white/70 md:mt-2 md:text-[13px]">{product.quantityInfo}</p>
 
-                      <div className="mt-7 grid gap-5 sm:grid-cols-2">
+                      <div className="mt-6 grid gap-4 sm:grid-cols-2 md:mt-7 md:gap-5">
                         <div>
                           <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/35">{t.product.regularPrice}</p>
-                          <p className="mt-2 font-serif text-xl text-white/35 line-through">{product.regularPrice}</p>
+                          <p className="mt-1 font-serif text-lg text-white/35 line-through md:mt-2 md:text-xl">{product.regularPrice}</p>
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[#D8C28B]">{t.product.promoPrice}</p>
                             <span className="rounded-full bg-[#D8C28B] px-2 py-0.5 text-[9px] font-extrabold text-[#0D261C]">{product.discountPercentage}</span>
                           </div>
-                          <p className="mt-1 font-serif text-4xl text-[#F6F2E8]">{product.promoPrice}</p>
+                          <p className="mt-1 font-serif text-3xl text-[#F6F2E8] md:text-4xl">{product.promoPrice}</p>
                         </div>
                       </div>
 
-                      <div className="mt-8 space-y-4">
+                      <div className="mt-6 space-y-3 md:mt-8 md:space-y-4">
                         <div className="flex items-center justify-between rounded-xl border border-white/15 bg-white/[0.03] p-3">
                           <span className="text-xs font-medium uppercase tracking-wider text-[#D8C28B]">{t.product.selectQuantity}</span>
                           <div className="flex items-center gap-3">
@@ -1654,16 +1711,16 @@ export default function Home() {
                     </div>
                   )}
 
-                  <div className="mt-9 flex items-center gap-4">
+                  <div className="mt-8 flex items-center gap-4 md:mt-9">
                     <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#D8C28B]">{t.product.weight}</span>
                     <span className="rounded-full border border-white/15 bg-white/[0.025] px-4 py-2 text-[11px] text-white/75">{t.product.weightValue}</span>
                   </div>
 
-                  <div className="mt-12">
+                  <div className="mt-8 md:mt-12">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#D8C28B]">{t.product.ingredients}</p>
-                    <div className="mt-5 flex flex-wrap gap-2">
+                    <div className="mt-4 flex flex-wrap gap-2 md:mt-5">
                       {product.ingredients.map((ingredient) => (
-                        <span key={ingredient} className="rounded-full border border-white/15 bg-white/[0.025] px-3.5 py-2 text-[11px] text-white/70">
+                        <span key={ingredient} className="rounded-full border border-white/15 bg-white/[0.025] px-3 py-1.5 text-[10px] text-white/70 md:px-3.5 md:py-2 md:text-[11px]">
                           {ingredient}
                         </span>
                       ))}
@@ -1672,14 +1729,14 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="bg-[#FBF9F4] p-8 text-[#16382A] md:p-12">
-                <div className="grid gap-x-10 gap-y-10 sm:grid-cols-2">
+              <div className="bg-[#FBF9F4] p-6 text-[#16382A] md:p-12">
+                <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2 md:gap-y-10">
                   <InfoBlock title={t.product.taste} text={product.taste[language]} />
                   <InfoBlock title={t.product.aroma} text={product.aroma[language]} />
                   <InfoBlock title={t.product.difference} text={product.difference[language]} />
                   <InfoBlock title={t.product.benefit} text={product.benefit[language]} />
                 </div>
-                <div className="mt-12 border-t border-[#B69245]/20 pt-8">
+                <div className="mt-8 border-t border-[#B69245]/20 pt-6 md:mt-12 md:pt-8">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#9E7A32]">{t.product.preparation}</p>
                   <p className="mt-3 text-[14px] leading-7 text-[#627067]">{t.product.preparationText}</p>
                 </div>
@@ -1690,34 +1747,34 @@ export default function Home() {
       </section>
 
       {/* SECTION BILINGUAL: RISET & KHASIAT REMPAH VARTANA */}
-      <section id="science" className="bg-[#FBF9F4] px-6 py-28 border-y border-[#B69245]/20">
+      <section id="science" className="bg-[#FBF9F4] px-6 py-16 border-y border-[#B69245]/20 md:py-28">
         <div className="mx-auto max-w-7xl">
           <div className="text-center max-w-3xl mx-auto">
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.science.eyebrow}</p>
-            <h2 className="mt-4 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl">{t.science.title}</h2>
-            <p className="mt-6 text-[15px] leading-8 text-[#627067]">{t.science.text}</p>
+            <h2 className="mt-4 font-serif text-3xl leading-[1.15] tracking-[-0.025em] text-[#16382A] md:text-5xl">{t.science.title}</h2>
+            <p className="mt-4 text-[14px] leading-7 text-[#627067] md:mt-6 md:text-[15px] md:leading-8">{t.science.text}</p>
           </div>
 
           {/* BANNER FOTO FLATLAY 10 REMPAH */}
-          <div className="mt-12 overflow-hidden rounded-3xl border border-[#B69245]/30 shadow-2xl">
-            <img src="/vartana-spices-hero.jpg" alt="10 Bahan Rempah Alami VARTANA" className="w-full max-h-[480px] object-cover" />
+          <div className="mt-8 overflow-hidden rounded-3xl border border-[#B69245]/30 shadow-2xl md:mt-12">
+            <img src="/vartana-spices-hero.jpg" alt="10 Bahan Rempah Alami VARTANA" className="w-full max-h-[320px] object-cover md:max-h-[480px]" />
           </div>
 
           {/* GRID 10 REMPAH INTERAKTIF BILINGUAL */}
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+          <div className="mt-8 grid gap-3 sm:grid-cols-2 md:mt-12 md:gap-4 md:grid-cols-3 lg:grid-cols-5">
             {SPICES_DATA.map((spice) => (
               <button
                 key={spice.name.id}
                 onClick={() => setSelectedSpiceModal(spice)}
-                className="group flex flex-col justify-between rounded-2xl border border-[#16382A]/10 bg-white p-5 text-left transition duration-300 hover:-translate-y-1 hover:border-[#B69245] hover:shadow-lg"
+                className="group flex flex-col justify-between rounded-2xl border border-[#16382A]/10 bg-white p-4 text-left transition duration-300 hover:-translate-y-1 hover:border-[#B69245] hover:shadow-lg md:p-5"
               >
                 <div>
                   <span className="text-[9px] font-bold uppercase tracking-wider text-[#B69245]">{t.science.cardBadge}</span>
-                  <h4 className="mt-1 font-serif text-xl font-bold text-[#16382A]">{spice.name[language]}</h4>
+                  <h4 className="mt-1 font-serif text-lg font-bold text-[#16382A] md:text-xl">{spice.name[language]}</h4>
                   <p className="text-[11px] italic text-[#627067]">{spice.latinName}</p>
-                  <p className="mt-3 text-xs text-[#526158] line-clamp-2">{spice.benefits[language]}</p>
+                  <p className="mt-2 text-xs text-[#526158] line-clamp-2 md:mt-3">{spice.benefits[language]}</p>
                 </div>
-                <div className="mt-5 flex items-center justify-between border-t border-gray-100 pt-3">
+                <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 md:mt-5">
                   <span className="text-[10px] font-bold text-[#16382A] group-hover:text-[#B69245]">{t.science.cardLink}</span>
                   <span className="text-xs">🔬</span>
                 </div>
@@ -1727,199 +1784,181 @@ export default function Home() {
         </div>
       </section>
 
-      {/* PURPOSE */}
-      <section id="purpose" className="bg-[#FBF9F4] px-6 py-28">
-        <div className="mx-auto max-w-7xl">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.purpose.eyebrow}</p>
-            <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl lg:text-6xl">{t.purpose.title}</h2>
-            <p className="mt-8 text-[15px] leading-8 text-[#627067]">{t.purpose.text}</p>
-          </div>
-          <div className="mt-20 grid gap-5 md:grid-cols-3">
-            {t.purpose.pillars.map((pillar) => (
-              <div key={pillar.number} className="border border-[#16382A]/8 bg-[#F6F2E8] p-9 transition duration-500 hover:-translate-y-1 hover:border-[#B69245]/40 hover:bg-white">
-                <span className="font-serif text-5xl text-[#B69245]/80">{pillar.number}</span>
-                <h3 className="mt-9 font-serif text-[27px] leading-tight text-[#16382A]">{pillar.title}</h3>
-                <p className="mt-5 text-[14px] leading-8 text-[#627067]">{pillar.text}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mx-auto mt-16 max-w-4xl border-y border-[#B69245]/25 py-9 text-center">
-            <p className="font-serif text-2xl leading-10 text-[#8E6E2E] md:text-3xl">{t.purpose.closing}</p>
-          </div>
-        </div>
-      </section>
-
-      {/* OUR APPROACH */}
-      <section className="bg-[#F6F2E8] px-6 py-28">
-        <div className="mx-auto max-w-7xl">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.way.eyebrow}</p>
-            <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl lg:text-6xl">{t.way.title}</h2>
-            <p className="mt-8 text-[15px] leading-8 text-[#627067]">{t.way.text}</p>
-            <p className="mt-7 font-serif text-xl italic leading-9 text-[#8E6E2E]">{t.way.closing}</p>
-          </div>
-          <div className="mt-20 grid gap-10 md:grid-cols-2 lg:grid-cols-4">
-            {t.way.steps.map((step) => (
-              <div key={step.number} className="border-t border-[#B69245]/35 pt-7">
-                <span className="font-serif text-4xl text-[#B69245]">{step.number}</span>
-                <h3 className="mt-6 font-serif text-2xl text-[#16382A]">{step.title}</h3>
-                <p className="mt-4 text-[14px] leading-8 text-[#627067]">{step.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* VARTANA STORY */}
-      <section id="origin" className="bg-[#FBF9F4] px-6 py-28">
+      {/* VARTANA STORY (WITH MOBILE SUB-TAB UX OPTIMIZATION) */}
+      <section id="origin" className="bg-[#FBF9F4] px-6 py-16 md:py-28">
         <div className="mx-auto max-w-5xl">
           <div className="text-center">
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.origin.eyebrow}</p>
-            <h2 className="mx-auto mt-5 max-w-3xl font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-6xl">{t.origin.title}</h2>
-            <p className="mt-6 font-serif text-xl italic text-[#8E6E2E]">{t.origin.intro}</p>
-            <div className="mx-auto mt-10 h-px w-20 bg-[#B69245]" />
+            <h2 className="mx-auto mt-4 max-w-3xl font-serif text-3xl leading-[1.15] tracking-[-0.025em] text-[#16382A] md:mt-5 md:text-6xl">{t.origin.title}</h2>
+            <p className="mt-4 font-serif text-lg italic text-[#8E6E2E] md:mt-6 md:text-xl">{t.origin.intro}</p>
+            <div className="mx-auto mt-8 h-px w-20 bg-[#B69245] md:mt-10" />
           </div>
 
-          <div className="mx-auto mt-16 max-w-3xl space-y-7 text-[16px] leading-[2] text-[#526158]">
+          {/* SUB-MENU TABS FOR MOBILE READABILITY */}
+          <div className="no-scrollbar my-8 flex overflow-x-auto rounded-xl border border-[#B69245]/20 bg-[#F6F2E8] p-1 md:hidden">
+            <button onClick={() => setActiveStoryTab(0)} className={`shrink-0 rounded-lg px-4 py-2 text-[11px] font-bold uppercase transition ${activeStoryTab === 0 ? "bg-[#16382A] text-[#F6F2E8]" : "text-[#526158]"}`}>
+              01. Rasa Sederhana
+            </button>
+            <button onClick={() => setActiveStoryTab(1)} className={`shrink-0 rounded-lg px-4 py-2 text-[11px] font-bold uppercase transition ${activeStoryTab === 1 ? "bg-[#16382A] text-[#F6F2E8]" : "text-[#526158]"}`}>
+              02. Lebih Dari Minuman
+            </button>
+            <button onClick={() => setActiveStoryTab(2)} className={`shrink-0 rounded-lg px-4 py-2 text-[11px] font-bold uppercase transition ${activeStoryTab === 2 ? "bg-[#16382A] text-[#F6F2E8]" : "text-[#526158]"}`}>
+              03. Tanah ke Cangkir
+            </button>
+          </div>
+
+          {/* CONTENT STORY BASED ON TABS FOR MOBILE / ALL FOR DESKTOP */}
+          <div className="mx-auto max-w-3xl space-y-6 text-[15px] leading-8 text-[#526158] md:space-y-7 md:text-[16px] md:leading-[2]">
             {t.origin.paragraphs.map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
 
-          <div className="mx-auto mt-16 max-w-3xl border-y border-[#B69245]/20 py-12">
-            <div className="space-y-5 text-center font-serif text-2xl leading-10 text-[#16382A] md:text-3xl">
+          <div className="mx-auto mt-10 max-w-3xl border-y border-[#B69245]/20 py-8 md:mt-16 md:py-12">
+            <div className="space-y-4 text-center font-serif text-xl leading-9 text-[#16382A] md:space-y-5 md:text-3xl md:leading-10">
               {t.origin.questions.map((question) => (
                 <p key={question}>{question}</p>
               ))}
             </div>
           </div>
 
-          <div className="mx-auto mt-12 max-w-3xl space-y-7 text-[16px] leading-[2] text-[#526158]">
-            {t.origin.afterQuestions.map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
-            ))}
-          </div>
-
-          <div className="mx-auto mt-12 max-w-3xl border-l-[3px] border-[#B69245] py-2 pl-7">
-            <p className="font-serif text-2xl leading-10 text-[#8E6E2E] md:text-3xl">{t.origin.highlight}</p>
-          </div>
-
-          {/* SIMPLE FLAVOURS */}
-          <div className="mt-28 border-t border-[#16382A]/10 pt-20">
+          {/* TAB 0: SIMPLE FLAVOURS */}
+          <div className={`mt-12 border-t border-[#16382A]/10 pt-10 md:block md:mt-28 md:pt-20 ${activeStoryTab === 0 ? "block" : "hidden md:block"}`}>
             <div className="mx-auto max-w-3xl">
               <p className="text-[10px] font-semibold tracking-[0.3em] text-[#B69245]">01</p>
-              <h3 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-[#16382A] md:text-5xl">{t.origin.simpleTitle}</h3>
-              <div className="mt-9 space-y-7 text-[16px] leading-[2] text-[#526158]">
+              <h3 className="mt-4 font-serif text-3xl leading-[1.1] tracking-[-0.02em] text-[#16382A] md:mt-5 md:text-5xl">{t.origin.simpleTitle}</h3>
+              <div className="mt-6 space-y-6 text-[15px] leading-8 text-[#526158] md:mt-9 md:space-y-7 md:text-[16px] md:leading-[2]">
                 {t.origin.simpleParagraphs.map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
-                <p className="font-serif text-2xl leading-10 text-[#183C2B] md:text-3xl">{t.origin.simpleHighlight}</p>
+                <p className="font-serif text-xl leading-8 text-[#183C2B] md:text-3xl md:leading-10">{t.origin.simpleHighlight}</p>
               </div>
 
-              <div className="mt-12 grid gap-4 md:grid-cols-2">
+              <div className="mt-8 grid gap-3 md:mt-12 md:gap-4 md:grid-cols-2">
                 {t.origin.ingredientsStory.map((item) => (
-                  <div key={item} className="border border-[#16382A]/8 bg-[#F6F2E8] px-7 py-6 text-[14px] leading-7 text-[#627067]">
+                  <div key={item} className="border border-[#16382A]/8 bg-[#F6F2E8] px-5 py-4 text-[13px] leading-6 text-[#627067] md:px-7 md:py-6 md:text-[14px] md:leading-7">
                     {item}
                   </div>
                 ))}
               </div>
 
-              <div className="mt-12 space-y-7 text-[16px] leading-[2] text-[#526158]">
+              <div className="mt-8 space-y-6 text-[15px] leading-8 text-[#526158] md:mt-12 md:space-y-7 md:text-[16px] md:leading-[2]">
                 {t.origin.simpleClosing.map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
               </div>
-              <p className="mt-10 font-serif text-2xl italic leading-10 text-[#8E6E2E]">{t.origin.finalLine}</p>
+              <p className="mt-8 font-serif text-xl italic leading-8 text-[#8E6E2E] md:mt-10 md:text-2xl md:leading-10">{t.origin.finalLine}</p>
             </div>
           </div>
 
-          {/* NOT JUST A DRINK */}
-          <div className="relative mt-28 overflow-hidden bg-[#0D261C] px-8 py-20 text-white md:px-16">
+          {/* TAB 1: NOT JUST A DRINK */}
+          <div className={`relative mt-12 overflow-hidden bg-[#0D261C] px-6 py-12 text-white md:block md:mt-28 md:px-16 md:py-20 ${activeStoryTab === 1 ? "block rounded-2xl" : "hidden md:block md:rounded-none"}`}>
             <div className="relative mx-auto max-w-3xl">
               <p className="text-[10px] font-semibold tracking-[0.3em] text-[#D8C28B]">02</p>
-              <h3 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-white md:text-5xl">{t.origin.notJustTitle}</h3>
-              <div className="mt-10 space-y-7 text-[15px] leading-8 text-white/60">
+              <h3 className="mt-4 font-serif text-3xl leading-[1.1] tracking-[-0.02em] text-white md:mt-5 md:text-5xl">{t.origin.notJustTitle}</h3>
+              <div className="mt-6 space-y-6 text-[14px] leading-7 text-white/60 md:mt-10 md:space-y-7 md:text-[15px] md:leading-8">
                 {t.origin.notJustParagraphs.map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
               </div>
-              <div className="mt-14 border-y border-[#D8C28B]/20 py-9">
-                <p className="font-serif text-3xl leading-10 text-[#D8C28B]">{t.origin.notJustHighlight}</p>
+              <div className="mt-8 border-y border-[#D8C28B]/20 py-6 md:mt-14 md:py-9">
+                <p className="font-serif text-2xl leading-8 text-[#D8C28B] md:text-3xl md:leading-10">{t.origin.notJustHighlight}</p>
               </div>
-              <div className="mt-10 space-y-7 text-[15px] leading-8 text-white/60">
+              <div className="mt-6 space-y-6 text-[14px] leading-7 text-white/60 md:mt-10 md:space-y-7 md:text-[15px] md:leading-8">
                 {t.origin.notJustClosing.map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
               </div>
-              <p className="mt-9 font-serif text-2xl leading-10 text-white md:text-3xl">{t.origin.notJustFinal}</p>
+              <p className="mt-6 font-serif text-xl leading-8 text-white md:mt-9 md:text-3xl md:leading-10">{t.origin.notJustFinal}</p>
             </div>
           </div>
 
-          {/* FROM SOIL TO CUP */}
-          <div className="mt-28">
+          {/* TAB 2: FROM SOIL TO CUP */}
+          <div className={`mt-12 md:block md:mt-28 ${activeStoryTab === 2 ? "block" : "hidden md:block"}`}>
             <div className="mx-auto max-w-3xl text-center">
               <p className="text-[10px] font-semibold tracking-[0.3em] text-[#B69245]">03</p>
-              <h3 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-[#16382A] md:text-5xl">{t.origin.soilTitle}</h3>
-              <div className="mt-9 space-y-7 text-[16px] leading-[2] text-[#526158]">
+              <h3 className="mt-4 font-serif text-3xl leading-[1.1] tracking-[-0.02em] text-[#16382A] md:mt-5 md:text-5xl">{t.origin.soilTitle}</h3>
+              <div className="mt-6 space-y-6 text-[15px] leading-8 text-[#526158] md:mt-9 md:space-y-7 md:text-[16px] md:leading-[2]">
                 {t.origin.soilParagraphs.map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
               </div>
-              <div className="mt-14 grid gap-px overflow-hidden border border-[#B69245]/20 bg-[#B69245]/20 md:grid-cols-2">
+              <div className="mt-8 grid gap-px overflow-hidden border border-[#B69245]/20 bg-[#B69245]/20 md:mt-14 md:grid-cols-2">
                 {t.origin.journey.map((item, index) => (
-                  <div key={item} className="bg-[#FBF9F4] px-8 py-9 text-left">
-                    <span className="font-serif text-3xl text-[#B69245]">0{index + 1}</span>
-                    <p className="mt-5 font-serif text-xl leading-8 text-[#16382A]">{item}</p>
+                  <div key={item} className="bg-[#FBF9F4] px-6 py-6 text-left md:px-8 md:py-9">
+                    <span className="font-serif text-2xl text-[#B69245] md:text-3xl">0{index + 1}</span>
+                    <p className="mt-3 font-serif text-lg leading-7 text-[#16382A] md:mt-5 md:text-xl md:leading-8">{item}</p>
                   </div>
                 ))}
               </div>
-              <p className="mt-14 text-[16px] leading-[2] text-[#526158]">{t.origin.soilClosing}</p>
+              <p className="mt-8 text-[15px] leading-8 text-[#526158] md:mt-14 md:text-[16px] md:leading-[2]">{t.origin.soilClosing}</p>
             </div>
           </div>
 
-          {/* FUTURE */}
-          <div className="mt-28 border-t border-[#16382A]/10 pt-20">
+          <div className="mt-12 border-t border-[#16382A]/10 pt-10 md:mt-28 md:pt-20">
             <div className="mx-auto max-w-3xl">
               <p className="text-[10px] font-semibold tracking-[0.3em] text-[#B69245]">04</p>
-              <h3 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-[#16382A] md:text-5xl">{t.origin.futureTitle}</h3>
-              <div className="mt-10 space-y-7 text-[16px] leading-[2] text-[#526158]">
+              <h3 className="mt-4 font-serif text-3xl leading-[1.1] tracking-[-0.02em] text-[#16382A] md:mt-5 md:text-5xl">{t.origin.futureTitle}</h3>
+              <div className="mt-6 space-y-6 text-[15px] leading-8 text-[#526158] md:mt-10 md:space-y-7 md:text-[16px] md:leading-[2]">
                 {t.origin.futureParagraphs.map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
               </div>
-              <div className="mt-14 border-l-[3px] border-[#B69245] bg-[#F6F2E8] py-7 pl-8 pr-8">
-                <p className="font-serif text-2xl leading-10 text-[#16382A] md:text-3xl">{t.origin.futureClosing}</p>
+              <div className="mt-8 border-l-[3px] border-[#B69245] bg-[#F6F2E8] p-5 md:mt-14 md:py-7 md:pl-8 md:pr-8">
+                <p className="font-serif text-xl leading-8 text-[#16382A] md:text-3xl md:leading-10">{t.origin.futureClosing}</p>
               </div>
             </div>
           </div>
 
-          <div className="mt-20 text-center">
-            <div className="inline-flex rounded-full border border-[#B69245]/45 bg-[#F6F2E8] px-7 py-3 text-[10px] font-semibold tracking-[0.2em] text-[#8E6E2E]">{t.origin.label}</div>
+          <div className="mt-12 text-center md:mt-20">
+            <div className="inline-flex rounded-full border border-[#B69245]/45 bg-[#F6F2E8] px-6 py-2.5 text-[9px] font-semibold tracking-[0.2em] text-[#8E6E2E] md:px-7 md:py-3 md:text-[10px]">{t.origin.label}</div>
+          </div>
+        </div>
+      </section>
+
+      {/* PURPOSE */}
+      <section id="purpose" className="bg-[#FBF9F4] px-6 py-16 md:py-28">
+        <div className="mx-auto max-w-7xl">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.purpose.eyebrow}</p>
+            <h2 className="mt-4 font-serif text-3xl leading-[1.15] tracking-[-0.025em] text-[#16382A] md:mt-5 md:text-5xl lg:text-6xl">{t.purpose.title}</h2>
+            <p className="mt-6 text-[14px] leading-7 text-[#627067] md:mt-8 md:text-[15px] md:leading-8">{t.purpose.text}</p>
+          </div>
+          <div className="mt-12 grid gap-4 md:mt-20 md:gap-5 md:grid-cols-3">
+            {t.purpose.pillars.map((pillar) => (
+              <div key={pillar.number} className="border border-[#16382A]/8 bg-[#F6F2E8] p-6 transition duration-500 hover:-translate-y-1 hover:border-[#B69245]/40 hover:bg-white md:p-9">
+                <span className="font-serif text-4xl text-[#B69245]/80 md:text-5xl">{pillar.number}</span>
+                <h3 className="mt-6 font-serif text-2xl leading-tight text-[#16382A] md:mt-9 md:text-[27px]">{pillar.title}</h3>
+                <p className="mt-4 text-[13px] leading-7 text-[#627067] md:mt-5 md:text-[14px] md:leading-8">{pillar.text}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mx-auto mt-12 max-w-4xl border-y border-[#B69245]/25 py-7 text-center md:mt-16 md:py-9">
+            <p className="font-serif text-xl leading-8 text-[#8E6E2E] md:text-3xl md:leading-10">{t.purpose.closing}</p>
           </div>
         </div>
       </section>
 
       {/* JOURNAL */}
-      <section id="journal" className="bg-[#EEE8DB] px-6 py-28">
-        <div className="mx-auto grid max-w-7xl gap-16 lg:grid-cols-[0.8fr_1.2fr]">
+      <section id="journal" className="bg-[#EEE8DB] px-6 py-16 md:py-28">
+        <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.journal.eyebrow}</p>
-            <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl">{t.journal.title}</h2>
-            <p className="mt-7 text-[15px] leading-8 text-[#627067]">{t.journal.text}</p>
-            <button className="mt-9 rounded-full border border-[#16382A]/20 bg-[#FBF9F4]/60 px-7 py-3.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#16382A] transition hover:border-[#B69245] hover:text-[#9E7A32]">
+            <h2 className="mt-4 font-serif text-3xl leading-[1.15] tracking-[-0.025em] text-[#16382A] md:mt-5 md:text-5xl">{t.journal.title}</h2>
+            <p className="mt-5 text-[14px] leading-7 text-[#627067] md:mt-7 md:text-[15px] md:leading-8">{t.journal.text}</p>
+            <button className="mt-6 rounded-full border border-[#16382A]/20 bg-[#FBF9F4]/60 px-6 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#16382A] transition hover:border-[#B69245] hover:text-[#9E7A32] md:mt-9 md:px-7 md:py-3.5">
               {t.journal.button}
             </button>
           </div>
 
           <div>
             {t.journal.articles.map((article, index) => (
-              <div key={article} className="group flex items-center justify-between border-b border-[#16382A]/10 py-7">
-                <div className="flex items-center gap-6">
-                  <span className="font-serif text-2xl text-[#B69245]/80">0{index + 1}</span>
-                  <h3 className="font-serif text-xl leading-7 text-[#16382A]">{article}</h3>
+              <div key={article} className="group flex items-center justify-between border-b border-[#16382A]/10 py-5 md:py-7">
+                <div className="flex items-center gap-4 md:gap-6">
+                  <span className="font-serif text-xl text-[#B69245]/80 md:text-2xl">0{index + 1}</span>
+                  <h3 className="font-serif text-lg leading-6 text-[#16382A] md:text-xl md:leading-7">{article}</h3>
                 </div>
-                <span className="text-lg text-[#B69245]">↗</span>
+                <span className="text-base text-[#B69245] md:text-lg">↗</span>
               </div>
             ))}
           </div>
@@ -1927,51 +1966,51 @@ export default function Home() {
       </section>
 
       {/* FOOTER */}
-      <footer className="bg-[#091D15] px-6 py-20 text-white">
-        <div className="mx-auto grid max-w-7xl gap-16 lg:grid-cols-[1.1fr_0.9fr]">
+      <footer className="bg-[#091D15] px-6 py-16 text-white md:py-20">
+        <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
           <div>
-            <p className="font-serif text-4xl tracking-[0.2em] text-[#F6F2E8]">VARTANA</p>
-            <p className="mt-3 text-[10px] font-semibold tracking-[0.3em] text-[#D8C28B]">BOTANICAL WELLNESS</p>
-            <div className="mt-9 h-px w-16 bg-[#B69245]" />
-            <p className="mt-9 max-w-md font-serif text-2xl leading-10 text-white/85">{t.footer.tagline}</p>
+            <p className="font-serif text-3xl tracking-[0.2em] text-[#F6F2E8] md:text-4xl">VARTANA</p>
+            <p className="mt-2 text-[10px] font-semibold tracking-[0.3em] text-[#D8C28B]">BOTANICAL WELLNESS</p>
+            <div className="mt-6 h-px w-16 bg-[#B69245] md:mt-9" />
+            <p className="mt-6 max-w-md font-serif text-xl leading-8 text-white/85 md:mt-9 md:text-2xl md:leading-10">{t.footer.tagline}</p>
           </div>
 
           <div className="lg:border-l lg:border-white/10 lg:pl-16">
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#D8C28B]">{t.footer.contact}</p>
-            <div className="mt-8 space-y-5">
+            <div className="mt-6 space-y-4 md:mt-8 md:space-y-5">
               <div>
                 <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.email}</p>
-                <a href="mailto:vartana@vartanaglobal.com" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">
+                <a href="mailto:vartana@vartanaglobal.com" className="mt-1 inline-block text-[13px] text-white/80 transition hover:text-[#D8C28B] md:text-[14px]">
                   vartana@vartanaglobal.com
                 </a>
               </div>
               <div>
                 <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.whatsapp}</p>
-                <a href="https://wa.me/6285777999960" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">
+                <a href="https://wa.me/6285777999960" target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-[13px] text-white/80 transition hover:text-[#D8C28B] md:text-[14px]">
                   +62 857-7799-9960
                 </a>
               </div>
               <div>
                 <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.instagram}</p>
-                <a href="https://www.instagram.com/vartanabotanical" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">
+                <a href="https://www.instagram.com/vartanabotanical" target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-[13px] text-white/80 transition hover:text-[#D8C28B] md:text-[14px]">
                   @vartanabotanical
                 </a>
               </div>
               <div>
                 <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.tiktok}</p>
-                <a href="https://www.tiktok.com/@vartanabotanical" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">
+                <a href="https://www.tiktok.com/@vartanabotanical" target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-[13px] text-white/80 transition hover:text-[#D8C28B] md:text-[14px]">
                   @vartanabotanical
                 </a>
               </div>
               <div>
                 <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.location}</p>
-                <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.18em] text-white/55">{t.footer.locationValue}</p>
+                <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.18em] text-white/55">{t.footer.locationValue}</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="mx-auto mt-16 flex max-w-7xl flex-col gap-4 border-t border-white/10 pt-8 md:flex-row md:items-center md:justify-between">
+        <div className="mx-auto mt-12 flex max-w-7xl flex-col gap-4 border-t border-white/10 pt-8 md:mt-16 md:flex-row md:items-center md:justify-between">
           <p className="text-[10px] tracking-[0.16em] text-white/25">{t.footer.copyright}</p>
           <p className="text-[9px] uppercase tracking-[0.22em] text-white/20">ROOTED IN EARTH · BUILT FOR GROWTH</p>
         </div>

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 
 type Language = "id" | "en";
-
 type LocalizedText = Record<Language, string>;
 
 type Product = {
@@ -30,6 +29,14 @@ type CartItem = {
   quantity: number;
 };
 
+type ShippingOption = {
+  company: string;
+  name: string;
+  service_type: string;
+  rate: number;
+  etd: string;
+};
+
 type CustomerData = {
   name: string;
   email: string;
@@ -47,6 +54,14 @@ type CustomerData = {
 type RegionItem = {
   id: string;
   name: string;
+};
+
+// DATA REKENING VARTANA
+const BANK_DETAILS = {
+  bankName: "BCA (Bank Central Asia)",
+  accountNumber: "1234567890",
+  accountHolder: "PT VARTANA BOTANICAL WELLNESS",
+  whatsappNumber: "6285777999960",
 };
 
 const products: Product[] = [
@@ -337,19 +352,22 @@ const content = {
       title: "Keranjang Belanja",
       empty: "Keranjang belanja kamu masih kosong.",
       total: "Total Pembayaran",
-      checkoutBtn: "Lanjut Isi Data Pembeli",
-      fillFormTitle: "Data Pembeli & Pengiriman",
+      checkoutBtn: "Lanjut Isi Data Pengiriman",
+      fillFormTitle: "Data Pembeli & Alamat Kirim",
       name: "Nama Lengkap",
-      email: "Email (bukti transaksi)",
+      email: "Email",
       phone: "Nomor WhatsApp / HP",
       province: "Provinsi",
       city: "Kota / Kabupaten",
       district: "Kecamatan",
       addressDetail: "Alamat Lengkap (Jalan, No. Rumah, RT/RW, Kode Pos)",
       notes: "Catatan Pesanan (Opsional)",
-      payNow: "Bayar Sekarang (QRIS / VA / E-Wallet)",
-      backToCart: "Kembali ke Detail Keranjang",
-      requiredError: "Mohon lengkapi Nama, Email, WhatsApp, Provinsi, Kota, Kecamatan, dan Detail Alamat.",
+      payNow: "Lanjut Pembayaran Transfer Bank",
+      backToCart: "Kembali ke Keranjang",
+      requiredError: "Mohon lengkapi Nama, Email, WhatsApp, Provinsi, Kota, Kecamatan, Detail Alamat, dan Pilihan Kurir.",
+      shippingTitle: "Pilih Kurir Pengiriman",
+      transferTitle: "Instruksi Transfer Bank",
+      confirmWa: "Konfirmasi Pesanan via WhatsApp",
     },
   },
   en: {
@@ -518,19 +536,22 @@ const content = {
       title: "Shopping Cart",
       empty: "Your shopping cart is empty.",
       total: "Total Payment",
-      checkoutBtn: "Proceed to Customer Info",
-      fillFormTitle: "Customer & Delivery Info",
+      checkoutBtn: "Proceed to Delivery Info",
+      fillFormTitle: "Customer & Shipping Info",
       name: "Full Name",
       email: "Email Address",
-      phone: "Phone / WhatsApp Number",
+      phone: "WhatsApp Number",
       province: "Province",
       city: "City / Regency",
       district: "District / Kecamatan",
-      addressDetail: "Full Address Detail (Street, House No, Postal Code)",
+      addressDetail: "Full Address Detail",
       notes: "Order Notes (Optional)",
-      payNow: "Pay Now (QRIS / VA / E-Wallet)",
-      backToCart: "Back to Cart Details",
-      requiredError: "Please fill in Name, Email, Phone, Province, City, District, and Address Details.",
+      payNow: "Proceed to Bank Transfer",
+      backToCart: "Back to Cart",
+      requiredError: "Please complete Name, Email, WhatsApp, Province, City, District, Address Details, and Courier Option.",
+      shippingTitle: "Select Shipping Courier",
+      transferTitle: "Bank Transfer Instructions",
+      confirmWa: "Confirm Order via WhatsApp",
     },
   },
 };
@@ -552,11 +573,15 @@ export default function Home() {
   // CART & CHECKOUT STATES
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [checkoutStep, setCheckoutStep] = useState<"cart" | "form">("cart");
+  const [checkoutStep, setCheckoutStep] = useState<"cart" | "form" | "payment">("cart");
   const [formError, setFormError] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
 
-  // DATA CUSTOMER
+  // SHIPPING STATES
+  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
+  const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
+  const [loadingShipping, setLoadingShipping] = useState(false);
+
+  // CUSTOMER DATA
   const [customer, setCustomer] = useState<CustomerData>({
     name: "",
     email: "",
@@ -571,7 +596,7 @@ export default function Home() {
     notes: "",
   });
 
-  // DATA WILAYAH INDONESIA DROPDOWN
+  // DATA WILAYAH INDONESIA
   const [provinces, setProvinces] = useState<RegionItem[]>([]);
   const [cities, setCities] = useState<RegionItem[]>([]);
   const [districts, setDistricts] = useState<RegionItem[]>([]);
@@ -587,7 +612,7 @@ export default function Home() {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(amount);
   };
 
-  // FETCH PROVINSI SAAT COMPONENT MOUNT
+  // FETCH PROVINSI
   useEffect(() => {
     async function fetchProvinces() {
       setLoadingProvinces(true);
@@ -604,7 +629,7 @@ export default function Home() {
     fetchProvinces();
   }, []);
 
-  // FETCH KOTA KETIKA PROVINSI DIPILIH
+  // PROVINCE CHANGE
   const handleProvinceChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const provId = e.target.value;
     const selectedProvObj = provinces.find((p) => p.id === provId);
@@ -621,6 +646,8 @@ export default function Home() {
 
     setCities([]);
     setDistricts([]);
+    setShippingOptions([]);
+    setSelectedShipping(null);
 
     if (!provId) return;
 
@@ -636,7 +663,7 @@ export default function Home() {
     }
   };
 
-  // FETCH KECAMATAN KETIKA KOTA DIPILIH
+  // CITY CHANGE
   const handleCityChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const cId = e.target.value;
     const selectedCityObj = cities.find((c) => c.id === cId);
@@ -650,6 +677,8 @@ export default function Home() {
     }));
 
     setDistricts([]);
+    setShippingOptions([]);
+    setSelectedShipping(null);
 
     if (!cId) return;
 
@@ -665,8 +694,8 @@ export default function Home() {
     }
   };
 
-  // KETIKA KECAMATAN DIPILIH
-  const handleDistrictChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  // DISTRICT CHANGE ➔ FETCH ONGKIR REALTIME
+  const handleDistrictChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const dId = e.target.value;
     const selectedDistObj = districts.find((d) => d.id === dId);
 
@@ -675,6 +704,58 @@ export default function Home() {
       districtId: dId,
       districtName: selectedDistObj ? selectedDistObj.name : "",
     }));
+
+    if (!dId) {
+      setShippingOptions([]);
+      setSelectedShipping(null);
+      return;
+    }
+
+    const totalWeightGram = cart.reduce((sum, item) => sum + item.quantity * 100, 0);
+
+    setLoadingShipping(true);
+    try {
+      const res = await fetch("/api/shipping", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          destinationDistrictId: dId,
+          weightGram: totalWeightGram,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.pricing && Array.isArray(data.pricing) && data.pricing.length > 0) {
+        const parsedRates: ShippingOption[] = data.pricing.map((item: any) => ({
+          company: item.courier_name,
+          name: item.courier_service_name,
+          service_type: item.courier_service_code,
+          rate: item.price,
+          etd: item.duration,
+        }));
+        setShippingOptions(parsedRates);
+        setSelectedShipping(parsedRates[0]);
+      } else {
+        // Fallback ongkir jika API lokasi belum disetel
+        const fallbackRates: ShippingOption[] = [
+          { company: "JNE", name: "JNE REG", service_type: "REG", rate: 12000, etd: "1-2 Hari" },
+          { company: "J&T", name: "J&T EZ", service_type: "EZ", rate: 13000, etd: "2-3 Hari" },
+        ];
+        setShippingOptions(fallbackRates);
+        setSelectedShipping(fallbackRates[0]);
+      }
+    } catch (err) {
+      console.error("Gagal ambil ongkir:", err);
+      const fallbackRates: ShippingOption[] = [
+        { company: "JNE", name: "JNE REG", service_type: "REG", rate: 12000, etd: "1-2 Hari" },
+        { company: "J&T", name: "J&T EZ", service_type: "EZ", rate: 13000, etd: "2-3 Hari" },
+      ];
+      setShippingOptions(fallbackRates);
+      setSelectedShipping(fallbackRates[0]);
+    } finally {
+      setLoadingShipping(false);
+    }
   };
 
   // CART LOGIC
@@ -706,49 +787,26 @@ export default function Home() {
   };
 
   const totalItemsInCart = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = cart.reduce((sum, item) => sum + item.product.priceValue * item.quantity, 0);
+  const subtotalPrice = cart.reduce((sum, item) => sum + item.product.priceValue * item.quantity, 0);
+  const shippingCost = selectedShipping ? selectedShipping.rate : 0;
+  const grandTotal = subtotalPrice + shippingCost;
 
-  // HANDLE PAYMENT GATEWAY
-  const handlePaymentGateway = async () => {
-    if (!customer.name || !customer.email || !customer.phone || !customer.provinceName || !customer.cityName || !customer.districtName || !customer.addressDetail) {
+  // VERIFIKASI SEBELUM MASUK INSTRUKSI TRANSFER
+  const handleProceedToPayment = () => {
+    if (!customer.name || !customer.email || !customer.phone || !customer.provinceName || !customer.cityName || !customer.districtName || !customer.addressDetail || !selectedShipping) {
       setFormError(t.cart.requiredError);
       return;
     }
     setFormError("");
-    setIsProcessing(true);
+    setCheckoutStep("payment");
+  };
 
-    const fullFormattedAddress = `${customer.addressDetail}, Kec. ${customer.districtName}, ${customer.cityName}, Prov. ${customer.provinceName}`;
+  // GENERATE WHATSAPP URL
+  const generateWhatsAppUrl = () => {
+    const itemsList = cart.map((ci) => `- ${ci.product.name} (${ci.quantity}x)`).join("\n");
+    const message = `Halo VARTANA, saya ingin konfirmasi pesanan:\n\n*Nama:* ${customer.name}\n*Email:* ${customer.email}\n*HP/WA:* ${customer.phone}\n*Alamat:* ${customer.addressDetail}, Kec. ${customer.districtName}, ${customer.cityName}, ${customer.provinceName}\n\n*Detail Pesanan:*\n${itemsList}\n\n*Subtotal:* ${formatRupiah(subtotalPrice)}\n*Pengiriman:* ${selectedShipping?.company.toUpperCase()} - ${selectedShipping?.name} (${formatRupiah(shippingCost)})\n*Total Transfer:* ${formatRupiah(grandTotal)}\n\nSaya akan segera mengirimkan bukti transfernya. Terima kasih!`;
 
-    try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customer: {
-            name: customer.name,
-            email: customer.email,
-            phone: customer.phone,
-            address: fullFormattedAddress,
-            city: customer.cityName,
-            notes: customer.notes,
-          },
-          cart,
-          totalPrice,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.redirectUrl) {
-        window.location.href = data.redirectUrl;
-      } else {
-        alert("Gagal membuat transaksi. Mohon periksa kembali Server Key Midtrans lu.");
-      }
-    } catch (err) {
-      alert("Terjadi kesalahan koneksi server.");
-    } finally {
-      setIsProcessing(false);
-    }
+    return `https://wa.me/${BANK_DETAILS.whatsappNumber}?text=${encodeURIComponent(message)}`;
   };
 
   return (
@@ -756,7 +814,6 @@ export default function Home() {
       {/* NAVBAR */}
       <nav className="sticky top-0 z-50 border-b border-[#B69245]/15 bg-[#F6F2E8]/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          {/* LOGO BRAND DI POJOK KIRI ATAS */}
           <a href="#home" className="flex items-center gap-3 transition hover:opacity-85">
             <img src="/Logo Vartana.png" alt="VARTANA Botanical Wellness" className="h-10 w-auto object-contain md:h-12" />
           </a>
@@ -810,7 +867,7 @@ export default function Home() {
           <div className="flex h-full w-full max-w-md flex-col bg-[#FBF9F4] p-6 shadow-2xl">
             {/* Header Drawer */}
             <div className="flex items-center justify-between border-b border-[#16382A]/10 pb-4">
-              <h3 className="font-serif text-2xl text-[#16382A]">{checkoutStep === "cart" ? t.cart.title : t.cart.fillFormTitle}</h3>
+              <h3 className="font-serif text-2xl text-[#16382A]">{checkoutStep === "cart" ? t.cart.title : checkoutStep === "form" ? t.cart.fillFormTitle : t.cart.transferTitle}</h3>
               <button onClick={() => setIsCartOpen(false)} className="rounded-full bg-[#16382A]/5 px-3 py-1 text-sm font-bold text-[#16382A] hover:bg-[#16382A]/10">
                 ✕
               </button>
@@ -846,8 +903,8 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-              ) : (
-                /* STEP 2: FORM DATA DIRI & ALAMAT CUSTOM DROPDOWN */
+              ) : checkoutStep === "form" ? (
+                /* STEP 2: FORM DATA DIRI, ALAMAT, & PILIH ONGKIR J&T / JNE */
                 <div className="space-y-4 text-xs">
                   {formError && <p className="rounded-md bg-red-100 p-3 text-red-600 font-medium">{formError}</p>}
 
@@ -884,7 +941,7 @@ export default function Home() {
                     />
                   </div>
 
-                  {/* DROPDOWN PROVINSI */}
+                  {/* PROVINSI */}
                   <div>
                     <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.province} *</label>
                     <select
@@ -893,7 +950,7 @@ export default function Home() {
                       disabled={loadingProvinces}
                       className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]"
                     >
-                      <option value="">-- {loadingProvinces ? "Memuat Provinsi..." : "Pilih Provinsi"} --</option>
+                      <option value="">-- {loadingProvinces ? "Memuat..." : "Pilih Provinsi"} --</option>
                       {provinces.map((prov) => (
                         <option key={prov.id} value={prov.id}>
                           {prov.name}
@@ -902,16 +959,16 @@ export default function Home() {
                     </select>
                   </div>
 
-                  {/* DROPDOWN KOTA / KABUPATEN */}
+                  {/* KOTA */}
                   <div>
                     <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.city} *</label>
                     <select
                       value={customer.cityId}
                       onChange={handleCityChange}
                       disabled={!customer.provinceId || loadingCities}
-                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245] disabled:bg-gray-100 disabled:opacity-60"
+                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245] disabled:bg-gray-100"
                     >
-                      <option value="">-- {!customer.provinceId ? "Pilih Provinsi Dulu" : loadingCities ? "Memuat Kota..." : "Pilih Kota / Kabupaten"} --</option>
+                      <option value="">-- {!customer.provinceId ? "Pilih Provinsi Dulu" : loadingCities ? "Memuat..." : "Pilih Kota / Kabupaten"} --</option>
                       {cities.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
@@ -920,16 +977,16 @@ export default function Home() {
                     </select>
                   </div>
 
-                  {/* DROPDOWN KECAMATAN */}
+                  {/* KECAMATAN */}
                   <div>
                     <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.district} *</label>
                     <select
                       value={customer.districtId}
                       onChange={handleDistrictChange}
                       disabled={!customer.cityId || loadingDistricts}
-                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245] disabled:bg-gray-100 disabled:opacity-60"
+                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245] disabled:bg-gray-100"
                     >
-                      <option value="">-- {!customer.cityId ? "Pilih Kota Dulu" : loadingDistricts ? "Memuat Kecamatan..." : "Pilih Kecamatan"} --</option>
+                      <option value="">-- {!customer.cityId ? "Pilih Kota Dulu" : loadingDistricts ? "Memuat..." : "Pilih Kecamatan"} --</option>
                       {districts.map((d) => (
                         <option key={d.id} value={d.id}>
                           {d.name}
@@ -943,23 +1000,65 @@ export default function Home() {
                     <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.addressDetail} *</label>
                     <textarea
                       rows={2}
-                      placeholder="Nama Jalan, Nomor Rumah, RT/RW, Kelurahan, Kode Pos"
+                      placeholder="Nama Jalan, Nomor Rumah, RT/RW, Kode Pos"
                       value={customer.addressDetail}
                       onChange={(e) => setCustomer({ ...customer, addressDetail: e.target.value })}
                       className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]"
                     />
                   </div>
 
-                  {/* CATATAN (OPSIONAL) */}
-                  <div>
-                    <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1">{t.cart.notes}</label>
-                    <input
-                      type="text"
-                      placeholder="Misal: Titip di satpam"
-                      value={customer.notes}
-                      onChange={(e) => setCustomer({ ...customer, notes: e.target.value })}
-                      className="w-full rounded-lg border border-[#16382A]/20 bg-white p-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#B69245]"
-                    />
+                  {/* PILIH KURIR ONGKIR REALTIME (J&T / JNE) */}
+                  {customer.districtId && (
+                    <div className="mt-4 rounded-xl border border-[#B69245]/30 bg-white p-3">
+                      <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-2">{t.cart.shippingTitle} *</label>
+                      {loadingShipping ? (
+                        <p className="py-2 text-xs text-[#8E6E2E]">⚡ Menghitung tarif ongkir real-time J&T & JNE...</p>
+                      ) : shippingOptions.length === 0 ? (
+                        <p className="text-xs text-red-500">Pilih kecamatan untuk melihat tarif pengiriman.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {shippingOptions.map((option, idx) => (
+                            <label key={idx} className={`flex items-center justify-between rounded-lg border p-3 cursor-pointer transition ${selectedShipping?.name === option.name ? "border-[#B69245] bg-[#F6F2E8]" : "border-gray-200"}`}>
+                              <div className="flex items-center gap-2">
+                                <input type="radio" name="shipping" checked={selectedShipping?.name === option.name} onChange={() => setSelectedShipping(option)} className="accent-[#16382A]" />
+                                <div>
+                                  <p className="font-bold text-[#16382A] uppercase">
+                                    {option.company} - {option.name}
+                                  </p>
+                                  <p className="text-[10px] text-[#627067]">Estimasi: {option.etd}</p>
+                                </div>
+                              </div>
+                              <span className="font-bold text-[#16382A]">{formatRupiah(option.rate)}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* STEP 3: INSTRUKSI TRANSFER BANK MANUAL */
+                <div className="space-y-5 text-sm">
+                  <div className="rounded-2xl border border-[#B69245]/30 bg-white p-5 shadow-sm text-center">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-[#8E6E2E]">Transfer Pembayaran Ke:</p>
+                    <h4 className="mt-2 font-serif text-2xl font-bold text-[#16382A]">{BANK_DETAILS.bankName}</h4>
+                    <div className="my-3 rounded-lg bg-[#F6F2E8] p-3">
+                      <p className="font-mono text-xl font-bold tracking-wider text-[#16382A]">{BANK_DETAILS.accountNumber}</p>
+                      <p className="text-xs text-[#627067] font-medium">a.n {BANK_DETAILS.accountHolder}</p>
+                    </div>
+                    <p className="text-xs text-[#627067]">Total Nominal yang Harus Ditransfer:</p>
+                    <p className="font-serif text-3xl font-bold text-[#8E6E2E]">{formatRupiah(grandTotal)}</p>
+                  </div>
+
+                  <div className="rounded-xl border border-[#16382A]/10 bg-[#F6F2E8] p-4 text-xs space-y-2">
+                    <p className="font-bold text-[#16382A]">Ringkasan Pesanan:</p>
+                    <p>• Subtotal: {formatRupiah(subtotalPrice)}</p>
+                    <p>
+                      • Kurir: {selectedShipping?.company.toUpperCase()} ({formatRupiah(shippingCost)})
+                    </p>
+                    <p>
+                      • Alamat: {customer.addressDetail}, Kec. {customer.districtName}, {customer.cityName}
+                    </p>
                   </div>
                 </div>
               )}
@@ -970,25 +1069,34 @@ export default function Home() {
               <div className="border-t border-[#16382A]/10 pt-4">
                 <div className="mb-4 flex items-center justify-between">
                   <span className="text-sm text-[#627067]">{t.cart.total}:</span>
-                  <span className="font-serif text-2xl font-bold text-[#16382A]">{formatRupiah(totalPrice)}</span>
+                  <span className="font-serif text-2xl font-bold text-[#16382A]">{formatRupiah(grandTotal)}</span>
                 </div>
 
                 {checkoutStep === "cart" ? (
                   <button onClick={() => setCheckoutStep("form")} className="w-full rounded-full bg-[#16382A] py-3.5 text-xs font-semibold uppercase tracking-widest text-[#F6F2E8] transition hover:bg-[#214737]">
                     {t.cart.checkoutBtn} →
                   </button>
-                ) : (
+                ) : checkoutStep === "form" ? (
                   <div className="space-y-2">
-                    <button
-                      onClick={handlePaymentGateway}
-                      disabled={isProcessing}
-                      className="w-full rounded-full bg-[#B69245] py-3.5 text-xs font-semibold uppercase tracking-widest text-[#0D261C] transition hover:bg-[#c9a352] disabled:opacity-50"
-                    >
-                      {isProcessing ? "Memproses..." : `💳 ${t.cart.payNow}`}
+                    <button onClick={handleProceedToPayment} className="w-full rounded-full bg-[#B69245] py-3.5 text-xs font-semibold uppercase tracking-widest text-[#0D261C] transition hover:bg-[#c9a352]">
+                      {t.cart.payNow} →
                     </button>
-
                     <button onClick={() => setCheckoutStep("cart")} className="w-full text-center text-xs text-[#627067] hover:underline">
                       {t.cart.backToCart}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <a
+                      href={generateWhatsAppUrl()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex w-full items-center justify-center gap-2 rounded-full bg-[#25D366] py-3.5 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-[#20ba5a]"
+                    >
+                      💬 {t.cart.confirmWa}
+                    </a>
+                    <button onClick={() => setCheckoutStep("form")} className="w-full text-center text-xs text-[#627067] hover:underline">
+                      Edit Data Alamat
                     </button>
                   </div>
                 )}
@@ -1008,20 +1116,16 @@ export default function Home() {
         <div className="relative mx-auto grid min-h-[700px] max-w-7xl items-center gap-12 px-6 py-24 lg:grid-cols-2">
           <div>
             <p className="mb-6 text-[10px] font-semibold uppercase tracking-[0.32em] text-[#B69245]">{t.hero.eyebrow}</p>
-
             <h1 className="font-serif text-5xl leading-[1.02] tracking-[-0.03em] text-[#16382A] sm:text-6xl lg:text-7xl xl:text-[5.8rem]">
               {t.hero.title}
               <br />
               <span className="text-[#9E7A32]">{t.hero.accent}</span>
             </h1>
-
             <p className="mt-8 max-w-xl text-[15px] leading-8 text-[#627067]">{t.hero.text}</p>
-
             <div className="mt-10 flex flex-wrap gap-3">
               <a href="#collection" className="rounded-full bg-[#16382A] px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#F6F2E8] transition duration-300 hover:bg-[#214737]">
                 {t.hero.primary}
               </a>
-
               <a
                 href="#philosophy"
                 className="rounded-full border border-[#16382A]/15 bg-white/40 px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#16382A] transition duration-300 hover:border-[#B69245]/60 hover:text-[#9E7A32]"
@@ -1031,11 +1135,9 @@ export default function Home() {
             </div>
           </div>
 
-          {/* DISPLAY LOGO BULAT BARU VARTANA */}
           <div className="relative hidden min-h-[500px] items-center justify-center lg:flex">
             <div className="absolute inset-8 rounded-full border border-[#B69245]/35" />
             <div className="absolute inset-20 rounded-full border border-[#16382A]/10" />
-
             <div className="relative z-10 flex h-80 w-80 items-center justify-center rounded-full bg-[#FBF9F4] p-2 shadow-[0_35px_90px_rgba(22,56,42,0.12)]">
               <img src="/Logo Vartana Bulat.png" alt="Vartana Botanical Wellness Badge" className="h-full w-full object-contain rounded-full" />
             </div>
@@ -1048,18 +1150,13 @@ export default function Home() {
         <div className="mx-auto grid max-w-7xl gap-16 lg:grid-cols-[0.85fr_1.15fr]">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.philosophy.eyebrow}</p>
-
             <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl lg:text-6xl">{t.philosophy.title}</h2>
           </div>
-
           <div className="max-w-2xl">
             <p className="text-[16px] leading-[2] text-[#526158]">{t.philosophy.text1}</p>
-
             <p className="mt-7 text-[16px] leading-[2] text-[#526158]">{t.philosophy.text2}</p>
-
             <div className="mt-12 flex items-center gap-5">
               <div className="h-px w-16 bg-[#B69245]" />
-
               <p className="font-serif text-xl italic text-[#8E6E2E]">{t.philosophy.quote}</p>
             </div>
           </div>
@@ -1071,9 +1168,7 @@ export default function Home() {
         <div className="relative mx-auto max-w-7xl">
           <div className="max-w-2xl">
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#D8C28B]">{t.collection.eyebrow}</p>
-
             <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#F6F2E8] md:text-5xl lg:text-6xl">{t.collection.title}</h2>
-
             <p className="mt-7 max-w-xl text-[15px] leading-8 text-white/60">{t.collection.text}</p>
           </div>
 
@@ -1089,23 +1184,17 @@ export default function Home() {
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-serif text-3xl text-[#D8C28B]">{item.number}</span>
-
                   <span className="rounded-full border border-[#D8C28B]/25 px-3 py-1 text-[9px] uppercase tracking-[0.14em] text-[#D8C28B]">{item.subtitle}</span>
                 </div>
-
                 <div className="mt-8">
                   <span
-                    className={`inline-flex rounded-full border px-3 py-1 text-[8px] font-semibold uppercase tracking-[0.16em] ${
-                      item.status === "READY STOCK" ? "border-[#D8C28B]/50 bg-[#D8C28B]/10 text-[#D8C28B]" : "border-white/10 bg-white/[0.03] text-white/40"
-                    }`}
+                    className={`inline-flex rounded-full border px-3 py-1 text-[8px] font-semibold uppercase tracking-[0.16em] ${item.status === "READY STOCK" ? "border-[#D8C28B]/50 bg-[#D8C28B]/10 text-[#D8C28B]" : "border-white/10 bg-white/[0.03] text-white/40"}`}
                   >
                     {item.status}
                   </span>
                 </div>
-
                 <div className="mt-6">
                   <h3 className="font-serif text-2xl text-[#F6F2E8]">{item.name}</h3>
-
                   <p className="mt-4 text-[13px] leading-7 text-white/50">{item.difference[language]}</p>
                 </div>
               </button>
@@ -1119,18 +1208,14 @@ export default function Home() {
                 <div className="relative">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <p className="text-[10px] font-semibold tracking-[0.25em] text-[#D8C28B]">BOTANICAL SERIES · {product.number}</p>
-
                     <span
-                      className={`rounded-full border px-3 py-1.5 text-[8px] font-semibold uppercase tracking-[0.18em] ${
-                        product.status === "READY STOCK" ? "border-[#D8C28B]/50 bg-[#D8C28B]/10 text-[#D8C28B]" : "border-white/10 bg-white/[0.04] text-white/40"
-                      }`}
+                      className={`rounded-full border px-3 py-1.5 text-[8px] font-semibold uppercase tracking-[0.18em] ${product.status === "READY STOCK" ? "border-[#D8C28B]/50 bg-[#D8C28B]/10 text-[#D8C28B]" : "border-white/10 bg-white/[0.04] text-white/40"}`}
                     >
                       {product.status}
                     </span>
                   </div>
 
                   <h3 className="mt-6 font-serif text-5xl leading-[1.05] tracking-[-0.025em] text-[#F6F2E8]">{product.name}</h3>
-
                   <p className="mt-6 max-w-md text-[15px] leading-8 text-white/60">{product.description[language]}</p>
 
                   {product.image && (
@@ -1142,19 +1227,15 @@ export default function Home() {
                   {product.status === "READY STOCK" && product.regularPrice && product.promoPrice && (
                     <div className="mt-8 border-t border-white/10 pt-7">
                       <p className="text-[9px] font-semibold uppercase tracking-[0.22em] text-[#D8C28B]">{t.product.pouch}</p>
-
                       <p className="mt-2 text-[13px] font-medium tracking-[0.12em] text-white/70">{product.quantityInfo}</p>
 
                       <div className="mt-7 grid gap-5 sm:grid-cols-2">
                         <div>
                           <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/35">{t.product.regularPrice}</p>
-
                           <p className="mt-2 font-serif text-xl text-white/35 line-through">{product.regularPrice}</p>
                         </div>
-
                         <div>
                           <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[#D8C28B]">{t.product.promoPrice}</p>
-
                           <p className="mt-1 font-serif text-4xl text-[#F6F2E8]">{product.promoPrice}</p>
                         </div>
                       </div>
@@ -1162,7 +1243,6 @@ export default function Home() {
                       <div className="mt-8 space-y-4">
                         <div className="flex items-center justify-between rounded-xl border border-white/15 bg-white/[0.03] p-3">
                           <span className="text-xs font-medium uppercase tracking-wider text-[#D8C28B]">{t.product.selectQuantity}</span>
-
                           <div className="flex items-center gap-3">
                             <button onClick={() => setProductQuantity((q) => Math.max(1, q - 1))} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-lg font-bold text-white transition hover:bg-white/20">
                               -
@@ -1186,13 +1266,11 @@ export default function Home() {
 
                   <div className="mt-9 flex items-center gap-4">
                     <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#D8C28B]">{t.product.weight}</span>
-
                     <span className="rounded-full border border-white/15 bg-white/[0.025] px-4 py-2 text-[11px] text-white/75">{t.product.weightValue}</span>
                   </div>
 
                   <div className="mt-12">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#D8C28B]">{t.product.ingredients}</p>
-
                     <div className="mt-5 flex flex-wrap gap-2">
                       {product.ingredients.map((ingredient) => (
                         <span key={ingredient} className="rounded-full border border-white/15 bg-white/[0.025] px-3.5 py-2 text-[11px] text-white/70">
@@ -1207,17 +1285,12 @@ export default function Home() {
               <div className="bg-[#FBF9F4] p-8 text-[#16382A] md:p-12">
                 <div className="grid gap-x-10 gap-y-10 sm:grid-cols-2">
                   <InfoBlock title={t.product.taste} text={product.taste[language]} />
-
                   <InfoBlock title={t.product.aroma} text={product.aroma[language]} />
-
                   <InfoBlock title={t.product.difference} text={product.difference[language]} />
-
                   <InfoBlock title={t.product.benefit} text={product.benefit[language]} />
                 </div>
-
                 <div className="mt-12 border-t border-[#B69245]/20 pt-8">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#9E7A32]">{t.product.preparation}</p>
-
                   <p className="mt-3 text-[14px] leading-7 text-[#627067]">{t.product.preparationText}</p>
                 </div>
               </div>
@@ -1231,24 +1304,18 @@ export default function Home() {
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.purpose.eyebrow}</p>
-
             <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl lg:text-6xl">{t.purpose.title}</h2>
-
             <p className="mt-8 text-[15px] leading-8 text-[#627067]">{t.purpose.text}</p>
           </div>
-
           <div className="mt-20 grid gap-5 md:grid-cols-3">
             {t.purpose.pillars.map((pillar) => (
               <div key={pillar.number} className="border border-[#16382A]/8 bg-[#F6F2E8] p-9 transition duration-500 hover:-translate-y-1 hover:border-[#B69245]/40 hover:bg-white">
                 <span className="font-serif text-5xl text-[#B69245]/80">{pillar.number}</span>
-
                 <h3 className="mt-9 font-serif text-[27px] leading-tight text-[#16382A]">{pillar.title}</h3>
-
                 <p className="mt-5 text-[14px] leading-8 text-[#627067]">{pillar.text}</p>
               </div>
             ))}
           </div>
-
           <div className="mx-auto mt-16 max-w-4xl border-y border-[#B69245]/25 py-9 text-center">
             <p className="font-serif text-2xl leading-10 text-[#8E6E2E] md:text-3xl">{t.purpose.closing}</p>
           </div>
@@ -1260,21 +1327,15 @@ export default function Home() {
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.way.eyebrow}</p>
-
             <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl lg:text-6xl">{t.way.title}</h2>
-
             <p className="mt-8 text-[15px] leading-8 text-[#627067]">{t.way.text}</p>
-
             <p className="mt-7 font-serif text-xl italic leading-9 text-[#8E6E2E]">{t.way.closing}</p>
           </div>
-
           <div className="mt-20 grid gap-10 md:grid-cols-2 lg:grid-cols-4">
             {t.way.steps.map((step) => (
               <div key={step.number} className="border-t border-[#B69245]/35 pt-7">
                 <span className="font-serif text-4xl text-[#B69245]">{step.number}</span>
-
                 <h3 className="mt-6 font-serif text-2xl text-[#16382A]">{step.title}</h3>
-
                 <p className="mt-4 text-[14px] leading-8 text-[#627067]">{step.text}</p>
               </div>
             ))}
@@ -1287,11 +1348,8 @@ export default function Home() {
         <div className="mx-auto max-w-5xl">
           <div className="text-center">
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.origin.eyebrow}</p>
-
             <h2 className="mx-auto mt-5 max-w-3xl font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-6xl">{t.origin.title}</h2>
-
             <p className="mt-6 font-serif text-xl italic text-[#8E6E2E]">{t.origin.intro}</p>
-
             <div className="mx-auto mt-10 h-px w-20 bg-[#B69245]" />
           </div>
 
@@ -1323,14 +1381,11 @@ export default function Home() {
           <div className="mt-28 border-t border-[#16382A]/10 pt-20">
             <div className="mx-auto max-w-3xl">
               <p className="text-[10px] font-semibold tracking-[0.3em] text-[#B69245]">01</p>
-
               <h3 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-[#16382A] md:text-5xl">{t.origin.simpleTitle}</h3>
-
               <div className="mt-9 space-y-7 text-[16px] leading-[2] text-[#526158]">
                 {t.origin.simpleParagraphs.map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
-
                 <p className="font-serif text-2xl leading-10 text-[#183C2B] md:text-3xl">{t.origin.simpleHighlight}</p>
               </div>
 
@@ -1347,7 +1402,6 @@ export default function Home() {
                   <p key={paragraph}>{paragraph}</p>
                 ))}
               </div>
-
               <p className="mt-10 font-serif text-2xl italic leading-10 text-[#8E6E2E]">{t.origin.finalLine}</p>
             </div>
           </div>
@@ -1356,25 +1410,20 @@ export default function Home() {
           <div className="relative mt-28 overflow-hidden bg-[#0D261C] px-8 py-20 text-white md:px-16">
             <div className="relative mx-auto max-w-3xl">
               <p className="text-[10px] font-semibold tracking-[0.3em] text-[#D8C28B]">02</p>
-
               <h3 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-white md:text-5xl">{t.origin.notJustTitle}</h3>
-
               <div className="mt-10 space-y-7 text-[15px] leading-8 text-white/60">
                 {t.origin.notJustParagraphs.map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
               </div>
-
               <div className="mt-14 border-y border-[#D8C28B]/20 py-9">
                 <p className="font-serif text-3xl leading-10 text-[#D8C28B]">{t.origin.notJustHighlight}</p>
               </div>
-
               <div className="mt-10 space-y-7 text-[15px] leading-8 text-white/60">
                 {t.origin.notJustClosing.map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
               </div>
-
               <p className="mt-9 font-serif text-2xl leading-10 text-white md:text-3xl">{t.origin.notJustFinal}</p>
             </div>
           </div>
@@ -1383,25 +1432,20 @@ export default function Home() {
           <div className="mt-28">
             <div className="mx-auto max-w-3xl text-center">
               <p className="text-[10px] font-semibold tracking-[0.3em] text-[#B69245]">03</p>
-
               <h3 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-[#16382A] md:text-5xl">{t.origin.soilTitle}</h3>
-
               <div className="mt-9 space-y-7 text-[16px] leading-[2] text-[#526158]">
                 {t.origin.soilParagraphs.map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
               </div>
-
               <div className="mt-14 grid gap-px overflow-hidden border border-[#B69245]/20 bg-[#B69245]/20 md:grid-cols-2">
                 {t.origin.journey.map((item, index) => (
                   <div key={item} className="bg-[#FBF9F4] px-8 py-9 text-left">
                     <span className="font-serif text-3xl text-[#B69245]">0{index + 1}</span>
-
                     <p className="mt-5 font-serif text-xl leading-8 text-[#16382A]">{item}</p>
                   </div>
                 ))}
               </div>
-
               <p className="mt-14 text-[16px] leading-[2] text-[#526158]">{t.origin.soilClosing}</p>
             </div>
           </div>
@@ -1410,15 +1454,12 @@ export default function Home() {
           <div className="mt-28 border-t border-[#16382A]/10 pt-20">
             <div className="mx-auto max-w-3xl">
               <p className="text-[10px] font-semibold tracking-[0.3em] text-[#B69245]">04</p>
-
               <h3 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-[#16382A] md:text-5xl">{t.origin.futureTitle}</h3>
-
               <div className="mt-10 space-y-7 text-[16px] leading-[2] text-[#526158]">
                 {t.origin.futureParagraphs.map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
               </div>
-
               <div className="mt-14 border-l-[3px] border-[#B69245] bg-[#F6F2E8] py-7 pl-8 pr-8">
                 <p className="font-serif text-2xl leading-10 text-[#16382A] md:text-3xl">{t.origin.futureClosing}</p>
               </div>
@@ -1436,11 +1477,8 @@ export default function Home() {
         <div className="mx-auto grid max-w-7xl gap-16 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#B69245]">{t.journal.eyebrow}</p>
-
             <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.025em] text-[#16382A] md:text-5xl">{t.journal.title}</h2>
-
             <p className="mt-7 text-[15px] leading-8 text-[#627067]">{t.journal.text}</p>
-
             <button className="mt-9 rounded-full border border-[#16382A]/20 bg-[#FBF9F4]/60 px-7 py-3.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#16382A] transition hover:border-[#B69245] hover:text-[#9E7A32]">
               {t.journal.button}
             </button>
@@ -1451,10 +1489,8 @@ export default function Home() {
               <div key={article} className="group flex items-center justify-between border-b border-[#16382A]/10 py-7">
                 <div className="flex items-center gap-6">
                   <span className="font-serif text-2xl text-[#B69245]/80">0{index + 1}</span>
-
                   <h3 className="font-serif text-xl leading-7 text-[#16382A]">{article}</h3>
                 </div>
-
                 <span className="text-lg text-[#B69245]">↗</span>
               </div>
             ))}
@@ -1467,53 +1503,40 @@ export default function Home() {
         <div className="mx-auto grid max-w-7xl gap-16 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
             <p className="font-serif text-4xl tracking-[0.2em] text-[#F6F2E8]">VARTANA</p>
-
             <p className="mt-3 text-[10px] font-semibold tracking-[0.3em] text-[#D8C28B]">BOTANICAL WELLNESS</p>
-
             <div className="mt-9 h-px w-16 bg-[#B69245]" />
-
             <p className="mt-9 max-w-md font-serif text-2xl leading-10 text-white/85">{t.footer.tagline}</p>
           </div>
 
           <div className="lg:border-l lg:border-white/10 lg:pl-16">
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#D8C28B]">{t.footer.contact}</p>
-
             <div className="mt-8 space-y-5">
               <div>
                 <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.email}</p>
-
                 <a href="mailto:vartana@vartanaglobal.com" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">
                   vartana@vartanaglobal.com
                 </a>
               </div>
-
               <div>
                 <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.whatsapp}</p>
-
                 <a href="https://wa.me/6285777999960" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">
                   +62 857-7799-9960
                 </a>
               </div>
-
               <div>
                 <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.instagram}</p>
-
                 <a href="https://www.instagram.com/vartanabotanical" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">
                   @vartanabotanical
                 </a>
               </div>
-
               <div>
                 <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.tiktok}</p>
-
                 <a href="https://www.tiktok.com/@vartanabotanical" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[14px] text-white/80 transition hover:text-[#D8C28B]">
                   @vartanabotanical
                 </a>
               </div>
-
               <div>
                 <p className="text-[9px] uppercase tracking-[0.2em] text-white/35">{t.footer.location}</p>
-
                 <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.18em] text-white/55">{t.footer.locationValue}</p>
               </div>
             </div>
@@ -1522,7 +1545,6 @@ export default function Home() {
 
         <div className="mx-auto mt-16 flex max-w-7xl flex-col gap-4 border-t border-white/10 pt-8 md:flex-row md:items-center md:justify-between">
           <p className="text-[10px] tracking-[0.16em] text-white/25">{t.footer.copyright}</p>
-
           <p className="text-[9px] uppercase tracking-[0.22em] text-white/20">ROOTED IN EARTH · BUILT FOR GROWTH</p>
         </div>
       </footer>

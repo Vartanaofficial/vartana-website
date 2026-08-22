@@ -56,11 +56,11 @@ type RegionItem = {
   name: string;
 };
 
-// DATA REKENING VARTANA
+// DATA REKENING VARTANA RESMI
 const BANK_DETAILS = {
   bankName: "BCA (Bank Central Asia)",
-  accountNumber: "1234567890",
-  accountHolder: "PT VARTANA BOTANICAL WELLNESS",
+  accountNumber: "1940576471",
+  accountHolder: "Vartana Retail Pertanian",
   whatsappNumber: "6285777999960",
 };
 
@@ -804,7 +804,7 @@ export default function Home() {
   // GENERATE WHATSAPP URL
   const generateWhatsAppUrl = () => {
     const itemsList = cart.map((ci) => `- ${ci.product.name} (${ci.quantity}x)`).join("\n");
-    const message = `Halo VARTANA, saya ingin konfirmasi pesanan:\n\n*Nama:* ${customer.name}\n*Email:* ${customer.email}\n*HP/WA:* ${customer.phone}\n*Alamat:* ${customer.addressDetail}, Kec. ${customer.districtName}, ${customer.cityName}, ${customer.provinceName}\n\n*Detail Pesanan:*\n${itemsList}\n\n*Subtotal:* ${formatRupiah(subtotalPrice)}\n*Pengiriman:* ${selectedShipping?.company.toUpperCase()} - ${selectedShipping?.name} (${formatRupiah(shippingCost)})\n*Total Transfer:* ${formatRupiah(grandTotal)}\n\nSaya akan segera mengirimkan bukti transfernya. Terima kasih!`;
+    const message = `Halo VARTANA, saya ingin konfirmasi pesanan:\n\n*Nama:* ${customer.name}\n*Email:* ${customer.email}\n*HP/WA:* ${customer.phone}\n*Alamat:* ${customer.addressDetail}, Kec. ${customer.districtName}, ${customer.cityName}, ${customer.provinceName}\n\n*Detail Pesanan:*\n${itemsList}\n\n*Subtotal:* ${formatRupiah(subtotalPrice)}\n*Pengiriman:* ${selectedShipping?.company.toUpperCase()} - ${selectedShipping?.name} (${formatRupiah(shippingCost)})\n*Total Transfer:* ${formatRupiah(grandTotal)}\n\nSaya akan segera mengirimkan bukti transfer ke BCA ${BANK_DETAILS.accountNumber} a.n ${BANK_DETAILS.accountHolder}. Terima kasih!`;
 
     return `https://wa.me/${BANK_DETAILS.whatsappNumber}?text=${encodeURIComponent(message)}`;
   };
@@ -1043,8 +1043,8 @@ export default function Home() {
                     <p className="text-xs font-semibold uppercase tracking-widest text-[#8E6E2E]">Transfer Pembayaran Ke:</p>
                     <h4 className="mt-2 font-serif text-2xl font-bold text-[#16382A]">{BANK_DETAILS.bankName}</h4>
                     <div className="my-3 rounded-lg bg-[#F6F2E8] p-3">
-                      <p className="font-mono text-xl font-bold tracking-wider text-[#16382A]">{BANK_DETAILS.accountNumber}</p>
-                      <p className="text-xs text-[#627067] font-medium">a.n {BANK_DETAILS.accountHolder}</p>
+                      <p className="font-mono text-2xl font-bold tracking-wider text-[#16382A]">{BANK_DETAILS.accountNumber}</p>
+                      <p className="mt-1 text-xs text-[#627067] font-semibold">a.n {BANK_DETAILS.accountHolder}</p>
                     </div>
                     <p className="text-xs text-[#627067]">Total Nominal yang Harus Ditransfer:</p>
                     <p className="font-serif text-3xl font-bold text-[#8E6E2E]">{formatRupiah(grandTotal)}</p>

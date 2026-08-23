@@ -758,7 +758,7 @@ const content = {
       email: "Official Email",
       whatsapp: "Direct WhatsApp",
       instagram: "Official Instagram",
-      tiktok: "Official TikTok",
+      tiktok: "TikTok Official",
       location: "Headquarters",
       locationValue: "TANGERANG CITY, INDONESIA",
       copyright: "© 2026 VARTANA. All rights reserved.",
@@ -823,6 +823,9 @@ export default function Home() {
   const [memberHistoryResult, setMemberHistoryResult] = useState<any[]>([]);
   const [memberHistoryLoading, setMemberHistoryLoading] = useState(false);
 
+  // AUTO-FILL LOADING STATE
+  const [autoFillLoading, setAutoFillLoading] = useState(false);
+
   // MODAL JURNAL ILMIAH SPICES
   const [selectedSpiceModal, setSelectedSpiceModal] = useState<SpiceDetail | null>(null);
 
@@ -880,36 +883,79 @@ export default function Home() {
   const freePouchesCount = Math.floor(countTenBagPouches / 3);
   const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  // AUTO-FILL PROFILE MEMBER DARI LOCALSTORAGE
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedProfile = localStorage.getItem("vartana_member_profile");
-      if (savedProfile) {
-        try {
-          const parsed = JSON.parse(savedProfile);
-          setCustomer((prev) => ({ ...prev, ...parsed }));
-        } catch (e) {
-          console.error("Gagal load profile member:", e);
-        }
-      }
+  // AUTO-FILL PROFILE MEMBER & WILAYAH LENGKAP VIA NO HP
+  const handleAutoFillByPhone = async () => {
+    if (!customer.phone) {
+      alert("Masukkan Nomor WhatsApp/HP terlebih dahulu!");
+      return;
     }
-  }, []);
 
-  // MANUAL AUTO-FILL MEMBER
-  const handleAutoFillMember = () => {
-    if (typeof window !== "undefined") {
-      const savedProfile = localStorage.getItem("vartana_member_profile");
-      if (savedProfile) {
-        try {
-          const parsed = JSON.parse(savedProfile);
-          setCustomer((prev) => ({ ...prev, ...parsed }));
-          alert("⚡ Data profil Anda berhasil diisikan secara otomatis!");
-        } catch (e) {
-          alert("Belum ada data profil tersimpan di browser ini.");
+    setAutoFillLoading(true);
+    try {
+      const res = await fetch(`/api/track?memberId=${encodeURIComponent(customer.phone)}`);
+      const data = await res.json();
+
+      if (data.found && (data.profile || (data.history && data.history.length > 0))) {
+        const p = data.profile || data.history[0];
+        const fullAddr = p.addressDetail || p.address || "";
+        const cityStr = p.cityInfo || p.cityName || "";
+
+        setCustomer((prev) => ({
+          ...prev,
+          name: p.name || p.customerName || prev.name,
+          email: p.email || prev.email,
+          birthDate: p.birthDate && p.birthDate !== "-" ? p.birthDate : prev.birthDate,
+          addressDetail: fullAddr,
+        }));
+
+        const mId = data.memberId || p.memberId;
+        if (mId && typeof window !== "undefined") {
+          localStorage.setItem("vartana_member_id", mId);
         }
+
+        // AKSI COCOKKAN DROPDOWN WILAYAH INDONESIA SECARA OTOMATIS
+        if (provinces.length > 0) {
+          // 1. Cari Provinsi
+          const matchedProv = provinces.find((prov) => fullAddr.toLowerCase().includes(prov.name.toLowerCase()) || cityStr.toLowerCase().includes(prov.name.toLowerCase()));
+          if (matchedProv) {
+            setCustomer((prev) => ({ ...prev, provinceId: matchedProv.id, provinceName: matchedProv.name }));
+
+            // 2. Load & Cari Kota
+            setLoadingCities(true);
+            const resCities = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${matchedProv.id}.json`);
+            const cityList = await resCities.json();
+            setCities(cityList);
+            setLoadingCities(false);
+
+            const matchedCity = cityList.find((c: RegionItem) => fullAddr.toLowerCase().includes(c.name.toLowerCase()) || cityStr.toLowerCase().includes(c.name.toLowerCase()));
+            if (matchedCity) {
+              setCustomer((prev) => ({ ...prev, cityId: matchedCity.id, cityName: matchedCity.name }));
+
+              // 3. Load & Cari Kecamatan
+              setLoadingDistricts(true);
+              const resDistricts = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/districts/${matchedCity.id}.json`);
+              const distList = await resDistricts.json();
+              setDistricts(distList);
+              setLoadingDistricts(false);
+
+              const matchedDist = distList.find((d: RegionItem) => fullAddr.toLowerCase().includes(d.name.toLowerCase()));
+              if (matchedDist) {
+                setCustomer((prev) => ({ ...prev, districtId: matchedDist.id, districtName: matchedDist.name }));
+                fetchShippingRates(matchedDist.id);
+              }
+            }
+          }
+        }
+
+        alert(`⚡ Profil ${p.name || p.customerName || "Member"} (${mId}) ditemukan! Data alamat berhasil terisi otomatis.`);
       } else {
-        alert("Belum ada profil Member tersimpan. Silakan isi form di bawah.");
+        alert("Nomor HP belum terdaftar dalam riwayat transaksi kami. Silakan lengkapi form secara manual.");
       }
+    } catch (err) {
+      console.error("Gagal auto-fill HP:", err);
+      alert("Terjadi kesalahan saat memeriksa data profil.");
+    } finally {
+      setAutoFillLoading(false);
     }
   };
 
@@ -1199,8 +1245,11 @@ export default function Home() {
       const data = await res.json();
       if (data.found && data.history) {
         setMemberHistoryResult(data.history);
+        if (data.memberId) {
+          alert(`✅ Ditemukan Member ID: ${data.memberId}`);
+        }
       } else {
-        alert(data.message || "Data histori tidak ditemukan.");
+        alert(data.message || "Data riwayat tidak ditemukan.");
       }
     } catch (err) {
       console.error("Gagal load history member:", err);
@@ -1303,7 +1352,7 @@ export default function Home() {
     const bonusText = freePouchesCount > 0 ? `\n🎁 *BONUS KEMITRAAN (BELI 3 GRATIS 1):* +${freePouchesCount} Pouch Signature Edition Gratis!` : "";
     const promoInfo = totalQuantity >= 2 ? "GRATIS ONGKIR 100%" : "Subsidi Pengiriman Rp7.000";
 
-    const message = `Halo VARTANA, saya (Member #${memberId}) ingin konfirmasi pesanan:\n\n*No. Seri Pesanan:* #${currentOrderSerial || "VRT-NEW"}\n*Nama:* ${customer.name}\n*Email:* ${customer.email}\n*HP/WA:* ${customer.phone}\n*Tgl Lahir:* ${customer.birthDate || "-"}\n*Alamat:* ${customer.addressDetail}, Kec. ${customer.districtName}, ${customer.cityName}, ${customer.provinceName}\n\n*Detail Rincian Pesanan:*\n${itemsList}${bonusText}\n\n*Subtotal:* ${formatRupiah(subtotalPrice)}\n*Layanan Kurir:* ${selectedShipping?.company.toUpperCase()} - ${selectedShipping?.name}\n*Biaya Pengiriman:* ${shippingCost === 0 ? "GRATIS ONGKIR" : formatRupiah(shippingCost)} (${promoInfo})\n*Total Pembayaran:* ${formatRupiah(grandTotal)}\n\nSaya akan segera melampirkan bukti transfer ke BCA ${BANK_DETAILS.accountNumber} a.n ${BANK_DETAILS.accountHolder}. Terima kasih.`;
+    const message = `Halo VARTANA, saya (Member ${memberId}) ingin konfirmasi pesanan:\n\n*No. Seri Pesanan:* ${currentOrderSerial || "VRT-NEW"}\n*Nama:* ${customer.name}\n*Email:* ${customer.email}\n*HP/WA:* ${customer.phone}\n*Tgl Lahir:* ${customer.birthDate || "-"}\n*Alamat:* ${customer.addressDetail}, Kec. ${customer.districtName}, ${customer.cityName}, ${customer.provinceName}\n\n*Detail Rincian Pesanan:*\n${itemsList}${bonusText}\n\n*Subtotal:* ${formatRupiah(subtotalPrice)}\n*Layanan Kurir:* ${selectedShipping?.company.toUpperCase()} - ${selectedShipping?.name}\n*Biaya Pengiriman:* ${shippingCost === 0 ? "GRATIS ONGKIR" : formatRupiah(shippingCost)} (${promoInfo})\n*Total Pembayaran:* ${formatRupiah(grandTotal)}\n\nSaya akan segera melampirkan bukti transfer ke BCA ${BANK_DETAILS.accountNumber} a.n ${BANK_DETAILS.accountHolder}. Terima kasih.`;
 
     return `https://wa.me/${BANK_DETAILS.whatsappNumber}?text=${encodeURIComponent(message)}`;
   };
@@ -1459,7 +1508,7 @@ export default function Home() {
                     ) : (
                       <div className="space-y-3">
                         <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                          <span className="font-bold text-[#8E6E2E]">#{trackingResult.orderSerial}</span>
+                          <span className="font-bold text-[#8E6E2E]">{trackingResult.orderSerial}</span>
                           <span className="font-semibold text-[10px] bg-white px-2 py-0.5 rounded-full border">{trackingResult.status}</span>
                         </div>
                         <p className="text-[11px] text-[#526158]">
@@ -1494,13 +1543,13 @@ export default function Home() {
                 )}
               </div>
 
-              {/* OPSI 2: BUKA SEMUA RIWAYAT BY MEMBER ID / WA */}
+              {/* OPSI 2: BUKA SEMUA RIWAYAT BY NO WA */}
               <div className="rounded-2xl border border-[#B69245]/30 bg-[#FFFDF9] p-4 shadow-xs">
-                <p className="font-bold uppercase tracking-wider text-[#8E6E2E] text-xs mb-2">2. Cek Semua Riwayat Belanja (Member / No. WA):</p>
+                <p className="font-bold uppercase tracking-wider text-[#8E6E2E] text-xs mb-2">2. Cek Semua Riwayat Belanja (No. WA):</p>
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="Masukkan Member ID (VRT-xxx) atau No. WA"
+                    placeholder="Masukkan No. WhatsApp (Contoh: 085777...)"
                     value={memberSearchQuery}
                     onChange={(e) => setMemberSearchQuery(e.target.value)}
                     className="w-full rounded-xl border border-[#16382A]/20 bg-white p-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#B69245]"
@@ -1516,7 +1565,7 @@ export default function Home() {
                     {memberHistoryResult.map((ord, i) => (
                       <div key={i} className="rounded-xl border border-gray-200 bg-white p-3 text-xs">
                         <div className="flex justify-between font-bold text-[#16382A]">
-                          <span>#{ord.orderSerial}</span>
+                          <span>{ord.orderSerial}</span>
                           <span className="text-[10px] text-[#8E6E2E] bg-[#F6F2E8] px-2 py-0.5 rounded-full">{ord.status}</span>
                         </div>
                         <p className="text-[10px] text-gray-500 mt-1">{ord.itemsSummary}</p>
@@ -1620,20 +1669,39 @@ export default function Home() {
                   )}
                 </div>
               ) : checkoutStep === "form" ? (
-                /* STEP 2: FORM DATA DIRI DENGAN BANNER AUTO-FILL MEMBER */
+                /* STEP 2: FORM DATA DIRI DENGAN AUTO-FILL BY NO HP DENGAN INSTRUKSI JELAS */
                 <div className="space-y-4 text-xs">
-                  {/* AUTO-FILL MEMBER BANNER */}
-                  <div className="flex items-center justify-between rounded-xl border border-[#B69245]/40 bg-[#F6F2E8] p-3">
-                    <div>
-                      <p className="font-bold text-[#8E6E2E] text-[11px] uppercase">Pernah Belanja Sebelumnya?</p>
-                      <p className="text-[10px] text-[#526158]">Klik untuk isi alamat otomatis.</p>
-                    </div>
-                    <button onClick={handleAutoFillMember} className="rounded-full bg-[#16382A] px-3 py-1.5 text-[10px] font-bold text-white uppercase tracking-wider shadow-xs hover:bg-[#214737]">
-                      ⚡ Auto-Fill
-                    </button>
-                  </div>
-
                   {formError && <p className="rounded-xl bg-red-50 p-3.5 text-red-700 font-medium border border-red-200">{formError}</p>}
+
+                  {/* FORM NO WA DITARUH DI ATAS AGAR MUDAH AUTO-FILL */}
+                  <div className="rounded-2xl border border-[#B69245]/30 bg-[#FFFDF9] p-4 shadow-xs">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="font-bold uppercase tracking-wider text-[#16382A] text-xs">1. MASUKKAN NOMOR WHATSAPP / HP *</label>
+                      <button onClick={handleAutoFillByPhone} disabled={autoFillLoading} className="rounded-full bg-[#16382A] px-3.5 py-1.5 text-[10px] font-bold text-white uppercase tracking-wider shadow-xs hover:bg-[#214737] transition">
+                        {autoFillLoading ? "Mencari..." : "⚡ AUTO-FILL DATA HP"}
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <input
+                        type="tel"
+                        placeholder="Contoh: 081234567890"
+                        value={customer.phone}
+                        onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
+                        className="w-full rounded-xl border border-[#16382A]/20 bg-white p-3 text-xs focus:outline-none focus:ring-1 focus:ring-[#B69245]"
+                      />
+                      <div>
+                        <input
+                          type="date"
+                          value={customer.birthDate || ""}
+                          onChange={(e) => setCustomer({ ...customer, birthDate: e.target.value })}
+                          className="w-full rounded-xl border border-[#16382A]/20 bg-white p-3 text-xs focus:outline-none focus:ring-1 focus:ring-[#B69245]"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-[#526158] mt-2.5 leading-relaxed italic">
+                      *Pernah belanja sebelumnya? Masukkan nomor HP lalu klik <strong>'⚡ AUTO-FILL DATA HP'</strong> untuk mengisi profil otomatis. Jika baru pertama kali, silakan lengkapi formulir di bawah.
+                    </p>
+                  </div>
 
                   <div>
                     <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1.5">{t.cart.name} *</label>
@@ -1644,28 +1712,6 @@ export default function Home() {
                       onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
                       className="w-full rounded-xl border border-[#16382A]/20 bg-white p-3 text-xs focus:outline-none focus:ring-1 focus:ring-[#B69245]"
                     />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1.5">{t.cart.phone} *</label>
-                      <input
-                        type="tel"
-                        placeholder="081234567890"
-                        value={customer.phone}
-                        onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
-                        className="w-full rounded-xl border border-[#16382A]/20 bg-white p-3 text-xs focus:outline-none focus:ring-1 focus:ring-[#B69245]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1.5">Tgl Lahir *</label>
-                      <input
-                        type="date"
-                        value={customer.birthDate || ""}
-                        onChange={(e) => setCustomer({ ...customer, birthDate: e.target.value })}
-                        className="w-full rounded-xl border border-[#16382A]/20 bg-white p-3 text-xs focus:outline-none focus:ring-1 focus:ring-[#B69245]"
-                      />
-                    </div>
                   </div>
 
                   <div>
@@ -1818,7 +1864,7 @@ export default function Home() {
 
                   <div className="rounded-2xl border border-[#16382A]/10 bg-[#F6F2E8] p-4 text-xs space-y-2">
                     <p className="font-bold text-[#16382A] uppercase tracking-wider">Ringkasan Rincian Pesanan:</p>
-                    <p className="font-bold text-[#8E6E2E]">• No. Seri: #{currentOrderSerial}</p>
+                    <p className="font-bold text-[#8E6E2E]">• No. Seri: {currentOrderSerial}</p>
                     <p>
                       • Subtotal ({totalQuantity} Pouch): {formatRupiah(subtotalPrice)}
                     </p>

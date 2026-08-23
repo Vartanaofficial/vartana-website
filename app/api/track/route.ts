@@ -6,7 +6,7 @@ export async function GET(request: Request) {
     const serial = searchParams.get("serial") || "";
     const memberId = searchParams.get("memberId") || "";
 
-    const GOOGLE_SHEET_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbx9S1vIXHsWGg5XIPs3r0YQG6S47YcdRelQcWwZfM_VXOjDrVJZll5hE-aSUn6S0FZa/exec";
+    const GOOGLE_SHEET_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyM_NgzLK36B8Of3UBdBmVBgptjATbuHcMK9RDq4WtGK4SCOIvnfj4OS12ehSTLNwiU/exec";
 
     let targetUrl = GOOGLE_SHEET_WEBHOOK_URL;
     if (serial) {

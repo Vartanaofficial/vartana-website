@@ -1,23 +1,39 @@
 import { NextResponse } from "next/server";
 
-export async function POST(request: Request) {
+// Cache memori sementara untuk menahan request duplikat (Spam Protection)
+const recentRequests = new Set<string>();
+
+export async function POST(req: Request) {
   try {
-    const body = await request.json();
+    const body = await req.json();
+    const { orderSerial, phone, action } = body;
 
-    const GOOGLE_SHEET_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyM_NgzLK36B8Of3UBdBmVBgptjATbuHcMK9RDq4WtGK4SCOIvnfj4OS12ehSTLNwiU/exec";
+    // Kunci unik berdasarkan Order Serial atau No HP
+    const requestKey = orderSerial ? orderSerial : `${phone}-${action || "order"}`;
 
-    await fetch(GOOGLE_SHEET_WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    // Jika request yang sama persis masuk lagi dalam 5 detik, abaikan!
+    if (recentRequests.has(requestKey)) {
+      return NextResponse.json({ success: true, message: "Duplicate request ignored." });
+    }
 
-    return NextResponse.json({
-      success: true,
-      message: "Data berhasil dicatat di Google Sheets!",
-    });
+    recentRequests.add(requestKey);
+    setTimeout(() => {
+      recentRequests.delete(requestKey);
+    }, 5000); // Reset kunci setelah 5 detik
+
+    const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || "";
+
+    if (GOOGLE_SCRIPT_URL) {
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body), // Mengirim seluruh payload (termasuk SKU, omset tanpa ongkir, promo ongkir, dll)
+      });
+    }
+
+    return NextResponse.json({ success: true, data: body });
   } catch (error) {
-    console.error("Gagal simpan ke Google Sheet:", error);
-    return NextResponse.json({ success: false }, { status: 500 });
+    console.error("Error API Member:", error);
+    return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
   }
 }

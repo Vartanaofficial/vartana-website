@@ -296,7 +296,7 @@ const SPICES_DATA: SpiceDetail[] = [
 const products: Product[] = [
   {
     id: "vartana-01",
-    number: "01",
+    number: "VRT-01",
     name: "Signature Blend",
     subtitle: "BLEND No. 01",
     status: "READY STOCK",
@@ -357,7 +357,7 @@ const products: Product[] = [
   },
   {
     id: "vartana-02",
-    number: "02",
+    number: "VRT-02",
     name: "Morning Energy",
     subtitle: "BLEND No. 02",
     status: "COMING SOON",
@@ -395,7 +395,7 @@ const products: Product[] = [
   },
   {
     id: "vartana-03",
-    number: "03",
+    number: "VRT-03",
     name: "Golden Turmeric",
     subtitle: "BLEND No. 03",
     status: "COMING SOON",
@@ -434,7 +434,7 @@ const products: Product[] = [
   },
   {
     id: "vartana-04",
-    number: "04",
+    number: "VRT-04",
     name: "Warm Balance",
     subtitle: "BLEND No. 04",
     status: "COMING SOON",
@@ -811,6 +811,7 @@ export default function Home() {
   const [checkoutStep, setCheckoutStep] = useState<"cart" | "form" | "payment">("cart");
   const [formError, setFormError] = useState("");
   const [currentOrderSerial, setCurrentOrderSerial] = useState("");
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false); // LOCK STATE ANTI DOUBLE CLICK
 
   // TRACKING & HISTORY MODAL STATES
   const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
@@ -915,12 +916,10 @@ export default function Home() {
 
         // AKSI COCOKKAN DROPDOWN WILAYAH INDONESIA SECARA OTOMATIS
         if (provinces.length > 0) {
-          // 1. Cari Provinsi
           const matchedProv = provinces.find((prov) => fullAddr.toLowerCase().includes(prov.name.toLowerCase()) || cityStr.toLowerCase().includes(prov.name.toLowerCase()));
           if (matchedProv) {
             setCustomer((prev) => ({ ...prev, provinceId: matchedProv.id, provinceName: matchedProv.name }));
 
-            // 2. Load & Cari Kota
             setLoadingCities(true);
             const resCities = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${matchedProv.id}.json`);
             const cityList = await resCities.json();
@@ -931,7 +930,6 @@ export default function Home() {
             if (matchedCity) {
               setCustomer((prev) => ({ ...prev, cityId: matchedCity.id, cityName: matchedCity.name }));
 
-              // 3. Load & Cari Kecamatan
               setLoadingDistricts(true);
               const resDistricts = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/districts/${matchedCity.id}.json`);
               const distList = await resDistricts.json();
@@ -941,7 +939,7 @@ export default function Home() {
               const matchedDist = distList.find((d: RegionItem) => fullAddr.toLowerCase().includes(d.name.toLowerCase()));
               if (matchedDist) {
                 setCustomer((prev) => ({ ...prev, districtId: matchedDist.id, districtName: matchedDist.name }));
-                fetchShippingRates(matchedDist.id);
+                fetchShippingRates(matchedDist.id, matchedProv.name);
               }
             }
           }
@@ -992,7 +990,7 @@ export default function Home() {
 
   useEffect(() => {
     if (customer.districtId) {
-      fetchShippingRates(customer.districtId);
+      fetchShippingRates(customer.districtId, customer.provinceName);
     }
   }, [totalQuantity]);
 
@@ -1061,10 +1059,51 @@ export default function Home() {
     }
   };
 
-  // FETCH ONGKIR REALTIME + DYNAMIC FALLBACK
-  const fetchShippingRates = async (dId: string) => {
+  // FETCH ONGKIR REALTIME + ESTIMASI WAKTU DINAMIS SESUAI PROVINSI
+  const fetchShippingRates = async (dId: string, currentProvName?: string) => {
     if (!dId) return;
     const totalWeightGram = cart.reduce((sum, item) => sum + item.quantity * 100, 0);
+
+    const provName = (currentProvName || customer.provinceName).toLowerCase();
+
+    // LOGIKA ESTIMASI WAKTU PENGIRIMAN DINAMIS VERSI LOGISTIK AKURAT
+    let estimatedDays = "2-3 Hari";
+    let baseJntRate = 18000;
+    let baseJneRate = 17000;
+
+    if (provName.includes("banten") || provName.includes("jakarta") || provName.includes("jawa barat")) {
+      estimatedDays = "1-2 Hari";
+      baseJntRate = 13000;
+      baseJneRate = 12000;
+    } else if (provName.includes("jawa tengah") || provName.includes("jawa timur") || provName.includes("yogyakarta")) {
+      estimatedDays = "2-3 Hari";
+      baseJntRate = 18000;
+      baseJneRate = 17000;
+    } else if (provName.includes("bali") || provName.includes("nusa tenggara") || provName.includes("sumatera") || provName.includes("lampung") || provName.includes("riau") || provName.includes("aceh")) {
+      estimatedDays = "3-5 Hari";
+      baseJntRate = 28000;
+      baseJneRate = 27000;
+    } else if (provName.includes("kalimantan") || provName.includes("sulawesi")) {
+      estimatedDays = "4-6 Hari";
+      baseJntRate = 42000;
+      baseJneRate = 40000;
+    } else if (provName.includes("maluku") || provName.includes("papua")) {
+      estimatedDays = "5-9 Hari";
+      baseJntRate = 65000;
+      baseJneRate = 60000;
+    }
+
+    // HITUNG SUBSIDI BERDASARKAN JUMLAH POUCH
+    let subsidy = 0;
+    if (totalQuantity >= 10) {
+      subsidy = 60000;
+    } else if (totalQuantity >= 5) {
+      subsidy = 40000;
+    } else if (totalQuantity >= 2) {
+      subsidy = 20000;
+    } else if (totalQuantity === 1) {
+      subsidy = 7000;
+    }
 
     setLoadingShipping(true);
     try {
@@ -1088,13 +1127,7 @@ export default function Home() {
 
         const parsedRates: ShippingOption[] = rawRates.map((item: any) => {
           const origRate = item.price;
-          let finalRate = origRate;
-
-          if (totalQuantity >= 2) {
-            finalRate = 0;
-          } else if (totalQuantity === 1) {
-            finalRate = Math.max(0, origRate - 7000);
-          }
+          const finalRate = Math.max(0, origRate - subsidy);
 
           return {
             company: item.courier_name,
@@ -1102,7 +1135,7 @@ export default function Home() {
             service_type: item.courier_service_code,
             originalRate: origRate,
             rate: finalRate,
-            etd: item.duration || "2-3 Hari",
+            etd: item.duration && item.duration !== "-" ? item.duration : estimatedDays,
           };
         });
 
@@ -1115,43 +1148,22 @@ export default function Home() {
       console.error("Gagal panggil API real-time ongkir:", err);
     }
 
-    const provName = customer.provinceName.toLowerCase();
-    let baseJntRate = 13000;
-    let baseJneRate = 12000;
-
-    if (provName.includes("bali") || provName.includes("nusa tenggara")) {
-      baseJntRate = 28000;
-      baseJneRate = 27000;
-    } else if (provName.includes("jawa barat") || provName.includes("jawa tengah") || provName.includes("jawa timur") || provName.includes("yogyakarta")) {
-      baseJntRate = 18000;
-      baseJneRate = 17000;
-    } else if (provName.includes("sumatera") || provName.includes("lampung") || provName.includes("riau") || provName.includes("aceh")) {
-      baseJntRate = 35000;
-      baseJneRate = 34000;
-    } else if (provName.includes("kalimantan") || provName.includes("sulawesi")) {
-      baseJntRate = 42000;
-      baseJneRate = 40000;
-    } else if (provName.includes("maluku") || provName.includes("papua")) {
-      baseJntRate = 65000;
-      baseJneRate = 60000;
-    }
-
     const fallbackRates: ShippingOption[] = [
       {
         company: "J&T",
         name: "J&T EZ",
         service_type: "EZ",
         originalRate: baseJntRate,
-        rate: totalQuantity >= 2 ? 0 : Math.max(0, baseJntRate - (totalQuantity === 1 ? 7000 : 0)),
-        etd: "2-3 Hari",
+        rate: Math.max(0, baseJntRate - subsidy),
+        etd: estimatedDays,
       },
       {
         company: "JNE",
         name: "JNE REG",
         service_type: "REG",
         originalRate: baseJneRate,
-        rate: totalQuantity >= 2 ? 0 : Math.max(0, baseJneRate - (totalQuantity === 1 ? 7000 : 0)),
-        etd: "2-4 Hari",
+        rate: Math.max(0, baseJneRate - subsidy),
+        etd: estimatedDays,
       },
     ];
 
@@ -1177,7 +1189,7 @@ export default function Home() {
       return;
     }
 
-    fetchShippingRates(dId);
+    fetchShippingRates(dId, customer.provinceName);
   };
 
   // CART LOGIC
@@ -1268,12 +1280,16 @@ export default function Home() {
     return 0;
   };
 
-  // PROSES PAYMENT & SIMPAN KEDUA DATA (MEMBERS & ORDERS) KE SPREADSHEET
+  // PROSES PAYMENT & SIMPAN DATA KE SPREADSHEET (DENGAN LOCK ANTI DOUBLE SUBMIT)
   const handleProceedToPayment = async () => {
     if (!customer.name || !customer.email || !customer.phone || !customer.provinceName || !customer.cityName || !customer.districtName || !customer.addressDetail || !selectedShipping) {
       setFormError(t.cart.requiredError);
       return;
     }
+
+    // LOCK PREVENT DOUBLE CLICK
+    if (isSubmittingOrder) return;
+    setIsSubmittingOrder(true);
     setFormError("");
 
     let memberId = typeof window !== "undefined" ? localStorage.getItem("vartana_member_id") : null;
@@ -1294,6 +1310,12 @@ export default function Home() {
     setCurrentOrderSerial(orderSerialGenerated);
 
     const itemsSummary = cart.map((ci) => `${ci.product.name} [${ci.selectedVariant.size}] (${ci.quantity}x)`).join(", ");
+
+    // EKSTRAKSI KODE SKU VARIAN & DATA SUBSIDI ONGKIR
+    const skuList = cart.map((ci) => ci.product.number).join(", ");
+    const originalShippingFee = selectedShipping ? selectedShipping.originalRate : 0;
+    const finalShippingFee = selectedShipping ? selectedShipping.rate : 0;
+    const shippingSubsidyAmount = Math.max(0, originalShippingFee - finalShippingFee);
 
     try {
       // 1. Simpan Data Member ke Tab 'Members'
@@ -1324,15 +1346,22 @@ export default function Home() {
           phone: customer.phone,
           email: customer.email,
           addressDetail: `${customer.addressDetail}, Kec. ${customer.districtName}, ${customer.cityName}, ${customer.provinceName}`,
+          sku: skuList,
           itemsSummary,
-          grandTotal,
+          subtotalProducts: subtotalPrice,
+          originalShipping: originalShippingFee,
+          shippingSubsidy: shippingSubsidyAmount,
+          customerShippingFee: finalShippingFee,
+          grandTotal: grandTotal,
         }),
       });
+
+      setCheckoutStep("payment");
     } catch (err) {
       console.error("Gagal simpan data transaksi ke Sheet:", err);
+    } finally {
+      setIsSubmittingOrder(false); // RELEASE LOCK
     }
-
-    setCheckoutStep("payment");
   };
 
   const copyToClipboard = (text: string, isAmount = false) => {
@@ -1350,9 +1379,17 @@ export default function Home() {
     const memberId = typeof window !== "undefined" ? localStorage.getItem("vartana_member_id") || "NEW" : "NEW";
     const itemsList = cart.map((ci) => `- ${ci.product.name} [${ci.selectedVariant.size}] (${ci.quantity}x)`).join("\n");
     const bonusText = freePouchesCount > 0 ? `\n🎁 *BONUS KEMITRAAN (BELI 3 GRATIS 1):* +${freePouchesCount} Pouch Signature Edition Gratis!` : "";
-    const promoInfo = totalQuantity >= 2 ? "GRATIS ONGKIR 100%" : "Subsidi Pengiriman Rp7.000";
 
-    const message = `Halo VARTANA, saya (Member ${memberId}) ingin konfirmasi pesanan:\n\n*No. Seri Pesanan:* ${currentOrderSerial || "VRT-NEW"}\n*Nama:* ${customer.name}\n*Email:* ${customer.email}\n*HP/WA:* ${customer.phone}\n*Tgl Lahir:* ${customer.birthDate || "-"}\n*Alamat:* ${customer.addressDetail}, Kec. ${customer.districtName}, ${customer.cityName}, ${customer.provinceName}\n\n*Detail Rincian Pesanan:*\n${itemsList}${bonusText}\n\n*Subtotal:* ${formatRupiah(subtotalPrice)}\n*Layanan Kurir:* ${selectedShipping?.company.toUpperCase()} - ${selectedShipping?.name}\n*Biaya Pengiriman:* ${shippingCost === 0 ? "GRATIS ONGKIR" : formatRupiah(shippingCost)} (${promoInfo})\n*Total Pembayaran:* ${formatRupiah(grandTotal)}\n\nSaya akan segera melampirkan bukti transfer ke BCA ${BANK_DETAILS.accountNumber} a.n ${BANK_DETAILS.accountHolder}. Terima kasih.`;
+    let promoInfo = "Subsidi Pengiriman Rp7.000";
+    if (totalQuantity >= 10) {
+      promoInfo = "Subsidi Pengiriman Rp60.000";
+    } else if (totalQuantity >= 5) {
+      promoInfo = "Subsidi Pengiriman Rp40.000";
+    } else if (totalQuantity >= 2) {
+      promoInfo = "Subsidi Pengiriman Rp20.000";
+    }
+
+    const message = `Halo VARTANA, saya (Member ${memberId}) ingin konfirmasi pesanan:\n\n*No. Seri Pesanan:* ${currentOrderSerial || "VRT-NEW"}\n*Nama:* ${customer.name}\n*Email:* ${customer.email}\n*HP/WA:* ${customer.phone}\n*Tgl Lahir:* ${customer.birthDate || "-"}\n*Alamat:* ${customer.addressDetail}, Kec. ${customer.districtName}, ${customer.cityName}, ${customer.provinceName}\n\n*Detail Rincian Pesanan:*\n${itemsList}${bonusText}\n\n*Subtotal:* ${formatRupiah(subtotalPrice)}\n*Layanan Kurir:* ${selectedShipping?.company.toUpperCase()} - ${selectedShipping?.name}\n*Biaya Pengiriman:* ${shippingCost === 0 ? "FREE ONGKIR" : formatRupiah(shippingCost)} (${promoInfo})\n*Total Pembayaran:* ${formatRupiah(grandTotal)}\n\nSaya akan segera melampirkan bukti transfer ke BCA ${BANK_DETAILS.accountNumber} a.n ${BANK_DETAILS.accountHolder}. Terima kasih.`;
 
     return `https://wa.me/${BANK_DETAILS.whatsappNumber}?text=${encodeURIComponent(message)}`;
   };
@@ -1457,7 +1494,7 @@ export default function Home() {
           </button>
           <a href="#origin" className="flex flex-col items-center py-1 text-[#16382A]">
             <span className="text-base">📖</span>
-            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">{t.nav.origin}</span>
+            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Origin</span>
           </a>
           <button
             onClick={() => {
@@ -1612,12 +1649,24 @@ export default function Home() {
                   )}
                 </div>
 
+                {/* BANNER PROMO SUBSIDI ONGKIR DENGAN LOGIKA BARU */}
                 <div className="rounded-xl border border-[#16382A]/10 bg-white p-3 text-center shadow-xs">
-                  {totalQuantity >= 2 ? (
-                    <p className="text-xs font-bold uppercase tracking-widest text-green-700">✓ Bebas Biaya Pengiriman Seluruh Indonesia</p>
+                  {totalQuantity >= 10 ? (
+                    <p className="text-xs font-bold uppercase tracking-widest text-green-700">✓ Subsidi Ongkos Kirim Rp60.000 Aktif</p>
+                  ) : totalQuantity >= 5 ? (
+                    <p className="text-xs text-[#526158]">
+                      Dapat <span className="font-bold text-green-700">Subsidi Ongkir Rp40.000</span>! Tambah <span className="font-bold text-[#16382A]">{10 - totalQuantity} Pouch</span> lagi untuk subsidi{" "}
+                      <span className="font-bold text-[#8E6E2E]">Rp60.000</span>.
+                    </p>
+                  ) : totalQuantity >= 2 ? (
+                    <p className="text-xs text-[#526158]">
+                      Dapat <span className="font-bold text-green-700">Subsidi Ongkir Rp20.000</span>! Tambah <span className="font-bold text-[#16382A]">{5 - totalQuantity} Pouch</span> lagi untuk subsidi{" "}
+                      <span className="font-bold text-[#8E6E2E]">Rp40.000</span>.
+                    </p>
                   ) : (
                     <p className="text-xs text-[#526158]">
-                      Beli <span className="font-bold text-[#16382A]">1 Pouch lagi</span> untuk klaim <span className="font-bold text-[#8E6E2E]">Gratis Ongkir 100%</span>.
+                      Dapat <span className="font-bold text-green-700">Subsidi Ongkir Rp7.000</span>. Beli <span className="font-bold text-[#16382A]">1 Pouch lagi</span> untuk subsidi{" "}
+                      <span className="font-bold text-[#8E6E2E]">Rp20.000</span>.
                     </p>
                   )}
                 </div>
@@ -1669,7 +1718,7 @@ export default function Home() {
                   )}
                 </div>
               ) : checkoutStep === "form" ? (
-                /* STEP 2: FORM DATA DIRI DENGAN AUTO-FILL BY NO HP DENGAN INSTRUKSI JELAS */
+                /* STEP 2: FORM DATA DIRI DENGAN AUTO-FILL BY NO HP */
                 <div className="space-y-4 text-xs">
                   {formError && <p className="rounded-xl bg-red-50 p-3.5 text-red-700 font-medium border border-red-200">{formError}</p>}
 
@@ -1813,16 +1862,18 @@ export default function Home() {
                                 </div>
                               </div>
                               <div className="text-right">
-                                {totalQuantity >= 2 ? (
+                                {option.rate === 0 ? (
                                   <div>
                                     <span className="text-[10px] text-gray-400 line-through block">{formatRupiah(option.originalRate)}</span>
                                     <span className="font-bold text-green-700 text-xs">FREE ONGKIR</span>
                                   </div>
-                                ) : (
+                                ) : option.originalRate > option.rate ? (
                                   <div>
                                     <span className="text-[10px] text-gray-400 line-through block">{formatRupiah(option.originalRate)}</span>
                                     <span className="font-bold text-[#16382A] text-xs">{formatRupiah(option.rate)}</span>
                                   </div>
+                                ) : (
+                                  <span className="font-bold text-[#16382A] text-xs">{formatRupiah(option.rate)}</span>
                                 )}
                               </div>
                             </label>
@@ -1880,7 +1931,7 @@ export default function Home() {
               )}
             </div>
 
-            {/* Footer Drawer */}
+            {/* Footer Drawer dengan Proteksi Anti-Double Submit */}
             {cart.length > 0 && (
               <div className="border-t border-[#16382A]/10 pt-4">
                 <div className="mb-4 flex items-center justify-between">
@@ -1894,8 +1945,14 @@ export default function Home() {
                   </button>
                 ) : checkoutStep === "form" ? (
                   <div className="space-y-2">
-                    <button onClick={handleProceedToPayment} className="w-full rounded-full bg-[#B69245] py-3.5 text-xs font-semibold uppercase tracking-widest text-[#0D261C] transition hover:bg-[#c9a352]">
-                      {t.cart.payNow} →
+                    <button
+                      onClick={handleProceedToPayment}
+                      disabled={isSubmittingOrder}
+                      className={`w-full rounded-full py-3.5 text-xs font-semibold uppercase tracking-widest transition ${
+                        isSubmittingOrder ? "bg-gray-400 cursor-not-allowed text-gray-700" : "bg-[#B69245] text-[#0D261C] hover:bg-[#c9a352]"
+                      }`}
+                    >
+                      {isSubmittingOrder ? "⏳ Sedang Memproses Pesanan..." : `${t.cart.payNow} →`}
                     </button>
                     <button onClick={() => setCheckoutStep("cart")} className="w-full text-center text-xs text-[#627067] hover:underline">
                       {t.cart.backToCart}
@@ -2155,6 +2212,13 @@ export default function Home() {
                   <div className="mt-8 flex items-center gap-4">
                     <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#D8C28B]">{t.product.weight}</span>
                     <span className="rounded-full border border-white/15 bg-white/[0.03] px-4 py-1.5 text-[11px] text-white/80">{t.product.weightValue}</span>
+                  </div>
+
+                  {/* LEGALITAS P-IRT DI DETAIL PRODUK */}
+                  <div className="mt-6 rounded-2xl border border-[#D8C28B]/30 bg-white/[0.04] p-4 text-xs text-white/80 space-y-1">
+                    <p className="font-bold text-[#D8C28B] uppercase tracking-wider text-[10px]">🛡️ Standar Legalitas & Keamanan Pangan:</p>
+                    <p className="font-mono text-[11px]">P-IRT: 5083671011772-31</p>
+                    <p className="font-mono text-[11px]">PB UMKU: 150726005280400000001</p>
                   </div>
 
                   <div className="mt-10">
@@ -2429,7 +2493,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* FOOTER */}
+      {/* FOOTER DENGAN LEGALITAS P-IRT & PB UMKU */}
       <footer className="bg-[#091D15] px-6 py-20 text-white md:py-24">
         <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
           <div>
@@ -2437,6 +2501,13 @@ export default function Home() {
             <p className="mt-2 text-[10px] font-bold tracking-[0.3em] text-[#D8C28B]">BOTANICAL WELLNESS</p>
             <div className="mt-6 h-px w-16 bg-[#B69245] md:mt-8" />
             <p className="mt-6 max-w-md font-serif text-xl leading-relaxed text-white/85 md:mt-8 md:text-2xl">{t.footer.tagline}</p>
+
+            {/* LEGALITAS P-IRT DI FOOTER */}
+            <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-4 max-w-md space-y-1 text-xs">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#D8C28B]">Sertifikasi & Perizinan Resmi:</p>
+              <p className="text-white/70 font-mono text-[11px]">P-IRT: 5083671011772-31</p>
+              <p className="text-white/70 font-mono text-[11px]">PB UMKU: 150726005280400000001</p>
+            </div>
           </div>
 
           <div className="lg:border-l lg:border-white/10 lg:pl-16">

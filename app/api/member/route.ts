@@ -11,29 +11,71 @@ export async function POST(req: Request) {
     // Kunci unik berdasarkan Order Serial atau No HP
     const requestKey = orderSerial ? orderSerial : `${phone}-${action || "order"}`;
 
-    // Jika request yang sama persis masuk lagi dalam 5 detik, abaikan!
+    // Jika request yang sama persis masuk lagi dalam 5 detik, abaikan
     if (recentRequests.has(requestKey)) {
-      return NextResponse.json({ success: true, message: "Duplicate request ignored." });
-    }
-
-    recentRequests.add(requestKey);
-    setTimeout(() => {
-      recentRequests.delete(requestKey);
-    }, 5000); // Reset kunci setelah 5 detik
-
-    const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || "";
-
-    if (GOOGLE_SCRIPT_URL) {
-      await fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body), // Mengirim seluruh payload (termasuk SKU, omset tanpa ongkir, promo ongkir, dll)
+      return NextResponse.json({
+        success: true,
+        message: "Duplicate request ignored.",
       });
     }
 
-    return NextResponse.json({ success: true, data: body });
+    recentRequests.add(requestKey);
+
+    setTimeout(() => {
+      recentRequests.delete(requestKey);
+    }, 5000);
+
+    // URL Google Apps Script
+    // Disamakan dengan nama variable yang ada di .env.local
+    const GOOGLE_SCRIPT_URL = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || "";
+
+    // Kirim data ke Google Apps Script
+    if (GOOGLE_SCRIPT_URL) {
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      // Cek apakah Google Apps Script merespons dengan error HTTP
+      if (!response.ok) {
+        console.error("Google Apps Script Error:", response.status, response.statusText);
+
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Gagal mengirim data ke Google Spreadsheet",
+          },
+          { status: 500 },
+        );
+      }
+    } else {
+      console.error("NEXT_PUBLIC_GOOGLE_SCRIPT_URL tidak ditemukan di environment variable.");
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Google Script URL tidak ditemukan",
+        },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: body,
+    });
   } catch (error) {
     console.error("Error API Member:", error);
-    return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Internal Server Error",
+      },
+      { status: 500 },
+    );
   }
 }

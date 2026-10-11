@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 
@@ -1511,7 +1511,7 @@ export default function Home() {
             🔍 Lacak Pesanan
           </button>
           <a href="#collection" className="shrink-0 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#16382A] mr-2">
-            ðŸ›ï¿½Â {t.nav.collection}
+            {t.nav.collection}
           </a>
           <a href="#science" className="shrink-0 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#16382A] mr-2">
             🔬 {t.nav.science}
@@ -1530,9 +1530,7 @@ export default function Home() {
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Home</span>
           </a>
           <a href="#collection" className="flex flex-col items-center py-1 text-[#16382A]">
-            <span className="text-base">ðŸ›ï¿½Â</span>
-            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">{t.nav.collection}</span>
-          </a>
+            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">{t.nav.collection}</span></a>
           <button onClick={() => setIsTrackModalOpen(true)} className="flex flex-col items-center py-1 text-[#8E6E2E]">
             <span className="text-base">🔍</span>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Lacak</span>
@@ -2154,7 +2152,14 @@ export default function Home() {
                 }}
                 className={`group shrink-0 w-[270px] rounded-2xl border p-6 text-left transition duration-300 md:w-auto md:p-7 ${selectedProduct === index ? "border-[#D8C28B]/70 bg-white/[0.08]" : "border-white/10 bg-white/[0.025] hover:border-[#D8C28B]/40"}`}
               >
-                <div className="flex items-center justify-between gap-3">
+                <div className="mb-5 flex h-32 items-center justify-center overflow-hidden rounded-xl bg-[#FBF9F4] p-3 md:h-40">
+                  <img
+                    src={item.image || item.variants?.[0]?.image || ""}
+                    alt={item.name}
+                    className="h-full w-full object-contain"
+                    loading="lazy"
+                  />
+                </div>                <div className="flex items-center justify-between gap-3">
                   <span className="font-serif text-3xl text-[#D8C28B]">{item.number}</span>
                   <span className="rounded-full border border-[#D8C28B]/30 px-3 py-1 text-[9px] uppercase tracking-[0.16em] text-[#D8C28B]">{item.subtitle}</span>
                 </div>
@@ -2601,6 +2606,8 @@ export default function Home() {
     </main>
   );
 }
+
+
 
 
 

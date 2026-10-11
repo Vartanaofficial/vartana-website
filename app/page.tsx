@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 
@@ -6,6 +6,7 @@ type Language = "id" | "en";
 type LocalizedText = Record<Language, string>;
 
 type ProductVariant = {
+  image?: string;
   size: string;
   priceValue: number;
   promoPrice: string;
@@ -136,8 +137,8 @@ const SPICES_DATA: SpiceDetail[] = [
     latinName: "Cinnamomum verum",
     activeCompounds: "Cinnamaldehyde, Cinnamic Acid, Eugenol, Oligomeric Polyphenols",
     benefits: {
-      id: "Meningkatkan sensitivitas reseptor insulin dan menghambat enzim α-glucosidase guna menjaga stabilitas kadar gula darah.",
-      en: "Enhances insulin receptor sensitivity and inhibits α-glucosidase enzymes to help manage blood sugar levels.",
+      id: "Meningkatkan sensitivitas reseptor insulin dan menghambat enzim Î±-glucosidase guna menjaga stabilitas kadar gula darah.",
+      en: "Enhances insulin receptor sensitivity and inhibits Î±-glucosidase enzymes to help manage blood sugar levels.",
     },
     relieves: {
       id: "Resistensi insulin, lonjakan glukosa pascamakan, serta mendukung profil lipid darah sehat.",
@@ -154,7 +155,7 @@ const SPICES_DATA: SpiceDetail[] = [
   {
     name: { id: "Cengkeh", en: "Clove" },
     latinName: "Syzygium aromaticum",
-    activeCompounds: "Eugenol (80–90%), β-Caryophyllene, Tannins",
+    activeCompounds: "Eugenol (80–90%), Î²-Caryophyllene, Tannins",
     benefits: {
       id: "Berperan sebagai agen analgesik alami, antimikroba spektrum luas, serta penguat imunitas tubuh berbasis antioksidan tinggi.",
       en: "Acts as a natural analgesic, broad-spectrum antimicrobial, and potent antioxidant immune booster.",
@@ -324,6 +325,7 @@ const products: Product[] = [
     ],
     ingredients: [
       { id: "Jahe", en: "Ginger" },
+      { id: "Kunyit", en: "Turmeric" },
       { id: "Serai", en: "Lemongrass" },
       { id: "Kayu Manis", en: "Cinnamon" },
       { id: "Cengkeh", en: "Clove" },
@@ -360,11 +362,26 @@ const products: Product[] = [
     number: "VRT-02",
     name: "Morning Energy",
     subtitle: "BLEND No. 02",
-    status: "COMING SOON",
-    priceValue: 0,
+    status: "READY STOCK",
+    priceValue: 76000,
+    regularPrice: "Rp98.700",
+    promoPrice: "Rp76.000",
+    discountPercentage: "23% OFF",
+    quantityInfo: "10 TEA BAGS",
+    variants: [
+        {
+          size: "Box + Pouch",
+          priceValue: 76000,
+          promoPrice: "Rp76.000",
+          regularPrice: "Rp98.700",
+          discountPercentage: "23% OFF",
+          image: "/morning-energy.png"
+        }
+      ],
     ingredients: [
       { id: "Jahe", en: "Ginger" },
       { id: "Serai", en: "Lemongrass" },
+      { id: "Rosella", en: "Roselle" },
       { id: "Kayu Manis", en: "Cinnamon" },
       { id: "Cengkeh", en: "Clove" },
       { id: "Kapulaga", en: "Cardamom" },
@@ -398,8 +415,22 @@ const products: Product[] = [
     number: "VRT-03",
     name: "Golden Turmeric",
     subtitle: "BLEND No. 03",
-    status: "COMING SOON",
-    priceValue: 0,
+    status: "READY STOCK",
+    priceValue: 75900,
+    regularPrice: "Rp98.700",
+    promoPrice: "Rp75.900",
+    discountPercentage: "23% OFF",
+    quantityInfo: "10 TEA BAGS",
+    variants: [
+        {
+          size: "Box + Pouch",
+          priceValue: 75900,
+          promoPrice: "Rp75.900",
+          regularPrice: "Rp98.700",
+          discountPercentage: "23% OFF",
+          image: "/golden-turmeric.png"
+        }
+      ],
     ingredients: [
       { id: "Kunyit", en: "Turmeric" },
       { id: "Jahe", en: "Ginger" },
@@ -437,8 +468,22 @@ const products: Product[] = [
     number: "VRT-04",
     name: "Warm Balance",
     subtitle: "BLEND No. 04",
-    status: "COMING SOON",
-    priceValue: 0,
+    status: "READY STOCK",
+    priceValue: 76500,
+    regularPrice: "Rp98.700",
+    promoPrice: "Rp76.500",
+    discountPercentage: "23% OFF",
+    quantityInfo: "10 TEA BAGS",
+    variants: [
+        {
+          size: "Box + Pouch",
+          priceValue: 76500,
+          promoPrice: "Rp76.500",
+          regularPrice: "Rp98.700",
+          discountPercentage: "23% OFF",
+          image: "/warm-balance.png"
+        }
+      ],
     ingredients: [
       { id: "Jahe", en: "Ginger" },
       { id: "Serai", en: "Lemongrass" },
@@ -1466,7 +1511,7 @@ export default function Home() {
             🔍 Lacak Pesanan
           </button>
           <a href="#collection" className="shrink-0 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#16382A] mr-2">
-            🛍️ {t.nav.collection}
+            ðŸ›ï¿½Â {t.nav.collection}
           </a>
           <a href="#science" className="shrink-0 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#16382A] mr-2">
             🔬 {t.nav.science}
@@ -1485,7 +1530,7 @@ export default function Home() {
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Home</span>
           </a>
           <a href="#collection" className="flex flex-col items-center py-1 text-[#16382A]">
-            <span className="text-base">🛍️</span>
+            <span className="text-base">ðŸ›ï¿½Â</span>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">{t.nav.collection}</span>
           </a>
           <button onClick={() => setIsTrackModalOpen(true)} className="flex flex-col items-center py-1 text-[#8E6E2E]">
@@ -1625,7 +1670,7 @@ export default function Home() {
         <div className="fixed inset-0 z-50 flex justify-end bg-[#0D261C]/60 backdrop-blur-xs transition-opacity">
           <div className="flex h-full w-full max-w-md flex-col bg-[#FBF9F4] p-6 shadow-2xl">
             {/* Header Drawer */}
-            <div className="flex items-center justify-between border-b border-[#16382A]/10 pb-4">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[#16382A]/10 pb-4">
               <h3 className="font-serif text-2xl tracking-tight text-[#16382A]">{checkoutStep === "cart" ? t.cart.title : checkoutStep === "form" ? t.cart.fillFormTitle : t.cart.transferTitle}</h3>
               <button onClick={() => setIsCartOpen(false)} className="rounded-full bg-[#16382A]/5 px-3 py-1 text-sm font-bold text-[#16382A] hover:bg-[#16382A]/10 transition">
                 ✕
@@ -1677,7 +1722,7 @@ export default function Home() {
             <div className="flex-1 overflow-y-auto py-6">
               {cart.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center text-center">
-                  <span className="text-4xl opacity-80">🛍️</span>
+                  <span className="text-4xl opacity-80">ðŸ›ï¿½Â</span>
                   <p className="mt-4 text-xs font-medium tracking-wide text-[#627067]">{t.cart.empty}</p>
                 </div>
               ) : checkoutStep === "cart" ? (
@@ -1982,8 +2027,8 @@ export default function Home() {
       {/* MODAL JURNAL ILMIAH REMPAH */}
       {selectedSpiceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0D261C]/60 p-4 backdrop-blur-xs">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-[#FBF9F4] p-8 shadow-2xl border border-[#B69245]/30">
-            <div className="flex items-center justify-between border-b border-[#16382A]/10 pb-4">
+          <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-[#B69245]/30 bg-[#FBF9F4] p-8 shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-[#16382A]/10 pb-4">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-[#B69245]">{t.science.eyebrow}</p>
                 <h3 className="font-serif text-3xl text-[#16382A]">{selectedSpiceModal.name[language]}</h3>
@@ -1994,7 +2039,7 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="mt-6 space-y-4 text-xs">
+            <div className="mt-6 min-h-0 flex-1 space-y-4 overflow-y-auto pr-1 text-xs">
               <div>
                 <p className="font-bold uppercase tracking-wider text-[#9E7A32]">{t.science.modalActive}</p>
                 <p className="mt-1.5 text-[#16382A] bg-white p-3 rounded-xl border border-[#16382A]/10 font-medium leading-relaxed">{selectedSpiceModal.activeCompounds}</p>
@@ -2163,7 +2208,10 @@ export default function Home() {
                                 onClick={() => setSelectedVariantIndex(vIdx)}
                                 className={`rounded-xl border p-3.5 text-left transition ${selectedVariantIndex === vIdx ? "border-[#D8C28B] bg-[#D8C28B]/20 text-[#D8C28B] font-bold shadow-xs" : "border-white/15 bg-white/5 text-white/70 hover:border-white/30"}`}
                               >
-                                <p className="text-xs">{v.size}</p>
+                                {v.image && (
+            <img src={v.image} alt={v.size} className="mx-auto mb-2 h-20 w-full object-contain" />
+          )}
+          <p className="text-xs">{v.size}</p>
                                 <p className="text-sm font-extrabold mt-1">{v.promoPrice}</p>
                               </button>
                             ))}
@@ -2216,7 +2264,7 @@ export default function Home() {
 
                   {/* LEGALITAS P-IRT DI DETAIL PRODUK */}
                   <div className="mt-6 rounded-2xl border border-[#D8C28B]/30 bg-white/[0.04] p-4 text-xs text-white/80 space-y-1">
-                    <p className="font-bold text-[#D8C28B] uppercase tracking-wider text-[10px]">🛡️ Standar Legalitas & Keamanan Pangan:</p>
+                    <p className="font-bold text-[#D8C28B] uppercase tracking-wider text-[10px]">Standar Legalitas & Keamanan Pangan:</p>
                     <p className="font-mono text-[11px]">P-IRT: 5083671011772-31</p>
                     <p className="font-mono text-[11px]">PB UMKU: 150726005280400000001</p>
                   </div>
@@ -2553,3 +2601,17 @@ export default function Home() {
     </main>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

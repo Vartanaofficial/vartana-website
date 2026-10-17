@@ -1,0 +1,31 @@
+warning: in the working copy of 'app/page.tsx', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/app/page.tsx b/app/page.tsx[m
+[1mindex fd57035..fea788f 100644[m
+[1m--- a/app/page.tsx[m
+[1m+++ b/app/page.tsx[m
+[36m@@ -1511,7 +1511,7 @@[m [mexport default function Home() {[m
+             🔍 Lacak Pesanan[m
+           </button>[m
+           <a href="#collection" className="shrink-0 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#16382A] mr-2">[m
+[31m-            ðŸ›ï¿½Â {t.nav.collection}[m
+[32m+[m[32m            {t.nav.collection}[m
+           </a>[m
+           <a href="#science" className="shrink-0 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#16382A] mr-2">[m
+             🔬 {t.nav.science}[m
+[36m@@ -1530,9 +1530,7 @@[m [mexport default function Home() {[m
+             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Home</span>[m
+           </a>[m
+           <a href="#collection" className="flex flex-col items-center py-1 text-[#16382A]">[m
+[31m-            <span className="text-base">ðŸ›ï¿½Â</span>[m
+[31m-            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">{t.nav.collection}</span>[m
+[31m-          </a>[m
+[32m+[m[32m            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">{t.nav.collection}</span></a>[m
+           <button onClick={() => setIsTrackModalOpen(true)} className="flex flex-col items-center py-1 text-[#8E6E2E]">[m
+             <span className="text-base">🔍</span>[m
+             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Lacak</span>[m
+[36m@@ -2615,3 +2613,5 @@[m [mexport default function Home() {[m
+ [m
+ [m
+ [m
+[41m+[m
+[41m+[m

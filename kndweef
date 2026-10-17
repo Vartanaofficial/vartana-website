@@ -1,0 +1,118 @@
+warning: in the working copy of 'app/page.tsx', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/app/page.tsx b/app/page.tsx[m
+[1mindex 742486b..dc7594b 100644[m
+[1m--- a/app/page.tsx[m
+[1m+++ b/app/page.tsx[m
+[36m@@ -1,4 +1,4 @@[m
+[31m-"use client";[m
+[32m+[m[32m﻿"use client";[m
+ [m
+ import { useState, useEffect } from "react";[m
+ [m
+[36m@@ -137,8 +137,8 @@[m [mconst SPICES_DATA: SpiceDetail[] = [[m
+     latinName: "Cinnamomum verum",[m
+     activeCompounds: "Cinnamaldehyde, Cinnamic Acid, Eugenol, Oligomeric Polyphenols",[m
+     benefits: {[m
+[31m-      id: "Meningkatkan sensitivitas reseptor insulin dan menghambat enzim Î±-glucosidase guna menjaga stabilitas kadar gula darah.",[m
+[31m-      en: "Enhances insulin receptor sensitivity and inhibits Î±-glucosidase enzymes to help manage blood sugar levels.",[m
+[32m+[m[32m      id: "Meningkatkan sensitivitas reseptor insulin dan menghambat enzim ÃŽÂ±-glucosidase guna menjaga stabilitas kadar gula darah.",[m
+[32m+[m[32m      en: "Enhances insulin receptor sensitivity and inhibits ÃŽÂ±-glucosidase enzymes to help manage blood sugar levels.",[m
+     },[m
+     relieves: {[m
+       id: "Resistensi insulin, lonjakan glukosa pascamakan, serta mendukung profil lipid darah sehat.",[m
+[36m@@ -155,7 +155,7 @@[m [mconst SPICES_DATA: SpiceDetail[] = [[m
+   {[m
+     name: { id: "Cengkeh", en: "Clove" },[m
+     latinName: "Syzygium aromaticum",[m
+[31m-    activeCompounds: "Eugenol (80–90%), Î²-Caryophyllene, Tannins",[m
+[32m+[m[32m    activeCompounds: "Eugenol (80â€“90%), ÃŽÂ²-Caryophyllene, Tannins",[m
+     benefits: {[m
+       id: "Berperan sebagai agen analgesik alami, antimikroba spektrum luas, serta penguat imunitas tubuh berbasis antioksidan tinggi.",[m
+       en: "Acts as a natural analgesic, broad-spectrum antimicrobial, and potent antioxidant immune booster.",[m
+[36m@@ -238,7 +238,7 @@[m [mconst SPICES_DATA: SpiceDetail[] = [[m
+     activeCompounds: "Piperine, Piperidine, Piperettine, Chavicine",[m
+     benefits: {[m
+       id: "Bioavailability Enhancer alami yang mengoptimalkan penyerapan nutrisi rempah lain (terutama kurkumin) hingga 2000% pada usus.",[m
+[31m-      en: "Natural Bioavailability Enhancer that optimizes the absorption of other botanical nutrients—especially curcumin—by up to 2000% in the gut.",[m
+[32m+[m[32m      en: "Natural Bioavailability Enhancer that optimizes the absorption of other botanical nutrientsâ€”especially curcuminâ€”by up to 2000% in the gut.",[m
+     },[m
+     relieves: {[m
+       id: "Penyerapan nutrisi yang lambat, tingkat metabolisme rendah, serta penumpukan gas dalam lambung.",[m
+[36m@@ -528,7 +528,7 @@[m [mconst content = {[m
+       journal: "Jurnal",[m
+     },[m
+     hero: {[m
+[31m-      eyebrow: "VARTANA · BOTANICAL WELLNESS",[m
+[32m+[m[32m      eyebrow: "VARTANA Â· BOTANICAL WELLNESS",[m
+       title: "Kebaikan murni dari alam,",[m
+       accent: "untuk ritual keseharian.",[m
+       text: "Mengangkat kekayaan botanikal Nusantara dalam racikan otentik yang disajikan dengan dedikasi tinggi pada kualitas bahan, proses, dan keberlanjutan.",[m
+[36m@@ -550,13 +550,13 @@[m [mconst content = {[m
+     product: {[m
+       ingredients: "Komposisi Rempah (Klik untuk informasi medis)",[m
+       weight: "Berat bersih per tea bag",[m
+[31m-      weightValue: "±9 g",[m
+[32m+[m[32m      weightValue: "Â±9 g",[m
+       taste: "Karakter Rasa",[m
+       aroma: "Profil Aroma",[m
+       difference: "Keunggulan Racikan",[m
+       benefit: "Saran Penyajian",[m
+       preparation: "Petunjuk Penyeduhan",[m
+[31m-      preparationText: "1 tea bag · ±9 g · 200 ml air bersih · 90–95°C · 3–5 menit ekstraksi",[m
+[32m+[m[32m      preparationText: "1 tea bag Â· Â±9 g Â· 200 ml air bersih Â· 90â€“95Â°C Â· 3â€“5 menit ekstraksi",[m
+       regularPrice: "Harga Reguler",[m
+       promoPrice: "Harga Penawaran",[m
+       pouch: "Format Kemasan",[m
+[36m@@ -569,12 +569,12 @@[m [mconst content = {[m
+       title: "Landasan Ilmiah & Khasiat Rempah",[m
+       text: "Setiap racikan VARTANA mengombinasikan kearifan lokal dengan rujukan penelitian ilmiah klinis terpercaya (PubMed / NCBI). Klik kartu bahan untuk membaca ulasan jurnal terkait.",[m
+       cardBadge: "BOTANICAL INGREDIENT",[m
+[31m-      cardLink: "Pelajari Jurnal Ilmiah →",[m
+[32m+[m[32m      cardLink: "Pelajari Jurnal Ilmiah â†’",[m
+       modalActive: "Kandungan Aktif Utama:",[m
+       modalBenefits: "Manfaat Kesehatan Klinis:",[m
+       modalRelieves: "Membantu Meredakan:",[m
+[31m-      modalJournalHeading: "🔬 Referensi Jurnal Medis (PubMed / NCBI):",[m
+[31m-      modalReadOfficial: "Buka Publikasi Resmi ↗",[m
+[32m+[m[32m      modalJournalHeading: "ðŸ”¬ Referensi Jurnal Medis (PubMed / NCBI):",[m
+[32m+[m[32m      modalReadOfficial: "Buka Publikasi Resmi â†—",[m
+       modalClose: "Tutup Informasi",[m
+     },[m
+     purpose: {[m
+[36m@@ -585,7 +585,7 @@[m [mconst content = {[m
+         {[m
+           number: "01",[m
+           title: "Kesadaran dalam Memilih",[m
+[31m-          text: "Gaya hidup sehat berawal dari kepedulian terhadap apa yang masuk ke dalam tubuh kita—mengenali kemurnian bahan, rasa alami, dan asal usul sumbernya.",[m
+[32m+[m[32m          text: "Gaya hidup sehat berawal dari kepedulian terhadap apa yang masuk ke dalam tubuh kitaâ€”mengenali kemurnian bahan, rasa alami, dan asal usul sumbernya.",[m
+         },[m
+         {[m
+           number: "02",[m
+[36m@@ -605,7 +605,7 @@[m [mconst content = {[m
+       title: "Mengapa Memilih Botanikal Murni?",[m
+       intro: "Ketika Gaya Hidup Modern Menuntut Kesadaran Baru",[m
+       paragraphs: [[m
+[31m-        "Dalam ritme dinamika harian yang kian cepat, kita kerap kali merindukan sebuah jeda—sebuah momen tenang yang mampu mengembalikan keheningan pikiran dan vitalitas tubuh.",[m
+[32m+[m[32m        "Dalam ritme dinamika harian yang kian cepat, kita kerap kali merindukan sebuah jedaâ€”sebuah momen tenang yang mampu mengembalikan keheningan pikiran dan vitalitas tubuh.",[m
+         "Di tengah maraknya konsumsi serba instan yang dipenuhi kadar gula tinggi serta pemanis buatan, saatnya kita bertanya dengan arif: *Apa yang sungguh-sungguh dibutuhkan oleh tubuh kita untuk bertumbuh dengan baik?*",[m
+       ],[m
+       questions: [[m
+[36m@@ -613,7 +613,7 @@[m [mconst content = {[m
+         '"Dari manakah sumber kekayaan alam itu berasal dan bagaimana ia dipelihara?"',[m
+         '"Bisakah kelezatan rasa dan keanggunan aroma hadir secara murni dari kebaikan rempah alami Nusantara?"',[m
+       ],[m
+[31m-      afterQuestions: ["Perenungan mendalam inilah yang melandasi lahirnya VARTANA Botanical Wellness—sebuah dedikasi untuk mengembalikan ritual keseharian pada kesucian alam."],[m
+[32m+[m[32m      afterQuestions: ["Perenungan mendalam inilah yang melandasi lahirnya VARTANA Botanical Wellnessâ€”sebuah dedikasi untuk mengembalikan ritual keseharian pada kesucian alam."],[m
+       highlight: "Tanaman. Rempah murni. Warisan kebaikan yang senantiasa relevan melintasi zaman.",[m
+       simpleTitle: "Kembali pada Kesederhanaan Alam",[m
+       simpleParagraphs: ["VARTANA merajut kembali memori dan kekayaan rempah Nusantara yang telah menjadi pilar kebugaran leluhur kita sejak ribuan tahun lalu. Tanpa rekayasa sintetis, tanpa kompromi."],[m
+[36m@@ -638,7 +638,7 @@[m [mconst content = {[m
+       futureTitle: "Dampak Positif yang Berkelanjutan",[m
+       futureParagraphs: ["VARTANA berkomitmen untuk terus berdaya bersama komunitas petani lokal melalui kemitraan yang adil, transparan, dan berkelanjutan."],[m
+       futureClosing: "Setiap cangkir yang Anda nikmati hari ini turut membangun masa depan yang lebih cerah bagi kedaulatan pertanian Indonesia.",[m
+[31m-      label: "FROM SOIL TO CUP · ROOTED IN EARTH",[m
+[32m+[m[32m      label: "FROM SOIL TO CUP Â· ROOTED IN EARTH",[m
+     },[m
+     journal: {[m
+       eyebrow: "JURNAL VARTANA",[m
+[36m@@ -65

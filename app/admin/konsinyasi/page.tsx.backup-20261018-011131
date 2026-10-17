@@ -1,0 +1,74 @@
+﻿import Link from "next/link";
+
+export default function KonsinyasiPage() {
+  return (
+    <main className="min-h-screen bg-[#0b2119] px-5 py-8 text-[#f5f0e5] md:px-10">
+      <div className="mx-auto max-w-6xl">
+        <header className="mb-10 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs tracking-[0.3em] text-[#d7bd77]">
+              VARTANA · BUSINESS MANAGEMENT
+            </p>
+            <h1 className="mt-3 font-serif text-3xl md:text-4xl">
+              Kemitraan Konsinyasi
+            </h1>
+            <p className="mt-3 text-sm text-[#b5c1b8]">
+              Kelola mitra, pengiriman stok, dan administrasi konsinyasi.
+            </p>
+          </div>
+
+          <Link
+            href="/admin-access"
+            className="rounded-lg border border-[#365344] px-4 py-2 text-sm transition hover:border-[#c5a66b]"
+          >
+            ← Kembali ke Admin
+          </Link>
+        </header>
+
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-2xl border border-[#365344] bg-[#112e23] p-6">
+            <p className="text-sm text-[#b5c1b8]">MASTER DATA</p>
+            <h2 className="mt-3 text-xl font-semibold">Data Mitra</h2>
+            <p className="mt-2 text-sm leading-6 text-[#b5c1b8]">
+              Registrasi dan pencarian mitra konsinyasi.
+            </p>
+            <p className="mt-5 text-xs text-[#d7bd77]">
+              Tahap berikutnya
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-[#365344] bg-[#112e23] p-6">
+            <p className="text-sm text-[#b5c1b8]">DISTRIBUSI</p>
+            <h2 className="mt-3 text-xl font-semibold">Input SO</h2>
+            <p className="mt-2 text-sm leading-6 text-[#b5c1b8]">
+              Pembuatan sales order dan dokumen pengiriman.
+            </p>
+            <p className="mt-5 text-xs text-[#d7bd77]">
+              Tahap berikutnya
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-[#365344] bg-[#112e23] p-6">
+            <p className="text-sm text-[#b5c1b8]">PENGENDALIAN</p>
+            <h2 className="mt-3 text-xl font-semibold">Stok & Riwayat</h2>
+            <p className="mt-2 text-sm leading-6 text-[#b5c1b8]">
+              Riwayat pengiriman dan saldo stok per mitra.
+            </p>
+            <p className="mt-5 text-xs text-[#d7bd77]">
+              Tahap berikutnya
+            </p>
+          </div>
+        </section>
+
+        <div className="mt-8 rounded-xl border border-[#365344] p-5">
+          <h2 className="font-semibold">Status Modul</h2>
+          <p className="mt-2 text-sm leading-6 text-[#b5c1b8]">
+            Kerangka halaman sudah tersedia. Form, penyimpanan Google
+            Spreadsheet, nomor SO otomatis, dan dokumen PDF/BAST akan
+            diimplementasikan secara bertahap.
+          </p>
+        </div>
+      </div>
+    </main>
+  );
+}

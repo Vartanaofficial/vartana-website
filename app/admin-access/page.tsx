@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 const menus = [
   {
@@ -14,6 +14,12 @@ const menus = [
     href: "/admin/operations",
     number: "02",
     icon: "⚙",
+  },  {
+    title: "Kemitraan Konsinyasi",
+    description: "Pengelolaan mitra, stok titipan, dan dokumen konsinyasi.",
+    href: "/admin/konsinyasi",
+    number: "03",
+    icon: "◇",
   },
 ];
 

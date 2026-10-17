@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 
@@ -137,8 +137,8 @@ const SPICES_DATA: SpiceDetail[] = [
     latinName: "Cinnamomum verum",
     activeCompounds: "Cinnamaldehyde, Cinnamic Acid, Eugenol, Oligomeric Polyphenols",
     benefits: {
-      id: "Meningkatkan sensitivitas reseptor insulin dan menghambat enzim Î±-glucosidase guna menjaga stabilitas kadar gula darah.",
-      en: "Enhances insulin receptor sensitivity and inhibits Î±-glucosidase enzymes to help manage blood sugar levels.",
+      id: "Meningkatkan sensitivitas reseptor insulin dan menghambat enzim α-glucosidase guna menjaga stabilitas kadar gula darah.",
+      en: "Enhances insulin receptor sensitivity and inhibits α-glucosidase enzymes to help manage blood sugar levels.",
     },
     relieves: {
       id: "Resistensi insulin, lonjakan glukosa pascamakan, serta mendukung profil lipid darah sehat.",
@@ -155,7 +155,7 @@ const SPICES_DATA: SpiceDetail[] = [
   {
     name: { id: "Cengkeh", en: "Clove" },
     latinName: "Syzygium aromaticum",
-    activeCompounds: "Eugenol (80–90%), Î²-Caryophyllene, Tannins",
+    activeCompounds: "Eugenol (80–90%), β-Caryophyllene, Tannins",
     benefits: {
       id: "Berperan sebagai agen analgesik alami, antimikroba spektrum luas, serta penguat imunitas tubuh berbasis antioksidan tinggi.",
       en: "Acts as a natural analgesic, broad-spectrum antimicrobial, and potent antioxidant immune booster.",
@@ -1423,7 +1423,7 @@ export default function Home() {
   const generateWhatsAppUrl = () => {
     const memberId = typeof window !== "undefined" ? localStorage.getItem("vartana_member_id") || "NEW" : "NEW";
     const itemsList = cart.map((ci) => `- ${ci.product.name} [${ci.selectedVariant.size}] (${ci.quantity}x)`).join("\n");
-    const bonusText = freePouchesCount > 0 ? `\n🎁 *BONUS KEMITRAAN (BELI 3 GRATIS 1):* +${freePouchesCount} Pouch Signature Edition Gratis!` : "";
+    const bonusText = freePouchesCount > 0 ? `\n🎁 *BONUS KEMITRAAN (BELI 3 GRATIS 1):* +${freePouchesCount} Pouch Signature Edition Gratis!` : "";
 
     let promoInfo = "Subsidi Pengiriman Rp7.000";
     if (totalQuantity >= 10) {
@@ -1476,7 +1476,7 @@ export default function Home() {
               onClick={() => setIsTrackModalOpen(true)}
               className="flex items-center gap-1.5 rounded-full border border-[#B69245]/30 bg-[#F6F2E8] px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A] hover:bg-[#B69245] hover:text-white transition shadow-xs"
             >
-              <span>🔍</span>
+              <span>🔍</span>
               <span className="hidden md:inline">Lacak Pesanan</span>
             </button>
 
@@ -1508,7 +1508,7 @@ export default function Home() {
         {/* HORIZONTAL NAVIGATION BAR FOR MOBILE */}
         <div className="no-scrollbar flex overflow-x-auto border-t border-[#B69245]/10 bg-[#FBF9F4] px-4 py-2.5 md:hidden">
           <button onClick={() => setIsTrackModalOpen(true)} className="shrink-0 rounded-full border border-[#B69245]/40 bg-[#F6F2E8] px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#8E6E2E] mr-2">
-            🔍 Lacak Pesanan
+            🔍 Lacak Pesanan
           </button>
           <a href="#collection" className="shrink-0 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#16382A] mr-2">
             {t.nav.collection}
@@ -1526,13 +1526,13 @@ export default function Home() {
       <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#B69245]/20 bg-[#FBF9F4]/95 px-4 py-2.5 backdrop-blur-md md:hidden">
         <div className="grid grid-cols-5 items-center text-center">
           <a href="#home" className="flex flex-col items-center py-1 text-[#16382A]">
-            <span className="text-base">🏠</span>
+            <span className="text-base">🔹 </span>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Home</span>
           </a>
           <a href="#collection" className="flex flex-col items-center py-1 text-[#16382A]">
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">{t.nav.collection}</span></a>
           <button onClick={() => setIsTrackModalOpen(true)} className="flex flex-col items-center py-1 text-[#8E6E2E]">
-            <span className="text-base">🔍</span>
+            <span className="text-base">🔍</span>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Lacak</span>
           </button>
           <a href="#origin" className="flex flex-col items-center py-1 text-[#16382A]">
@@ -1558,9 +1558,9 @@ export default function Home() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0D261C]/60 p-4 backdrop-blur-xs">
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-[#FBF9F4] p-6 shadow-2xl border border-[#B69245]/30">
             <div className="flex items-center justify-between border-b border-[#16382A]/10 pb-3">
-              <h3 className="font-serif text-xl font-bold text-[#16382A]">🔍 Lacak & Riwayat Belanja</h3>
+              <h3 className="font-serif text-xl font-bold text-[#16382A]">🔍 Lacak & Riwayat Belanja</h3>
               <button onClick={() => setIsTrackModalOpen(false)} className="rounded-full bg-[#16382A]/5 px-2.5 py-1 text-xs font-bold text-[#16382A]">
-                ✕
+                ×
               </button>
             </div>
 
@@ -1671,7 +1671,7 @@ export default function Home() {
             <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[#16382A]/10 pb-4">
               <h3 className="font-serif text-2xl tracking-tight text-[#16382A]">{checkoutStep === "cart" ? t.cart.title : checkoutStep === "form" ? t.cart.fillFormTitle : t.cart.transferTitle}</h3>
               <button onClick={() => setIsCartOpen(false)} className="rounded-full bg-[#16382A]/5 px-3 py-1 text-sm font-bold text-[#16382A] hover:bg-[#16382A]/10 transition">
-                ✕
+                ×
               </button>
             </div>
 
@@ -1720,7 +1720,7 @@ export default function Home() {
             <div className="flex-1 overflow-y-auto py-6">
               {cart.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center text-center">
-                  <span className="text-4xl opacity-80">ðŸ›ï¿½Â</span>
+                  <svg className="h-10 w-10 opacity-80 text-[#16382A]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M3 3h2l2.4 12.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg>
                   <p className="mt-4 text-xs font-medium tracking-wide text-[#627067]">{t.cart.empty}</p>
                 </div>
               ) : checkoutStep === "cart" ? (
@@ -1995,7 +1995,7 @@ export default function Home() {
                         isSubmittingOrder ? "bg-gray-400 cursor-not-allowed text-gray-700" : "bg-[#B69245] text-[#0D261C] hover:bg-[#c9a352]"
                       }`}
                     >
-                      {isSubmittingOrder ? "⏳ Sedang Memproses Pesanan..." : `${t.cart.payNow} →`}
+                      {isSubmittingOrder ? "â³ Sedang Memproses Pesanan..." : `${t.cart.payNow} →`}
                     </button>
                     <button onClick={() => setCheckoutStep("cart")} className="w-full text-center text-xs text-[#627067] hover:underline">
                       {t.cart.backToCart}
@@ -2033,7 +2033,7 @@ export default function Home() {
                 <p className="text-xs italic text-[#627067] mt-0.5">{selectedSpiceModal.latinName}</p>
               </div>
               <button onClick={() => setSelectedSpiceModal(null)} className="rounded-full bg-[#16382A]/5 px-3 py-1 text-sm font-bold text-[#16382A] hover:bg-[#16382A]/10 transition">
-                ✕
+                ×
               </button>
             </div>
 
@@ -2286,7 +2286,7 @@ export default function Home() {
                             className="group flex items-center gap-1.5 rounded-full border border-[#D8C28B]/30 bg-white/[0.04] px-3.5 py-1.5 text-[11px] text-white/80 transition duration-200 hover:scale-105 hover:border-[#D8C28B] hover:bg-[#D8C28B] hover:text-[#0D261C]"
                           >
                             <span>{ingredientName}</span>
-                            <span className="text-[9px] opacity-60 group-hover:opacity-100">🔍</span>
+                            <span className="text-[9px] opacity-60 group-hover:opacity-100">🔍</span>
                           </button>
                         );
                       })}
@@ -2606,19 +2606,3 @@ export default function Home() {
     </main>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

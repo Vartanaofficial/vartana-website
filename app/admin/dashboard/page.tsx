@@ -1,4 +1,5 @@
 "use client";
+import { generateSalesReportPdf } from "./pdf-report";
 
 import { useState, useEffect, useMemo } from "react";
 
@@ -574,6 +575,12 @@ export default function AdminDashboard() {
               </button>
             </>
           )}
+                    <button onClick={() => { const valid = orders.filter((o) => o.createdAt && /^\d{4}-\d{2}/.test(o.createdAt)); if (!valid.length) { alert("Tidak ada transaksi yang tersedia untuk dibuat menjadi PDF."); return; } try { generateSalesReportPdf(valid, "all"); } catch (e) { alert(e instanceof Error ? e.message : "PDF gagal dibuat."); } }} className="rounded-full border border-[#16382A]/20 bg-white px-3 py-2 text-xs font-bold text-[#16382A] hover:bg-[#16382A] hover:text-white transition">
+            📄 Download PDF Semua Periode
+          </button>
+          <button onClick={() => { const month = new Date().toISOString().slice(0, 7); const valid = orders.filter((o) => o.createdAt && o.createdAt.slice(0, 7) === month); if (!valid.length) { alert("Tidak ada transaksi untuk bulan ini."); return; } try { generateSalesReportPdf(valid, "monthly", month); } catch (e) { alert(e instanceof Error ? e.message : "PDF gagal dibuat."); } }} className="rounded-full border border-[#B69245] bg-[#FFFDF9] px-3 py-2 text-xs font-bold text-[#8E6E2E] hover:bg-[#B69245] hover:text-white transition">
+            📄 Download PDF Bulan Ini
+          </button>
           <button onClick={fetchDashboardData} className="rounded-full border border-[#16382A]/20 bg-white px-3 py-2 text-xs font-bold text-[#16382A] hover:bg-[#16382A] hover:text-white transition">
             🔄 Refresh
           </button>

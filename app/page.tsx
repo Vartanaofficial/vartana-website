@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 
@@ -2600,7 +2600,7 @@ export default function Home() {
 
         <div className="mx-auto mt-14 flex max-w-7xl flex-col gap-4 border-t border-white/10 pt-8 md:mt-20 md:flex-row md:items-center md:justify-between">
           <p className="text-[10px] tracking-[0.16em] text-white/30">{t.footer.copyright}</p>
-          <p className="text-[9px] uppercase tracking-[0.22em] text-white/25">ROOTED IN EARTH · BUILT FOR GROWTH</p>
+          <div className="flex items-center justify-between gap-4"><span className="text-[9px] uppercase tracking-[0.22em] text-white/25">ROOTED IN EARTH · BUILT FOR GROWTH</span><a href="/admin-access" aria-label="Admin Access" title="Admin Access" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#D8C28B]/30 text-[#D8C28B]/60 transition hover:border-[#D8C28B] hover:bg-[#D8C28B]/10 hover:text-[#D8C28B]"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg></a></div>
         </div>
       </footer>
     </main>

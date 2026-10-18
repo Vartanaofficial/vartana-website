@@ -8,8 +8,11 @@ type SO = AnyRow & { nomorSO?: string; kodeMitra?: string; namaToko?: string; st
 type Shipment = AnyRow & { nomorPengiriman?: string; nomorSO?: string; namaToko?: string; statusPengiriman?: string; nomorBAST?: string };
 const money = (v: unknown) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(v || 0));
 const val = (...xs: unknown[]) => xs.find((x) => x !== undefined && x !== null && String(x).trim() !== "") ?? "-";
-const listFrom = (data: any): any[] =>
-  Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : Array.isArray(data?.items) ? data.items : Array.isArray(data?.orders) ? data.orders : Array.isArray(data?.pengiriman) ? data.pengiriman : [];
+const listFrom = (data: any): any[] => {
+  if (Array.isArray(data)) return data;
+  const candidates = [data?.salesOrder, data?.pengiriman, data?.data, data?.items, data?.orders];
+  return candidates.find(Array.isArray) ?? [];
+};
 
 export default function PengirimanBASTPage() {
   const [orders, setOrders] = useState<SO[]>([]);
@@ -48,7 +51,7 @@ export default function PengirimanBASTPage() {
     () =>
       orders.filter((o) => {
         const status = String(o.statusSO || o.status || "DRAFT").toUpperCase();
-        return !["NONAKTIF", "DIKIRIM", "SELESAI", "CANCELLED", "DIBATALKAN"].includes(status) && !shippedSO.has(String(o.nomorSO || "").trim());
+        return !["NONAKTIF", "DIKIRIM", "CANCELLED", "DIBATALKAN"].includes(status) && !shippedSO.has(String(o.nomorSO || "").trim());
       }),
     [orders, shippedSO],
   );
@@ -134,7 +137,7 @@ export default function PengirimanBASTPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold">Buat Pengiriman dari Sales Order</h2>
-            <p className="mt-1 text-sm text-gray-500">SO NONAKTIF, sudah dikirim, atau sudah selesai tidak ditampilkan.</p>
+            <p className="mt-1 text-sm text-gray-500">SO NONAKTIF dan SO yang sudah memiliki pengiriman tidak ditampilkan.</p>
           </div>
           <button onClick={() => void load()} disabled={loading || saving} className="rounded-xl border border-[#dce5db] bg-white px-4 py-2 text-sm font-semibold hover:bg-[#f7f8f3] disabled:opacity-50">
             {loading ? "Memuat…" : "Muat ulang data"}

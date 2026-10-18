@@ -521,7 +521,7 @@ const content = {
   id: {
     nav: {
       philosophy: "Filosofi",
-      collection: "Koleksi",
+      collection: "Belanja",
       science: "Riset & Khasiat",
       origin: "Cerita & Esensi",
       purpose: "Tujuan",
@@ -532,7 +532,7 @@ const content = {
       title: "Kebaikan murni dari alam,",
       accent: "untuk ritual keseharian.",
       text: "Mengangkat kekayaan botanikal Nusantara dalam racikan otentik yang disajikan dengan dedikasi tinggi pada kualitas bahan, proses, dan keberlanjutan.",
-      primary: "Jelajahi Koleksi",
+      primary: "Mulai Belanja",
       secondary: "Tentang VARTANA",
     },
     philosophy: {
@@ -683,7 +683,7 @@ const content = {
   en: {
     nav: {
       philosophy: "Philosophy",
-      collection: "Collection",
+      collection: "Shop",
       science: "Spice Benefits",
       origin: "Story & Essence",
       purpose: "Purpose",
@@ -694,7 +694,7 @@ const content = {
       title: "Pure goodness of nature,",
       accent: "for your daily rituals.",
       text: "Elevating Indonesia's botanical richness into authentic blends crafted with dedication to quality, process, and sustainability.",
-      primary: "Explore Collection",
+      primary: "Shop Now",
       secondary: "About VARTANA",
     },
     philosophy: {

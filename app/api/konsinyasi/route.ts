@@ -1,179 +1,128 @@
 import { NextResponse } from "next/server";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ACTIONS = new Set([
-  "getKonsinyasiMitra",
-  "saveKonsinyasiMitra",
-  "updateKonsinyasiMitra",
-]);
+const SCRIPT_URL = (process.env.KONSINYASI_GOOGLE_SCRIPT_URL || "").trim();
+const TIMEOUT_MS = 25_000;
 
-function getScriptUrl() {
-  return (
-    process.env.KONSINYASI_GOOGLE_SCRIPT_URL ||
-    ""
-  ).trim();
+// Hanya izinkan action yang diperlukan modul Stok Mitra.
+const GET_ACTIONS = new Set(["getKonsinyasiStok", "getKonsinyasiMitra", "getKonsinyasiProduk", "getKonsinyasiSO", "getKonsinyasiPengiriman"]);
+
+const POST_ACTIONS = new Set(["saveKonsinyasiMutasiStok"]);
+
+function errorResponse(message: string, status = 500) {
+  return NextResponse.json({ success: false, message }, { status });
 }
 
-async function callAppsScript(
-  action: string,
-  payload?: Record<string, unknown>
-) {
-  const scriptUrl = getScriptUrl();
-
-  if (!scriptUrl) {
-    return {
-      ok: false,
-      status: 500,
-      body: {
-        success: false,
-        message:
-          "KONSINYASI_GOOGLE_SCRIPT_URL belum diatur di .env.local.",
-      },
-    };
+function getScriptUrl() {
+  if (!SCRIPT_URL) {
+    throw new Error("KONSINYASI_GOOGLE_SCRIPT_URL belum dikonfigurasi.");
   }
 
-  if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(scriptUrl)) {
-    return {
-      ok: false,
-      status: 500,
-      body: {
-        success: false,
-        message: "URL Google Apps Script konsinyasi tidak valid.",
-      },
-    };
+  const url = new URL(SCRIPT_URL);
+
+  if (url.protocol !== "https:" || !url.hostname.endsWith("google.com")) {
+    throw new Error("URL Apps Script tidak valid. Periksa KONSINYASI_GOOGLE_SCRIPT_URL.");
   }
 
-  const url = new URL(scriptUrl);
+  return url;
+}
+
+async function callAppsScript(action: string, method: "GET" | "POST", body?: Record<string, unknown>) {
+  const url = getScriptUrl();
+
+  if (method === "GET") {
+    url.searchParams.set("action", action);
+  }
+
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const isGet = !payload;
-    if (isGet) {
-      url.searchParams.set("action", action);
-    }
-
     const response = await fetch(url.toString(), {
-      method: isGet ? "GET" : "POST",
-      headers: isGet
-        ? undefined
-        : { "Content-Type": "text/plain;charset=utf-8" },
-      body: isGet
-        ? undefined
-        : JSON.stringify({ ...payload, action }),
+      method,
       cache: "no-store",
       redirect: "follow",
       signal: controller.signal,
+      ...(method === "POST"
+        ? {
+            headers: {
+              "Content-Type": "text/plain;charset=utf-8",
+            },
+            body: JSON.stringify({
+              ...(body || {}),
+              action,
+            }),
+          }
+        : {}),
     });
 
-    const text = await response.text();
+    const raw = await response.text();
 
-    let result: unknown;
+    if (!raw.trim()) {
+      return errorResponse("Apps Script mengembalikan respons kosong. Periksa dispatcher dan deployment Web App.", 502);
+    }
+
+    let payload: unknown;
+
     try {
-      result = JSON.parse(text);
+      payload = JSON.parse(raw);
     } catch {
-      return {
-        ok: false,
-        status: 502,
-        body: {
+      return NextResponse.json(
+        {
           success: false,
-          message:
-            "Respons Apps Script bukan JSON. Periksa deployment dan fungsi doGet/doPost.",
+          message: "Respons Apps Script bukan JSON valid. Periksa dispatcher dan deployment Web App.",
+          upstreamStatus: response.status,
+          responsePreview: raw.slice(0, 300),
         },
-      };
+        { status: 502 },
+      );
     }
 
     if (!response.ok) {
-      return {
-        ok: false,
-        status: 502,
-        body: {
+      return NextResponse.json(
+        {
           success: false,
-          message: "Google Apps Script gagal memproses permintaan.",
+          message: `Apps Script merespons HTTP ${response.status}.`,
+          data: payload,
         },
-      };
+        { status: 502 },
+      );
     }
 
-    const data =
-      result && typeof result === "object"
-        ? (result as Record<string, unknown>)
-        : null;
+    const failed = typeof payload === "object" && payload !== null && "success" in payload && (payload as { success?: unknown }).success === false;
 
-    if (!data) {
-      return {
-        ok: false,
-        status: 502,
-        body: {
-          success: false,
-          message: "Format respons Apps Script tidak valid.",
-        },
-      };
-    }
-
-    if (data.success === false || data.status === "error") {
-      return {
-        ok: false,
-        status: 400,
-        body: {
-          success: false,
-          message:
-            typeof data.message === "string"
-              ? data.message
-              : "Apps Script menolak permintaan.",
-        },
-      };
-    }
-
-    return {
-      ok: true,
-      status: 200,
-      body: data,
-    };
-  } catch (error) {
-    const message =
-      error instanceof Error && error.name === "AbortError"
-        ? "Koneksi Apps Script timeout."
-        : "Tidak dapat terhubung ke Google Apps Script.";
-
-    return {
-      ok: false,
-      status: 502,
-      body: { success: false, message },
-    };
+    return NextResponse.json(payload, {
+      status: failed ? 502 : 200,
+    });
   } finally {
     clearTimeout(timeout);
   }
 }
 
 export async function GET(request: Request) {
-  const action = new URL(request.url).searchParams.get("action");
+  const action = new URL(request.url).searchParams.get("action") || "getKonsinyasiStok";
 
-  if (!action || !ACTIONS.has(action)) {
+  if (!GET_ACTIONS.has(action)) {
     return NextResponse.json(
       {
         success: false,
-        message: "Action konsinyasi tidak dikenal.",
+        message: "Action GET Stok Mitra tidak diizinkan.",
+        receivedAction: action,
+        allowedActions: [...GET_ACTIONS],
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
-  if (action !== "getKonsinyasiMitra") {
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Action ini harus menggunakan POST.",
-      },
-      { status: 405 }
-    );
+  try {
+    return await callAppsScript(action, "GET");
+  } catch (error) {
+    const message = error instanceof Error && error.name === "AbortError" ? "Apps Script timeout setelah 25 detik." : error instanceof Error ? error.message : "Gagal menghubungi Apps Script.";
+
+    return errorResponse(message, 502);
   }
-
-  const result = await callAppsScript(action);
-
-  return NextResponse.json(result.body, {
-    status: result.status,
-  });
 }
 
 export async function POST(request: Request) {
@@ -182,46 +131,34 @@ export async function POST(request: Request) {
   try {
     const parsed: unknown = await request.json();
 
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return NextResponse.json(
-        { success: false, message: "Body permintaan tidak valid." },
-        { status: 400 }
-      );
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return errorResponse("Payload harus berupa object JSON.", 400);
     }
 
     body = parsed as Record<string, unknown>;
   } catch {
+    return errorResponse("Payload JSON tidak valid.", 400);
+  }
+
+  const action = String(body.action || "");
+
+  if (!POST_ACTIONS.has(action)) {
     return NextResponse.json(
-      { success: false, message: "Format JSON tidak valid." },
-      { status: 400 }
+      {
+        success: false,
+        message: "Action POST Stok Mitra tidak diizinkan.",
+        receivedAction: action || "(kosong)",
+        allowedActions: [...POST_ACTIONS],
+      },
+      { status: 400 },
     );
   }
 
-  const action =
-    typeof body.action === "string" ? body.action : "";
+  try {
+    return await callAppsScript(action, "POST", body);
+  } catch (error) {
+    const message = error instanceof Error && error.name === "AbortError" ? "Apps Script timeout setelah 25 detik." : error instanceof Error ? error.message : "Gagal menghubungi Apps Script.";
 
-  if (
-    action !== "saveKonsinyasiMitra" &&
-    action !== "updateKonsinyasiMitra"
-  ) {
-    return NextResponse.json(
-      { success: false, message: "Action POST tidak dikenal." },
-      { status: 400 }
-    );
+    return errorResponse(message, 502);
   }
-
-  const nestedData =
-    body.data &&
-    typeof body.data === "object" &&
-    !Array.isArray(body.data)
-      ? (body.data as Record<string, unknown>)
-      : {};
-
-  const payload = { ...nestedData, action };
-
-  const result = await callAppsScript(action, payload);
-
-  return NextResponse.json(result.body, {
-    status: result.status,
-  });
 }

@@ -1530,7 +1530,9 @@ export default function Home() {
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Home</span>
           </a>
           <a href="#collection" className="flex flex-col items-center py-1 text-[#16382A]">
-            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">{t.nav.collection}</span></a>
+            <span className="text-base">🛍️</span>
+            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">{t.nav.collection}</span>
+          </a>
           <button onClick={() => setIsTrackModalOpen(true)} className="flex flex-col items-center py-1 text-[#8E6E2E]">
             <span className="text-base">🔍</span>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Lacak</span>

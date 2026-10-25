@@ -9,6 +9,8 @@ export type ProductVariant = {
   promoPrice: string;
   regularPrice: string;
   discountPercentage: string;
+  blendProductId?: string;
+  bagCount?: number;
 };
 
 export type Product = {
@@ -30,6 +32,7 @@ export type Product = {
   aroma: LocalizedText;
   difference: LocalizedText;
   benefit: LocalizedText;
+  blendOptions?: { id: string; name: LocalizedText }[];
 };
 
 export const products: Product[] = [
@@ -39,7 +42,7 @@ export const products: Product[] = [
     name: "Signature Blend",
     subtitle: "BLEND No. 01",
     status: "READY STOCK",
-    image: "/signature-blend-vartana1.jpeg",
+    image: "/Kemasan Teh Herbal Vartana Elegan siganture blend box.png",
     priceValue: 72800,
     regularPrice: "Rp97.000",
     promoPrice: "Rp72.800",
@@ -113,7 +116,7 @@ export const products: Product[] = [
           promoPrice: "Rp76.000",
           regularPrice: "Rp98.700",
           discountPercentage: "23% OFF",
-          image: "/morning-energy.png"
+          image: "/Kemasan Teh Herbal Vartana Morning Energy.png"
         }
       ],
     ingredients: [
@@ -166,7 +169,7 @@ export const products: Product[] = [
           promoPrice: "Rp75.900",
           regularPrice: "Rp98.700",
           discountPercentage: "23% OFF",
-          image: "/golden-turmeric.png"
+          image: "/Kemasan Teh Kunyit Emas Vartana.png"
         }
       ],
     ingredients: [
@@ -219,7 +222,7 @@ export const products: Product[] = [
           promoPrice: "Rp76.500",
           regularPrice: "Rp98.700",
           discountPercentage: "23% OFF",
-          image: "/warm-balance.png"
+          image: "/Kemasan Teh Herbal Warm Balance Vartana.png"
         }
       ],
     ingredients: [
@@ -252,5 +255,169 @@ export const products: Product[] = [
       id: "Sangat pas dinikmati sore atau malam hari sebelum beristirahat untuk kenyamanan maksimal.",
       en: "Best enjoyed in the evening or night to ease stress and encourage deep rest.",
     },
+  },,
+
+  {
+    id: "vartana-05",
+    number: "VRT-05",
+    name: "Mix Edition",
+    subtitle: "11 botanicals in one blend",
+    status: "READY STOCK",
+    image: "/Vartana Botanical Wellness Tea Collection.png",
+    priceValue: 78000,
+    regularPrice: "Rp98.700",
+    promoPrice: "Rp78.000",
+    discountPercentage: "21% OFF",
+    variants: [{
+      size: "10 Tea Bags (Mixed Blend)",
+      priceValue: 78000,
+      promoPrice: "Rp78.000",
+      regularPrice: "Rp98.700",
+      discountPercentage: "21% OFF"
+    }],
+    ingredients: [
+      { id: "Jahe", en: "Ginger" },
+      { id: "Kunyit", en: "Turmeric" },
+      { id: "Serai", en: "Lemongrass" },
+      { id: "Rosella", en: "Roselle" },
+      { id: "Kayu Manis", en: "Cinnamon" },
+      { id: "Cengkeh", en: "Clove" },
+      { id: "Kapulaga", en: "Cardamom" },
+      { id: "Lada Putih", en: "White Pepper" },
+      { id: "Lada Hitam", en: "Black Pepper" },
+      { id: "Adas", en: "Fennel" },
+      { id: "Bunga Lawang", en: "Star Anise" }
+    ],
+    description: {
+      id: "Perpaduan sebelas botanikal pilihan dalam satu koleksi teh herbal yang kaya karakter.",
+      en: "Eleven selected botanicals brought together in one expressive herbal tea blend."
+    },
+    taste: {
+      id: "Hangat dan kaya rempah dengan sentuhan herbal yang berlapis.",
+      en: "Warm and spice-rich, with layered herbal notes."
+    },
+    aroma: {
+      id: "Aroma rempah kompleks dengan karakter jahe, kayu manis, dan bunga lawang.",
+      en: "A complex spice aroma led by ginger, cinnamon, and star anise."
+    },
+    difference: {
+      id: "Menggabungkan karakter rempah dengan tambahan rosella dan adas.",
+      en: "A distinctive spice blend featuring roselle and fennel."
+    },
+    benefit: {
+      id: "Pilihan untuk menikmati pengalaman teh herbal dengan karakter rempah yang beragam.",
+      en: "A versatile choice for exploring a diverse herbal tea profile."
+    }
+  },
+  {
+    id: "vartana-06",
+    number: "VRT-06",
+    name: "Jar Edition",
+    subtitle: "Botanical tea in a reusable jar",
+    status: "READY STOCK",
+    image: "/Stoples Teh Herbal Vartana.png",
+    priceValue: 59000,
+    regularPrice: "Rp75.000",
+    promoPrice: "Rp59.000",
+    discountPercentage: "SPECIAL OFFER",
+    blendOptions: [
+      { id: "vartana-01", name: { id: "Signature Blend", en: "Signature Blend" } },
+      { id: "vartana-03", name: { id: "Golden Turmeric", en: "Golden Turmeric" } },
+      { id: "vartana-02", name: { id: "Morning Energy", en: "Morning Energy" } },
+      { id: "vartana-04", name: { id: "Warm Balance", en: "Warm Balance" } }
+    ],
+    variants: [
+      { size: "Signature Blend — 15 Tea Bags (5 g each)", priceValue: 59000, promoPrice: "Rp59.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-01", bagCount: 15 },
+      { size: "Signature Blend — 20 Tea Bags (5 g each)", priceValue: 65000, promoPrice: "Rp65.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-01", bagCount: 20 },
+      { size: "Golden Turmeric — 15 Tea Bags (5 g each)", priceValue: 59000, promoPrice: "Rp59.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-03", bagCount: 15 },
+      { size: "Golden Turmeric — 20 Tea Bags (5 g each)", priceValue: 65000, promoPrice: "Rp65.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-03", bagCount: 20 },
+      { size: "Morning Energy — 15 Tea Bags (5 g each)", priceValue: 59000, promoPrice: "Rp59.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-02", bagCount: 15 },
+      { size: "Morning Energy — 20 Tea Bags (5 g each)", priceValue: 65000, promoPrice: "Rp65.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-02", bagCount: 20 },
+      { size: "Warm Balance — 15 Tea Bags (5 g each)", priceValue: 59000, promoPrice: "Rp59.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-04", bagCount: 15 },
+      { size: "Warm Balance — 20 Tea Bags (5 g each)", priceValue: 65000, promoPrice: "Rp65.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-04", bagCount: 20 }
+    ],
+    ingredients: [
+      { id: "Jahe", en: "Ginger" },
+      { id: "Kunyit", en: "Turmeric" },
+      { id: "Serai", en: "Lemongrass" },
+      { id: "Kayu Manis", en: "Cinnamon" },
+      { id: "Cengkeh", en: "Clove" },
+      { id: "Kapulaga", en: "Cardamom" },
+      { id: "Lada Putih", en: "White Pepper" },
+      { id: "Lada Hitam", en: "Black Pepper" },
+      { id: "Pala", en: "Nutmeg" }
+    ],
+    description: {
+      id: "Pilihan racikan teh herbal dalam stoples praktis. Pilih blend dan jumlah tea bags sesuai kebutuhan.",
+      en: "Herbal tea blends in a practical jar. Choose your preferred blend and tea bag count."
+    },
+    taste: {
+      id: "Karakter rasa mengikuti racikan yang dipilih.",
+      en: "The taste profile follows the selected blend."
+    },
+    aroma: {
+      id: "Aroma khas mengikuti racikan yang dipilih.",
+      en: "The aroma follows the selected blend."
+    },
+    difference: {
+      id: "Empat racikan tersedia dalam stoples, masing-masing dengan pilihan 15 atau 20 tea bags.",
+      en: "Four blends in a jar, each available in 15 or 20 tea bags."
+    },
+    benefit: {
+      id: "Format stoples untuk menyimpan koleksi teh herbal dengan praktis.",
+      en: "A practical jar format for keeping your herbal tea collection."
+    }
+  },
+  {
+    id: "vartana-07",
+    number: "VRT-07",
+    name: "Signature Pouch",
+    subtitle: "Signature Blend without the box",
+    status: "READY STOCK",
+    image: "/Kemasan Vartana Signature Blend Herbal.png",
+    priceValue: 69000,
+    regularPrice: "Rp86.000",
+    promoPrice: "Rp69.000",
+    discountPercentage: "20% OFF",
+    variants: [{
+      size: "Signature Blend Pouch — 10 Tea Bags",
+      priceValue: 69000,
+      promoPrice: "Rp69.000",
+      regularPrice: "Rp86.000",
+      discountPercentage: "20% OFF"
+    }],
+    ingredients: [
+      { id: "Jahe", en: "Ginger" },
+      { id: "Kunyit", en: "Turmeric" },
+      { id: "Serai", en: "Lemongrass" },
+      { id: "Kayu Manis", en: "Cinnamon" },
+      { id: "Cengkeh", en: "Clove" },
+      { id: "Kapulaga", en: "Cardamom" },
+      { id: "Adas", en: "Fennel" },
+      { id: "Lada Putih", en: "White Pepper" },
+      { id: "Lada Hitam", en: "Black Pepper" },
+      { id: "Pala", en: "Nutmeg" },
+      { id: "Bunga Lawang", en: "Star Anise" }
+    ],
+    description: {
+      id: "Signature Blend dalam format pouch praktis tanpa box luar.",
+      en: "Signature Blend in a practical pouch format without the outer box."
+    },
+    taste: {
+      id: "Hangat, kaya rempah, dan seimbang.",
+      en: "Warm, spice-rich, and balanced."
+    },
+    aroma: {
+      id: "Aroma rempah khas Signature Blend.",
+      en: "The distinctive spice aroma of Signature Blend."
+    },
+    difference: {
+      id: "Format pouch tanpa box untuk pilihan yang lebih sederhana.",
+      en: "A simpler pouch-only format without the outer box."
+    },
+    benefit: {
+      id: "Pilihan praktis untuk menikmati Signature Blend.",
+      en: "A practical way to enjoy Signature Blend."
+    }
   },
 ];

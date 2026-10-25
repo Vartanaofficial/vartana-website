@@ -116,7 +116,7 @@ const content = {
       modalBenefits: "Manfaat Kesehatan Klinis:",
       modalRelieves: "Membantu Meredakan:",
       modalJournalHeading: "🔬 Referensi Jurnal Medis (PubMed / NCBI):",
-      modalReadOfficial: "Buka Publikasi Resmi ↗",
+      modalReadOfficial: "Buka Publikasi Resmi \u2197↗",
       modalClose: "Tutup Informasi",
     },
     purpose: {
@@ -278,7 +278,7 @@ const content = {
       modalBenefits: "Clinical Health Benefits:",
       modalRelieves: "Helps Alleviate:",
       modalJournalHeading: "🔬 Medical Reference (PubMed / NCBI):",
-      modalReadOfficial: "Read Official Publication ↗",
+      modalReadOfficial: "Read Official Publication \u2197↗",
       modalClose: "Close Details",
     },
     purpose: {
@@ -455,7 +455,10 @@ export default function Home() {
   const product = products[selectedProduct];
   const currentVariant = product.variants
     ? product.variants[selectedVariantIndex]
-    : { size: "1 Pouch", priceValue: product.priceValue, promoPrice: product.promoPrice || "Rp72.800", regularPrice: product.regularPrice || "Rp97.000", discountPercentage: "25% OFF" };
+    : { size: "1 Pouch", priceValue: product.priceValue, promoPrice: product.promoPrice || "Rp72.800", regularPrice: product.regularPrice || "Rp97.000", discountPercentage: "25% OFF", blendProductId: undefined, bagCount: undefined };
+  const displayedIngredients = currentVariant.blendProductId
+    ? (products.find((item) => item.id === currentVariant.blendProductId)?.ingredients ?? product.ingredients)
+    : product.ingredients;
 
   const formatRupiah = (amount: number) => {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(amount);
@@ -965,7 +968,7 @@ export default function Home() {
   const generateWhatsAppUrl = () => {
     const memberId = typeof window !== "undefined" ? localStorage.getItem("vartana_member_id") || "NEW" : "NEW";
     const itemsList = cart.map((ci) => `- ${ci.product.name} [${ci.selectedVariant.size}] (${ci.quantity}x)`).join("\n");
-    const bonusText = freePouchesCount > 0 ? `\n🎁 *BONUS KEMITRAAN (BELI 3 GRATIS 1):* +${freePouchesCount} Pouch Signature Edition Gratis!` : "";
+    const bonusText = freePouchesCount > 0 ? `\n🎁 *BONUS KEMITRAAN (BELI 3 GRATIS 1):* +${freePouchesCount} Pouch Signature Edition Gratis!` : "";
 
     let promoInfo = "Subsidi Pengiriman Rp7.000";
     if (totalQuantity >= 10) {
@@ -1092,7 +1095,7 @@ export default function Home() {
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Home</span>
           </a>
           <a href="#collection" className="flex flex-col items-center py-1 text-[#16382A]">
-            <span className="text-base">🛍️</span>
+            <span className="text-base">🛒</span>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">{t.nav.collection}</span>
           </a>
           <button onClick={() => setIsTrackModalOpen(true)} className="flex flex-col items-center py-1 text-[#8E6E2E]">
@@ -1242,19 +1245,6 @@ export default function Home() {
             {/* REFINED PROMO BANNERS */}
             {cart.length > 0 && (
               <div className="mt-4 space-y-2">
-                <div className="rounded-xl border border-[#B69245]/40 bg-[#F6F2E8] p-3.5 text-center shadow-xs">
-                  {freePouchesCount > 0 ? (
-                    <p className="text-xs font-bold uppercase tracking-widest text-[#8E6E2E]">✨ Penawaran Aktif: +{freePouchesCount} Pouch Gratis Disertakan</p>
-                  ) : countTenBagPouches > 0 ? (
-                    <p className="text-xs font-medium tracking-wide text-[#526158]">
-                      Tambahkan <span className="font-bold text-[#8E6E2E]">{3 - (countTenBagPouches % 3)} Signature Edition</span> lagi untuk klaim <span className="font-bold text-[#8E6E2E]">1 Pouch Gratis</span>.
-                    </p>
-                  ) : (
-                    <p className="text-xs font-medium tracking-wide text-[#526158]">
-                      Penawaran Spesial: Beli 3 Signature Edition dan dapatkan <span className="font-bold text-[#8E6E2E]">1 Pouch Gratis</span>.
-                    </p>
-                  )}
-                </div>
 
                 {/* BANNER PROMO SUBSIDI ONGKIR DENGAN LOGIKA BARU */}
                 <div className="rounded-xl border border-[#16382A]/10 bg-white p-3 text-center shadow-xs">
@@ -1559,7 +1549,7 @@ export default function Home() {
                         isSubmittingOrder ? "bg-gray-400 cursor-not-allowed text-gray-700" : "bg-[#B69245] text-[#0D261C] hover:bg-[#c9a352]"
                       }`}
                     >
-                      {isSubmittingOrder ? "Ã¢ÂÂ³ Sedang Memproses Pesanan..." : `${t.cart.payNow} →`}
+                      {isSubmittingOrder ? "\u23F3 Sedang Memproses Pesanan..." : `${t.cart.payNow} →`}
                     </button>
                     <button onClick={() => setCheckoutStep("cart")} className="w-full text-center text-xs text-[#627067] hover:underline">
                       {t.cart.backToCart}
@@ -1760,32 +1750,78 @@ export default function Home() {
                   <p className="mt-4 max-w-md text-[14px] leading-relaxed text-white/60 md:mt-6 md:text-[15px]">{product.description[language]}</p>
 
                   {product.image && (
-                    <div className="mt-8 flex min-h-[280px] items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#0D261C]/50 p-6 md:min-h-[360px]">
-                      <img src={product.image} alt={product.name} className="max-h-[310px] w-auto max-w-full object-contain rounded-xl shadow-2xl md:max-h-[400px]" />
+                    <div className={`mt-8 flex items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#0D261C]/50 ${product.id === "vartana-06" ? "min-h-[280px] p-6 md:min-h-[360px]" : "h-[460px] p-1 sm:h-[520px] md:h-[600px] md:p-2"}`}>
+                      <img src={product.image} alt={product.name} className={product.id === "vartana-06" ? "max-h-[310px] w-auto max-w-full object-contain rounded-xl shadow-2xl md:max-h-[400px]" : ["vartana-02", "vartana-03", "vartana-04"].includes(product.id) ? "h-full w-full max-h-[600px] max-w-full scale-[1.2] object-contain rounded-xl shadow-2xl md:max-h-[760px] md:scale-[1.28]" : "h-full w-full max-h-[540px] max-w-full object-contain rounded-xl shadow-2xl md:max-h-[680px]"} />
                     </div>
                   )}
 
                   {product.status === "READY STOCK" && (
                     <div className="mt-8 border-t border-white/10 pt-7">
                       {product.variants && (
-                        <div>
-                          <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-[#D8C28B] mb-2.5">Pilih Format Kemasan Pouch:</p>
-                          <div className="grid grid-cols-2 gap-3">
-                            {product.variants.map((v, vIdx) => (
-                              <button
-                                key={v.size}
-                                onClick={() => setSelectedVariantIndex(vIdx)}
-                                className={`rounded-xl border p-3.5 text-left transition ${selectedVariantIndex === vIdx ? "border-[#D8C28B] bg-[#D8C28B]/20 text-[#D8C28B] font-bold shadow-xs" : "border-white/15 bg-white/5 text-white/70 hover:border-white/30"}`}
-                              >
-                                {v.image && (
-            <img src={v.image} alt={v.size} className="mx-auto mb-2 h-20 w-full object-contain" />
-          )}
-          <p className="text-xs">{v.size}</p>
-                                <p className="text-sm font-extrabold mt-1">{v.promoPrice}</p>
-                              </button>
-                            ))}
+                        product.id === "vartana-06" ? (
+                          <div className="space-y-5">
+                            <div>
+                              <p className="mb-2.5 text-[9px] font-bold uppercase tracking-[0.22em] text-[#D8C28B]">
+                                {language === "id" ? "Pilih Racikan:" : "Choose Blend:"}
+                              </p>
+                              <div className="grid grid-cols-2 gap-3">
+                                {product.blendOptions?.map((blend) => (
+                                  <button
+                                    key={blend.id}
+                                    onClick={() => {
+                                      const count = currentVariant.bagCount ?? 15;
+                                      const index = product.variants!.findIndex((v) => v.blendProductId === blend.id && v.bagCount === count);
+                                      if (index >= 0) setSelectedVariantIndex(index);
+                                    }}
+                                    className={`rounded-xl border p-3.5 text-left transition ${currentVariant.blendProductId === blend.id ? "border-[#D8C28B] bg-[#D8C28B]/20 text-[#D8C28B] font-bold" : "border-white/15 bg-white/5 text-white/70 hover:border-white/30"}`}
+                                  >
+                                    <p className="text-xs">{blend.name[language]}</p>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <p className="mb-2.5 text-[9px] font-bold uppercase tracking-[0.22em] text-[#D8C28B]">
+                                {language === "id" ? "Pilih Isi Stoples:" : "Choose Jar Size:"}
+                              </p>
+                              <div className="grid grid-cols-2 gap-3">
+                                {[15, 20].map((count) => (
+                                  <button
+                                    key={count}
+                                    onClick={() => {
+                                      const index = product.variants!.findIndex((v) => v.blendProductId === currentVariant.blendProductId && v.bagCount === count);
+                                      if (index >= 0) setSelectedVariantIndex(index);
+                                    }}
+                                    className={`rounded-xl border p-3.5 text-left transition ${currentVariant.bagCount === count ? "border-[#D8C28B] bg-[#D8C28B]/20 text-[#D8C28B] font-bold" : "border-white/15 bg-white/5 text-white/70 hover:border-white/30"}`}
+                                  >
+                                    <p className="text-xs">{count} Tea Bags</p>
+                                    <p className="mt-1 text-[10px] opacity-70">{count * 5} g total</p>
+                                    <p className="mt-1 text-sm font-extrabold">{count === 15 ? "Rp59.000" : "Rp65.000"}</p>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div>
+                            <p className="mb-2.5 text-[9px] font-bold uppercase tracking-[0.22em] text-[#D8C28B]">
+                              {language === "id" ? "Pilih Format Kemasan:" : "Choose Package Format:"}
+                            </p>
+                            <div className="grid grid-cols-2 gap-3">
+                              {product.variants.map((v, vIdx) => (
+                                <button
+                                  key={v.size}
+                                  onClick={() => setSelectedVariantIndex(vIdx)}
+                                  className={`rounded-xl border p-3.5 text-left transition ${selectedVariantIndex === vIdx ? "border-[#D8C28B] bg-[#D8C28B]/20 text-[#D8C28B] font-bold shadow-xs" : "border-white/15 bg-white/5 text-white/70 hover:border-white/30"}`}
+                                >
+                                  {v.image && <img src={v.image} alt={v.size} className={`mx-auto mb-2 w-full object-contain ${["vartana-02", "vartana-03", "vartana-04"].includes(product.id) ? "h-28 sm:h-32" : "h-20"}`} />}
+                                  <p className="text-xs">{v.size}</p>
+                                  <p className="mt-1 text-sm font-extrabold">{v.promoPrice}</p>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )
                       )}
 
                       <div className="mt-6 grid gap-4 sm:grid-cols-2 md:gap-5">
@@ -1828,7 +1864,7 @@ export default function Home() {
 
                   <div className="mt-8 flex items-center gap-4">
                     <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#D8C28B]">{t.product.weight}</span>
-                    <span className="rounded-full border border-white/15 bg-white/[0.03] px-4 py-1.5 text-[11px] text-white/80">{t.product.weightValue}</span>
+                    <span className="rounded-full border border-white/15 bg-white/[0.03] px-4 py-1.5 text-[11px] text-white/80">{product.id === "vartana-06" && currentVariant.bagCount ? `${currentVariant.bagCount} Tea Bags × 5 g (${currentVariant.bagCount * 5} g)` : product.id === "vartana-05" || product.id === "vartana-07" ? "10 Tea Bags" : t.product.weightValue}</span>
                   </div>
 
                   {/* LEGALITAS P-IRT DI DETAIL PRODUK */}
@@ -1841,7 +1877,7 @@ export default function Home() {
                   <div className="mt-10">
                     <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#D8C28B]">{t.product.ingredients}</p>
                     <div className="mt-4 flex flex-wrap gap-2">
-                      {product.ingredients.map((ingredientObj, idx) => {
+                      {displayedIngredients.map((ingredientObj, idx) => {
                         const ingredientName = ingredientObj[language];
                         return (
                           <button

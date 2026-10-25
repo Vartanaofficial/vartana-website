@@ -20,10 +20,17 @@ const menus = [
     symbol: "⚙",
   },
   {
+    title: "Master Product",
+    description: "Pengelolaan SKU, varian, harga, dan data produk VARTANA.",
+    href: "/admin/master-product",
+    number: "03",
+    symbol: "◇",
+  },
+  {
     title: "Kemitraan Konsinyasi",
     description: "Pengelolaan mitra, stok titipan, dan dokumen konsinyasi.",
     href: "/admin/konsinyasi",
-    number: "03",
+    number: "04",
     symbol: "◇",
   },
 ];
@@ -374,3 +381,5 @@ export default function AdminAccessPage() {
     </main>
   );
 }
+
+

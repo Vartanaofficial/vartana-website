@@ -1,0 +1,127 @@
+﻿"use client";
+
+import Link from "next/link";
+
+export default function MasterProductPage() {
+  return (
+    <main className="min-h-screen bg-[#f7f5ef] text-[#173b2b]">
+      <header className="border-b border-[#d9d2c3] bg-[#103b2b] px-6 py-6 text-white sm:px-10">
+        <div className="mx-auto max-w-7xl">
+          <Link
+            href="/admin-access"
+            className="text-sm text-[#dfc783] hover:text-white"
+          >
+            ← Kembali ke Admin Control Center
+          </Link>
+
+          <p className="mt-6 text-xs tracking-[0.25em] text-[#dfc783]">
+            VARTANA INTERNAL SYSTEM
+          </p>
+
+          <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">
+            Master Product
+          </h1>
+
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[#d6e0d7]">
+            Pusat pengelolaan SKU, varian, harga, dan informasi produk
+            VARTANA Botanical Wellness.
+          </p>
+        </div>
+      </header>
+
+      <section className="mx-auto max-w-7xl px-6 py-8 sm:px-10">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-[#e1dccf] bg-white p-5">
+            <p className="text-sm text-gray-500">Total Produk</p>
+            <p className="mt-3 text-3xl font-semibold">—</p>
+            <p className="mt-2 text-xs text-gray-500">
+              Menunggu koneksi data produk
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-[#e1dccf] bg-white p-5">
+            <p className="text-sm text-gray-500">Produk Aktif</p>
+            <p className="mt-3 text-3xl font-semibold">—</p>
+            <p className="mt-2 text-xs text-gray-500">
+              Status akan ditampilkan setelah integrasi
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-[#e1dccf] bg-white p-5">
+            <p className="text-sm text-gray-500">Kategori Pengelolaan</p>
+            <p className="mt-3 text-lg font-semibold">Product & SKU</p>
+            <p className="mt-2 text-xs text-gray-500">
+              Data induk produk internal
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8 rounded-2xl border border-[#e1dccf] bg-white p-5 sm:p-7">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <h2 className="text-xl font-semibold">Daftar Produk</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Kelola identitas dan informasi produk VARTANA.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              disabled
+              title="Form produk akan diaktifkan pada tahap berikutnya"
+              className="rounded-xl bg-[#173b2b] px-5 py-3 text-sm font-medium text-white opacity-70"
+            >
+              + Tambah Produk
+            </button>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_200px]">
+            <input
+              type="search"
+              placeholder="Cari SKU atau nama produk..."
+              disabled
+              className="min-h-11 rounded-xl border border-[#ded8ca] bg-[#faf9f6] px-4 text-sm outline-none"
+            />
+
+            <select
+              disabled
+              defaultValue="all"
+              className="min-h-11 rounded-xl border border-[#ded8ca] bg-[#faf9f6] px-4 text-sm"
+            >
+              <option value="all">Semua Status</option>
+              <option value="active">Aktif</option>
+              <option value="inactive">Nonaktif</option>
+            </select>
+          </div>
+
+          <div className="mt-6 overflow-x-auto rounded-xl border border-[#e5e0d5]">
+            <table className="w-full min-w-[650px] text-left text-sm">
+              <thead className="bg-[#f3f0e7] text-[#526456]">
+                <tr>
+                  <th className="px-5 py-4 font-medium">SKU</th>
+                  <th className="px-5 py-4 font-medium">Nama Produk</th>
+                  <th className="px-5 py-4 font-medium">Varian</th>
+                  <th className="px-5 py-4 font-medium">HPP</th>
+                  <th className="px-5 py-4 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colSpan={5} className="px-5 py-12 text-center">
+                    <p className="font-medium text-[#173b2b]">
+                      Master Product siap dikembangkan
+                    </p>
+                    <p className="mt-2 text-sm text-gray-500">
+                      Data belum dimuat. Koneksi database dan fitur
+                      pengelolaan akan dibuat pada tahap berikutnya.
+                    </p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}

@@ -1,39 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { products, type Product, type ProductVariant } from "@/lib/products";
+import { SPICES_DATA, type SpiceDetail } from "@/lib/spices";
 
 type Language = "id" | "en";
 type LocalizedText = Record<Language, string>;
 
-type ProductVariant = {
-  image?: string;
-  size: string;
-  priceValue: number;
-  promoPrice: string;
-  regularPrice: string;
-  discountPercentage: string;
-};
 
-type Product = {
-  id: string;
-  number: string;
-  name: string;
-  subtitle: string;
-  status: "READY STOCK" | "COMING SOON";
-  image?: string;
-  variants?: ProductVariant[];
-  priceValue: number;
-  regularPrice?: string;
-  promoPrice?: string;
-  discountPercentage?: string;
-  quantityInfo?: string;
-  ingredients: LocalizedText[];
-  description: LocalizedText;
-  taste: LocalizedText;
-  aroma: LocalizedText;
-  difference: LocalizedText;
-  benefit: LocalizedText;
-};
 
 type CartItem = {
   product: Product;
@@ -70,17 +44,7 @@ type RegionItem = {
   name: string;
 };
 
-type SpiceDetail = {
-  name: LocalizedText;
-  latinName: string;
-  activeCompounds: string;
-  benefits: LocalizedText;
-  relieves: LocalizedText;
-  journalTitle: string;
-  journalDetail: LocalizedText;
-  journalLink: string;
-  pmid: string;
-};
+
 
 // DATA REKENING VARTANA RESMI
 const BANK_DETAILS = {
@@ -91,437 +55,15 @@ const BANK_DETAILS = {
 };
 
 // DATA 10 REMPAH & JURNAL ILMIAH
-const SPICES_DATA: SpiceDetail[] = [
-  {
-    name: { id: "Jahe", en: "Ginger" },
-    latinName: "Zingiber officinale",
-    activeCompounds: "6-Gingerol, 6-Shogaol, Zingerone, Paradol, Sesquiterpenes",
-    benefits: {
-      id: "Menghangatkan pencernaan, meredakan mual dan spasme lambung, memperlancar sirkulasi darah, serta menginhibisi enzim pro-inflamasi (COX-2 & 5-LOX).",
-      en: "Warms the digestive tract, relieves nausea and gastric spasms, enhances blood circulation, and inhibits pro-inflammatory enzymes (COX-2 & 5-LOX).",
-    },
-    relieves: {
-      id: "Gangguan asam lambung (GERD), peradangan sendi (Osteoarthritis & RA), migrain, dan mual.",
-      en: "Acid reflux (GERD), joint inflammation (Osteoarthritis & RA), migraines, and nausea.",
-    },
-    journalTitle: "Zingiber Officinale Roscoe: The Antiarthritic Potential of a Popular Spice",
-    journalDetail: {
-      id: "Penelitian mengonfirmasi bahwa ekstrak oleoresin jahe (6-gingerol & 6-shogaol) memiliki efek anti-inflamasi dan analgesik signifikan untuk meredakan nyeri sendi.",
-      en: "Research confirms that ginger oleoresin extract (6-gingerol & 6-shogaol) exerts significant anti-inflammatory and analgesic effects to relieve joint pain.",
-    },
-    journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC10933899/",
-    pmid: "38473062",
-  },
-  {
-    name: { id: "Serai", en: "Lemongrass" },
-    latinName: "Cymbopogon citratus",
-    activeCompounds: "Citral (Geranial & Neral), Geraniol, Myrcene, Chlorogenic Acid",
-    benefits: {
-      id: "Menenangkan sistem saraf pusat (anksiolitik), memberikan efek relaksasi aromatik, serta membantu proses detoksifikasi ginjal secara alami.",
-      en: "Calms the central nervous system (anxiolytic), provides aromatic relaxation, and supports natural kidney detoxification.",
-    },
-    relieves: {
-      id: "Kecemasan, insomnia atau gangguan tidur, serta ketegangan saraf.",
-      en: "Anxiety, insomnia or sleep disturbances, and nervous tension.",
-    },
-    journalTitle: "Scientific Basis for the Therapeutic Use of Cymbopogon citratus (Lemongrass)",
-    journalDetail: {
-      id: "Mengulas sifat farmakologis serai kaya sitral sebagai penenang saraf alami, antioksidan, dan pelindung mukosa lambung.",
-      en: "Reviews the pharmacological properties of citral-rich lemongrass as a natural nerve sedative, antioxidant, and gastric mucosa protector.",
-    },
-    journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3217679/",
-    pmid: "22102830",
-  },
-  {
-    name: { id: "Kayu Manis", en: "Cinnamon" },
-    latinName: "Cinnamomum verum",
-    activeCompounds: "Cinnamaldehyde, Cinnamic Acid, Eugenol, Oligomeric Polyphenols",
-    benefits: {
-      id: "Meningkatkan sensitivitas reseptor insulin dan menghambat enzim α-glucosidase guna menjaga stabilitas kadar gula darah.",
-      en: "Enhances insulin receptor sensitivity and inhibits α-glucosidase enzymes to help manage blood sugar levels.",
-    },
-    relieves: {
-      id: "Resistensi insulin, lonjakan glukosa pascamakan, serta mendukung profil lipid darah sehat.",
-      en: "Insulin resistance, post-prandial blood sugar spikes, and supports healthy lipid profiles.",
-    },
-    journalTitle: "Are cinnamon derivatives effective and safe for diabetes?",
-    journalDetail: {
-      id: "Menunjukkan aktivitas ekstrak kayu manis dalam menghambat enzim pencernaan karbohidrat guna menstabilkan kadar glukosa darah.",
-      en: "Highlights cinnamon extract activity in inhibiting carbohydrate digestive enzymes to stabilize blood glucose.",
-    },
-    journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC11913506/",
-    pmid: "38291023",
-  },
-  {
-    name: { id: "Cengkeh", en: "Clove" },
-    latinName: "Syzygium aromaticum",
-    activeCompounds: "Eugenol (80–90%), β-Caryophyllene, Tannins",
-    benefits: {
-      id: "Berperan sebagai agen analgesik alami, antimikroba spektrum luas, serta penguat imunitas tubuh berbasis antioksidan tinggi.",
-      en: "Acts as a natural analgesic, broad-spectrum antimicrobial, and potent antioxidant immune booster.",
-    },
-    relieves: {
-      id: "Ketidaknyamanan tenggorokan, peradangan rongga mulut, serta gangguan mikroflora pencernaan.",
-      en: "Throat discomfort, oral cavity inflammation, and digestive microflora imbalance.",
-    },
-    journalTitle: "Syzygium aromaticum L. (Myrtaceae): Traditional Uses, Bioactive Chemical Constituents, and Pharmacological Activities",
-    journalDetail: {
-      id: "Membuktikan bahwa konsentrasi eugenol pada cengkeh bertindak secara efektif sebagai agen antibakteri, analgesik, dan pereda inflamasi.",
-      en: "Proves that high eugenol concentration in cloves acts as an effective antibacterial, analgesic, and anti-inflammatory agent.",
-    },
-    journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC7072209/",
-    pmid: "32019961",
-  },
-  {
-    name: { id: "Kunyit", en: "Turmeric" },
-    latinName: "Curcuma longa",
-    activeCompounds: "Curcuminoids (Curcumin, Desmethoxycurcumin), Turmerones",
-    benefits: {
-      id: "Senyawa antioksidan dan anti-inflamasi seluler alami, melindungi fungsi hati (hepatoprotektif), serta meregulasi respons imun.",
-      en: "Powerful cellular antioxidant and anti-inflammatory agent, protects liver function (hepatoprotective), and regulates immune response.",
-    },
-    relieves: {
-      id: "Peradangan saluran cerna, kekakuan sendi kronis, dan stres oksidatif seluler.",
-      en: "Gastrointestinal inflammation, chronic joint stiffness, and cellular oxidative stress.",
-    },
-    journalTitle: "Curcumin: A Review of Its Effects on Human Health",
-    journalDetail: {
-      id: "Tinjauan medis komprehensif mengenai mekanisme kurkumin dalam meregulasi sitokin inflamasi dan menetralkan radikal bebas.",
-      en: "A comprehensive medical review of curcumin's mechanism in regulating inflammatory cytokines and neutralizing free radicals.",
-    },
-    journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC5664031/",
-    pmid: "29065496",
-  },
-  {
-    name: { id: "Kapulaga", en: "Cardamom" },
-    latinName: "Elettaria cardamomum",
-    activeCompounds: "1,8-Cineole (Eucalyptol), Terpinyl Acetate, Limonene, Potassium",
-    benefits: {
-      id: "Meredakan kekakuan otot polos usus (antispasmodik), menyegarkan napas, serta membantu menjaga kestabilan tekanan darah.",
-      en: "Relieves smooth muscle spasms (antispasmodic), freshens breath, and assists in blood pressure regulation.",
-    },
-    relieves: {
-      id: "Perut kembung, begah, kram pencernaan, serta sensasi tidak nyaman pada abdomen.",
-      en: "Bloating, abdominal fullness, intestinal cramps, and digestive discomfort.",
-    },
-    journalTitle: "Cardamom powder supplementation reduces blood pressure, increases fibrinolysis, and improves antioxidant status",
-    journalDetail: {
-      id: "Studi klinis menunjukkan konsumsi kapulaga membantu merelaksasikan pembuluh darah dan mendukung kesehatan kardiovaskular.",
-      en: "Clinical study demonstrating that cardamom consumption helps relax blood vessels and support cardiovascular health.",
-    },
-    journalLink: "https://pubmed.ncbi.nlm.nih.gov/20361714/",
-    pmid: "20361714",
-  },
-  {
-    name: { id: "Pala", en: "Nutmeg" },
-    latinName: "Myristica fragrans",
-    activeCompounds: "Myristicin, Elemicin, Safrole, Sabinene, Linalool",
-    benefits: {
-      id: "Memberikan efek relaksasi alami pada sistem saraf pusat, menenangkan pikiran, serta membantu meningkatkan kualitas tidur.",
-      en: "Provides natural central nervous system relaxation, calms the mind, and supports restorative sleep.",
-    },
-    relieves: {
-      id: "Kesulitan tidur (insomnia), ketegangan mental, gelisah, serta ketidaknyamanan perut.",
-      en: "Sleep difficulties (insomnia), mental tension, restlessness, and stomach discomfort.",
-    },
-    journalTitle: "Anxiolytic and Sedative Properties of Myristica fragrans",
-    journalDetail: {
-      id: "Menunjukkan bagaimana kandungan myristicin dalam pala berinteraksi halus dengan sistem saraf untuk meredakan kecemasan.",
-      en: "Demonstrates how myristicin content in nutmeg interacts gently with the nervous system to ease anxiety.",
-    },
-    journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC3249923/",
-    pmid: "21689721",
-  },
-  {
-    name: { id: "Lada Putih & Lada Hitam", en: "White & Black Pepper" },
-    latinName: "Piper nigrum",
-    activeCompounds: "Piperine, Piperidine, Piperettine, Chavicine",
-    benefits: {
-      id: "Bioavailability Enhancer alami yang mengoptimalkan penyerapan nutrisi rempah lain (terutama kurkumin) hingga 2000% pada usus.",
-      en: "Natural Bioavailability Enhancer that optimizes the absorption of other botanical nutrients—especially curcumin—by up to 2000% in the gut.",
-    },
-    relieves: {
-      id: "Penyerapan nutrisi yang lambat, tingkat metabolisme rendah, serta penumpukan gas dalam lambung.",
-      en: "Sluggish nutrient absorption, slow metabolic rate, and gastric gas accumulation.",
-    },
-    journalTitle: "Influence of piperine on the pharmacokinetics of curcumin in animals and human volunteers",
-    journalDetail: {
-      id: "Studi membuktikan bahwa penambahan piperine dari lada meningkatkan bioavailabilitas kurkumin secara signifikan.",
-      en: "Study proves that adding piperine from pepper significantly increases curcumin bioavailability.",
-    },
-    journalLink: "https://pubmed.ncbi.nlm.nih.gov/9619120/",
-    pmid: "9619120",
-  },
-  {
-    name: { id: "Adas", en: "Fennel" },
-    latinName: "Foeniculum vulgare",
-    activeCompounds: "Trans-Anethole, Fenchone, Estragole, Anisic Acid",
-    benefits: {
-      id: "Menenangkan otot pencernaan, melancarkan kebersihan saluran pernapasan (ekspektoran), dan meredakan rasa tidak nyaman pada perut.",
-      en: "Soothes digestive tract muscles, aids respiratory tract clearing (expectorant), and eases abdominal discomfort.",
-    },
-    relieves: {
-      id: "Sesak napas ringan, batuk berdahak, serta kram saluran cerna.",
-      en: "Mild respiratory tightness, chesty coughs, and digestive tract cramping.",
-    },
-    journalTitle: "Foeniculum vulgare Mill: A Review of Its Botany, Phytochemistry, Pharmacology",
-    journalDetail: {
-      id: "Mengulas sifat anethole dan fenchone dalam adas yang terbukti secara klinis melancarkan dahak dan merelaksasikan saluran cerna.",
-      en: "Reviews anethole and fenchone properties in fennel clinically shown to ease mucus clearance and relax digestive muscles.",
-    },
-    journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC4137549/",
-    pmid: "25162032",
-  },
-  {
-    name: { id: "Bunga Lawang / Pekak", en: "Star Anise" },
-    latinName: "Illicium verum",
-    activeCompounds: "Shikimic Acid, Trans-Anethole, Limonene, Quercetin",
-    benefits: {
-      id: "Sumber alami asam shikimat (senyawa proteksi antivirus), kaya antibakteri, serta membantu meredakan kejang saluran cerna.",
-      en: "Natural source of shikimic acid (antiviral protective compound), rich in antibacterials, and relieves digestive spasms.",
-    },
-    relieves: {
-      id: "Iritasi saluran pernapasan, gejala flu ringan, batuk, dan perut kembung.",
-      en: "Respiratory tract irritation, mild flu symptoms, coughs, and bloating.",
-    },
-    journalTitle: "Illicium verum: A review on its botany, traditional use, phytochemistry and pharmacology",
-    journalDetail: {
-      id: "Tinjauan ilmiah komprehensif yang memvalidasi kandungan asam shikimat dan trans-anethole pada Bunga Lawang sebagai pelindung alami.",
-      en: "Comprehensive scientific review validating shikimic acid and trans-anethole content in Star Anise as a natural protector.",
-    },
-    journalLink: "https://pmc.ncbi.nlm.nih.gov/articles/PMC7120610/",
-    pmid: "22155388",
-  },
-];
 
-const products: Product[] = [
-  {
-    id: "vartana-01",
-    number: "VRT-01",
-    name: "Signature Blend",
-    subtitle: "BLEND No. 01",
-    status: "READY STOCK",
-    image: "/signature-blend-vartana1.jpeg",
-    priceValue: 72800,
-    regularPrice: "Rp97.000",
-    promoPrice: "Rp72.800",
-    discountPercentage: "25% OFF",
-    quantityInfo: "PILIH FORMAT KEMASAN POUCH",
-    variants: [
-      {
-        size: "10 Tea Bags (Signature Edition)",
-        priceValue: 72800,
-        promoPrice: "Rp72.800",
-        regularPrice: "Rp97.000",
-        discountPercentage: "25% OFF",
-      },
-      {
-        size: "5 Tea Bags (Personal Pack)",
-        priceValue: 40000,
-        promoPrice: "Rp40.000",
-        regularPrice: "Rp50.000",
-        discountPercentage: "20% OFF",
-      },
-    ],
-    ingredients: [
-      { id: "Jahe", en: "Ginger" },
-      { id: "Kunyit", en: "Turmeric" },
-      { id: "Serai", en: "Lemongrass" },
-      { id: "Kayu Manis", en: "Cinnamon" },
-      { id: "Cengkeh", en: "Clove" },
-      { id: "Kapulaga", en: "Cardamom" },
-      { id: "Adas", en: "Fennel" },
-      { id: "Lada Putih", en: "White Pepper" },
-      { id: "Lada Hitam", en: "Black Pepper" },
-      { id: "Pala", en: "Nutmeg" },
-      { id: "Bunga Lawang", en: "Star Anise" },
-    ],
-    description: {
-      id: "Racikan khas VARTANA dengan perpaduan sepuluh rempah terlengkap. Menghadirkan karakter hangat, kompleks, dan seimbang bagi tubuh.",
-      en: "VARTANA's signature blend crafted with ten essential botanicals. Delivering a warm, complex, and harmonious wellness experience.",
-    },
-    taste: {
-      id: "Rasa hangat mendalam dengan sentuhan rempah kaya yang bertingkat secara seimbang.",
-      en: "Deep, warming taste with layered spice notes that finish with refined balance.",
-    },
-    aroma: {
-      id: "Harum aromatik jahe, kayu manis, dan cengkeh yang menyatu lembut dengan kapulaga serta pala.",
-      en: "An inviting aroma of ginger, cinnamon, and clove seamlessly laced with cardamom and nutmeg.",
-    },
-    difference: {
-      id: "Formulasi botanical paling komprehensif dalam rangkaian seri VARTANA Botanical Wellness.",
-      en: "The most comprehensive formulation in the VARTANA Botanical Wellness Series.",
-    },
-    benefit: {
-      id: "Ideal dinikmati kapan saja saat tubuh membutuhkan kenyamanan, ketenangan, dan kesegaran alami.",
-      en: "Ideal for any moment when your body seeks comfort, calm, and natural rejuvenation.",
-    },
-  },
-  {
-    id: "vartana-02",
-    number: "VRT-02",
-    name: "Morning Energy",
-    subtitle: "BLEND No. 02",
-    status: "READY STOCK",
-    priceValue: 76000,
-    regularPrice: "Rp98.700",
-    promoPrice: "Rp76.000",
-    discountPercentage: "23% OFF",
-    quantityInfo: "10 TEA BAGS",
-    variants: [
-        {
-          size: "Box + Pouch",
-          priceValue: 76000,
-          promoPrice: "Rp76.000",
-          regularPrice: "Rp98.700",
-          discountPercentage: "23% OFF",
-          image: "/morning-energy.png"
-        }
-      ],
-    ingredients: [
-      { id: "Jahe", en: "Ginger" },
-      { id: "Serai", en: "Lemongrass" },
-      { id: "Rosella", en: "Roselle" },
-      { id: "Kayu Manis", en: "Cinnamon" },
-      { id: "Cengkeh", en: "Clove" },
-      { id: "Kapulaga", en: "Cardamom" },
-      { id: "Lada Putih", en: "White Pepper" },
-      { id: "Lada Hitam", en: "Black Pepper" },
-      { id: "Pala", en: "Nutmeg" },
-    ],
-    description: {
-      id: "Racikan segar berkarakter jahe dan serai yang jernih, dirancang khusus untuk membangkitkan vitalitas di pagi hari.",
-      en: "A vibrant blend highlighting crisp ginger and lemongrass, tailored to awaken vitality for your morning routine.",
-    },
-    taste: {
-      id: "Segar, tajam, dan aromatik dengan dominasi kehangatan jahe serta kecerahan serai.",
-      en: "Fresh, crisp, and aromatic with a uplifting ginger and lemongrass presence.",
-    },
-    aroma: {
-      id: "Aroma sitrus alami serai yang dipadukan dengan aksen rempah hangat pembawa semangat.",
-      en: "Natural citrus notes of lemongrass coupled with invigorating spice accents.",
-    },
-    difference: {
-      id: "Profil rasa paling cerah dan segar, diformulasikan untuk memulai aktivitas penuh energi.",
-      en: "The brightest and most refreshing profile, formulated to start your day with energy.",
-    },
-    benefit: {
-      id: "Pilihan tepat di pagi hari untuk memberikan kesegaran pikiran dan kesiapan fisik.",
-      en: "Perfect for morning rituals to clear the mind and invigorate the body.",
-    },
-  },
-  {
-    id: "vartana-03",
-    number: "VRT-03",
-    name: "Golden Turmeric",
-    subtitle: "BLEND No. 03",
-    status: "READY STOCK",
-    priceValue: 75900,
-    regularPrice: "Rp98.700",
-    promoPrice: "Rp75.900",
-    discountPercentage: "23% OFF",
-    quantityInfo: "10 TEA BAGS",
-    variants: [
-        {
-          size: "Box + Pouch",
-          priceValue: 75900,
-          promoPrice: "Rp75.900",
-          regularPrice: "Rp98.700",
-          discountPercentage: "23% OFF",
-          image: "/golden-turmeric.png"
-        }
-      ],
-    ingredients: [
-      { id: "Kunyit", en: "Turmeric" },
-      { id: "Jahe", en: "Ginger" },
-      { id: "Serai", en: "Lemongrass" },
-      { id: "Kayu Manis", en: "Cinnamon" },
-      { id: "Cengkeh", en: "Clove" },
-      { id: "Kapulaga", en: "Cardamom" },
-      { id: "Lada Putih", en: "White Pepper" },
-      { id: "Lada Hitam", en: "Black Pepper" },
-      { id: "Pala", en: "Nutmeg" },
-    ],
-    description: {
-      id: "Racikan keemasan berbasis kunyit pilihan dan rempah pendukung, kaya akan zat antioksidan untuk pelindung tubuh.",
-      en: "A golden formulation centered around selected turmeric, delivering rich antioxidant support for daily resilience.",
-    },
-    taste: {
-      id: "Earthy, hangat, dan kaya akan karakter botanikal yang mantap di tenggorokan.",
-      en: "Earthy, soothing, and rich with a grounded botanical character.",
-    },
-    aroma: {
-      id: "Aroma herbal khas kunyit organik yang dipadu secara harmonis dengan kayu manis dan jahe.",
-      en: "Distinct earthy herbal notes of organic turmeric balanced with cinnamon and ginger.",
-    },
-    difference: {
-      id: "Satu-satunya racikan dengan kunyit sebagai pilar utama pembawa manfaat antioksidan.",
-      en: "The singular blend centered on turmeric as the cornerstone for antioxidant protection.",
-    },
-    benefit: {
-      id: "Disarankan untuk memelihara daya tahan tubuh dan merawat kesehatan organ dalam secara berkala.",
-      en: "Recommended for maintaining daily immunity and promoting internal holistic well-being.",
-    },
-  },
-  {
-    id: "vartana-04",
-    number: "VRT-04",
-    name: "Warm Balance",
-    subtitle: "BLEND No. 04",
-    status: "READY STOCK",
-    priceValue: 76500,
-    regularPrice: "Rp98.700",
-    promoPrice: "Rp76.500",
-    discountPercentage: "23% OFF",
-    quantityInfo: "10 TEA BAGS",
-    variants: [
-        {
-          size: "Box + Pouch",
-          priceValue: 76500,
-          promoPrice: "Rp76.500",
-          regularPrice: "Rp98.700",
-          discountPercentage: "23% OFF",
-          image: "/warm-balance.png"
-        }
-      ],
-    ingredients: [
-      { id: "Jahe", en: "Ginger" },
-      { id: "Serai", en: "Lemongrass" },
-      { id: "Kayu Manis", en: "Cinnamon" },
-      { id: "Cengkeh", en: "Clove" },
-      { id: "Kapulaga", en: "Cardamom" },
-      { id: "Lada Putih", en: "White Pepper" },
-      { id: "Lada Hitam", en: "Black Pepper" },
-      { id: "Pala", en: "Nutmeg" },
-    ],
-    description: {
-      id: "Komposisi rempah penenang yang lembut, diciptakan untuk mengembalikan keseimbangan dan ketenangan pikiran.",
-      en: "A gentle warming composition crafted to restore inner balance and quiet the mind after a long day.",
-    },
-    taste: {
-      id: "Rasa lembut, hangat mengalir, dengan sentuhan manis alami dari rempah berkualitas.",
-      en: "Smooth, gently warming, with subtle natural sweetness from premium spices.",
-    },
-    aroma: {
-      id: "Aroma manis-rempah lembut dari kayu manis dan pala yang memberikan efek menenangkan.",
-      en: "Soft sweet-spicy aroma of cinnamon and nutmeg that invites relaxation.",
-    },
-    difference: {
-      id: "Karakter rasa paling halus yang dirancang khusus tanpa rasa yang terlalu tajam.",
-      en: "The smoothest profile specially crafted for gentle, soothing moments.",
-    },
-    benefit: {
-      id: "Sangat pas dinikmati sore atau malam hari sebelum beristirahat untuk kenyamanan maksimal.",
-      en: "Best enjoyed in the evening or night to ease stress and encourage deep rest.",
-    },
-  },
-];
+
+
 
 const content = {
   id: {
     nav: {
       philosophy: "Filosofi",
-      collection: "Belanja",
+      collection: "Katalog",
       science: "Riset & Khasiat",
       origin: "Cerita & Esensi",
       purpose: "Tujuan",
@@ -1506,27 +1048,47 @@ export default function Home() {
         </div>
 
         {/* HORIZONTAL NAVIGATION BAR FOR MOBILE */}
-        <div className="no-scrollbar flex overflow-x-auto border-t border-[#B69245]/10 bg-[#FBF9F4] px-4 py-2.5 md:hidden">
-          <button onClick={() => setIsTrackModalOpen(true)} className="shrink-0 rounded-full border border-[#B69245]/40 bg-[#F6F2E8] px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#8E6E2E] mr-2">
-            🔍 Lacak Pesanan
-          </button>
-          <a href="#collection" className="shrink-0 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#16382A] mr-2">
-            {t.nav.collection}
-          </a>
-          <a href="#science" className="shrink-0 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#16382A] mr-2">
-            🔬 {t.nav.science}
-          </a>
-          <a href="#origin" className="shrink-0 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#16382A] mr-2">
-            📖 {t.nav.origin}
-          </a>
-        </div>
+<div className="no-scrollbar flex items-center gap-2 overflow-x-auto border-t border-[#B69245]/10 bg-[#FBF9F4] px-4 py-2.5 md:hidden">
+  <button
+    onClick={() => setIsTrackModalOpen(true)}
+    className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#B69245]/40 bg-[#F6F2E8] px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#8E6E2E]"
+  >
+    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="m16 16 4 4" />
+    </svg>
+    <span>Lacak Pesanan</span>
+  </button>
+  <a href="#collection" className="flex shrink-0 items-center rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
+    {t.nav.collection}
+  </a>
+  <a href="#science" className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
+    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3" />
+      <path d="M8 15h8" />
+    </svg>
+    <span>{t.nav.science}</span>
+  </a>
+  <a href="#origin" className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
+    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H20v17H7.5A3.5 3.5 0 0 0 4 22z" />
+      <path d="M4 5.5V22M8 6h8M8 10h8" />
+    </svg>
+    <span>{t.nav.origin}</span>
+  </a>
+</div>
       </nav>
 
       {/* MOBILE BOTTOM NAVIGATION BAR */}
       <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#B69245]/20 bg-[#FBF9F4]/95 px-4 py-2.5 backdrop-blur-md md:hidden">
         <div className="grid grid-cols-5 items-center text-center">
           <a href="#home" className="flex flex-col items-center py-1 text-[#16382A]">
-            <span className="text-base">🔹 </span>
+            <span className="inline-flex h-6 w-6 items-center justify-center">
+  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="m3 10 9-7 9 7" />
+    <path d="M5 9v11h14V9M9 20v-6h6v6" />
+  </svg>
+</span>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Home</span>
           </a>
           <a href="#collection" className="flex flex-col items-center py-1 text-[#16382A]">
@@ -1997,7 +1559,7 @@ export default function Home() {
                         isSubmittingOrder ? "bg-gray-400 cursor-not-allowed text-gray-700" : "bg-[#B69245] text-[#0D261C] hover:bg-[#c9a352]"
                       }`}
                     >
-                      {isSubmittingOrder ? "â³ Sedang Memproses Pesanan..." : `${t.cart.payNow} →`}
+                      {isSubmittingOrder ? "Ã¢ÂÂ³ Sedang Memproses Pesanan..." : `${t.cart.payNow} →`}
                     </button>
                     <button onClick={() => setCheckoutStep("cart")} className="w-full text-center text-xs text-[#627067] hover:underline">
                       {t.cart.backToCart}
@@ -2608,3 +2170,6 @@ export default function Home() {
     </main>
   );
 }
+
+
+

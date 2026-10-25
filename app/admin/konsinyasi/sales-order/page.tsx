@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
@@ -9,6 +9,7 @@ type Mitra = {
   alamat?: string;
   address?: string;
   namaPIC?: string;
+  nomorWhatsApp?: string;
   status?: string;
   noHP?: string;
   nomorHP?: string;
@@ -110,7 +111,7 @@ export default function SalesOrderKonsinyasiPage() {
   const invoiceMitra = invoiceSO ? mitra.find((x) => x.kodeMitra === invoiceSO.kodeMitra) : undefined;
   const invoiceMitraAddress = String(invoiceMitra?.alamat || invoiceMitra?.address || "").trim();
   const invoiceMitraPhone = String(
-    invoiceMitra?.noHP || invoiceMitra?.nomorHP || invoiceMitra?.nomorHp || invoiceMitra?.noTelepon || invoiceMitra?.nomorTelepon || invoiceMitra?.telepon || invoiceMitra?.phone || invoiceMitra?.whatsapp || invoiceMitra?.noWA || "",
+    invoiceMitra?.nomorWhatsApp || invoiceMitra?.noHP || invoiceMitra?.nomorHP || invoiceMitra?.nomorHp || invoiceMitra?.noTelepon || invoiceMitra?.nomorTelepon || invoiceMitra?.telepon || invoiceMitra?.phone || invoiceMitra?.whatsapp || invoiceMitra?.noWA || "",
   ).trim();
   const cart = lines
     .map((line, index) => ({ ...line, index, product: activeProducts.find((p) => p.sku === line.sku), subtotal: (activeProducts.find((p) => p.sku === line.sku)?.hargaKonsinyasi || 0) * Math.max(0, Number(line.qty) || 0) }))

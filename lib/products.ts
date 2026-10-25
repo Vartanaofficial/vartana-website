@@ -1,4 +1,4 @@
-// Shared VARTANA product catalog
+﻿// Shared VARTANA product catalog
 export type Language = "id" | "en";
 export type LocalizedText = Record<Language, string>;
 
@@ -255,7 +255,7 @@ export const products: Product[] = [
       id: "Sangat pas dinikmati sore atau malam hari sebelum beristirahat untuk kenyamanan maksimal.",
       en: "Best enjoyed in the evening or night to ease stress and encourage deep rest.",
     },
-  },,
+  },
 
   {
     id: "vartana-05",
@@ -327,14 +327,14 @@ export const products: Product[] = [
       { id: "vartana-04", name: { id: "Warm Balance", en: "Warm Balance" } }
     ],
     variants: [
-      { size: "Signature Blend — 15 Tea Bags (5 g each)", priceValue: 59000, promoPrice: "Rp59.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-01", bagCount: 15 },
-      { size: "Signature Blend — 20 Tea Bags (5 g each)", priceValue: 65000, promoPrice: "Rp65.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-01", bagCount: 20 },
-      { size: "Golden Turmeric — 15 Tea Bags (5 g each)", priceValue: 59000, promoPrice: "Rp59.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-03", bagCount: 15 },
-      { size: "Golden Turmeric — 20 Tea Bags (5 g each)", priceValue: 65000, promoPrice: "Rp65.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-03", bagCount: 20 },
-      { size: "Morning Energy — 15 Tea Bags (5 g each)", priceValue: 59000, promoPrice: "Rp59.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-02", bagCount: 15 },
-      { size: "Morning Energy — 20 Tea Bags (5 g each)", priceValue: 65000, promoPrice: "Rp65.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-02", bagCount: 20 },
-      { size: "Warm Balance — 15 Tea Bags (5 g each)", priceValue: 59000, promoPrice: "Rp59.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-04", bagCount: 15 },
-      { size: "Warm Balance — 20 Tea Bags (5 g each)", priceValue: 65000, promoPrice: "Rp65.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-04", bagCount: 20 }
+      { size: "Signature Blend â€” 15 Tea Bags (5 g each)", priceValue: 59000, promoPrice: "Rp59.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-01", bagCount: 15 },
+      { size: "Signature Blend â€” 20 Tea Bags (5 g each)", priceValue: 65000, promoPrice: "Rp65.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-01", bagCount: 20 },
+      { size: "Golden Turmeric â€” 15 Tea Bags (5 g each)", priceValue: 59000, promoPrice: "Rp59.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-03", bagCount: 15 },
+      { size: "Golden Turmeric â€” 20 Tea Bags (5 g each)", priceValue: 65000, promoPrice: "Rp65.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-03", bagCount: 20 },
+      { size: "Morning Energy â€” 15 Tea Bags (5 g each)", priceValue: 59000, promoPrice: "Rp59.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-02", bagCount: 15 },
+      { size: "Morning Energy â€” 20 Tea Bags (5 g each)", priceValue: 65000, promoPrice: "Rp65.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-02", bagCount: 20 },
+      { size: "Warm Balance â€” 15 Tea Bags (5 g each)", priceValue: 59000, promoPrice: "Rp59.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-04", bagCount: 15 },
+      { size: "Warm Balance â€” 20 Tea Bags (5 g each)", priceValue: 65000, promoPrice: "Rp65.000", regularPrice: "Rp75.000", discountPercentage: "SPECIAL OFFER", blendProductId: "vartana-04", bagCount: 20 }
     ],
     ingredients: [
       { id: "Jahe", en: "Ginger" },
@@ -380,7 +380,7 @@ export const products: Product[] = [
     promoPrice: "Rp69.000",
     discountPercentage: "20% OFF",
     variants: [{
-      size: "Signature Blend Pouch — 10 Tea Bags",
+      size: "Signature Blend Pouch â€” 10 Tea Bags",
       priceValue: 69000,
       promoPrice: "Rp69.000",
       regularPrice: "Rp86.000",

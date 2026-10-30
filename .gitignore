@@ -42,3 +42,11 @@ next-env.d.ts
 
 # Netlify build artifacts
 /.netlify/
+
+# Local snapshots and developer-only configuration
+*.backup*
+*.bak*
+backup-*/
+app/api copy/
+**/.clasp.json
+.qa-*

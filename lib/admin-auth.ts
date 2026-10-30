@@ -17,13 +17,13 @@ export function verifyAdminCredentials(username: string, password: string): bool
     return aBuf.length === bBuf.length && timingSafeEqual(aBuf, bBuf);
   };
 
-  return safeEqual(username, expectedUser) && safeEqual(password, expectedPassword);
+  return safeEqual(username.trim().toLowerCase(), expectedUser.trim().toLowerCase()) && safeEqual(password, expectedPassword);
 }
 
 export function createAdminSessionToken(username: string, secret: string): string {
   const payload = Buffer.from(
     JSON.stringify({
-      sub: username,
+      sub: process.env.ADMIN_USERNAME || username,
       exp: Math.floor(Date.now() / 1000) + SESSION_SECONDS,
     }),
   ).toString("base64url");

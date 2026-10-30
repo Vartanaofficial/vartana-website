@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Link from "next/link";
+import ProductImage from "@/app/components/ProductImage";
+import { productImageUrl } from "@/lib/product-image";
 
-type PackageType = "Jar" | "Box" | "Sachet" | "Pcs";
+type PackageType = "Jar" | "Box" | "Sachet" | "Pcs" | "Pouch" | "Pack";
 
 type DiscountType = "percent" | "nominal";
 
@@ -103,13 +105,7 @@ const labelClass = "block text-sm font-medium text-[#173b2b]";
 const money = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value || 0);
 
 function imagePreviewUrl(rawUrl: string) {
-  const url = rawUrl.trim();
-
-  if (!url) return "";
-
-  const match = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?.*?id=)([a-zA-Z0-9_-]+)/);
-
-  return match?.[1] ? `https://drive.google.com/uc?export=view&id=${match[1]}` : url;
+  return productImageUrl(rawUrl);
 }
 
 function getPromoPrice(product: Product) {
@@ -137,6 +133,10 @@ function packageCode(value?: PackageType) {
 
     case "Pcs":
       return "PCS";
+    case "Pouch":
+      return "POU";
+    case "Pack":
+      return "PAC";
 
     default:
       return "PRD";
@@ -299,6 +299,25 @@ export default function MasterProductPage() {
     setForm((previous) => ({ ...previous, [key]: value }));
   }
 
+  function numberField(key: "teaBagWeightGram" | "teaBagCount" | "sellingPrice" | "discountValue") {
+    return {
+      value: form[key] ?? "",
+      onFocus: () => {
+        if (form[key] === 0) updateField(key, undefined);
+      },
+      onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
+        const raw = event.currentTarget.value;
+        updateField(key, raw === "" ? undefined : Number(raw));
+      },
+      onBlur: (event: React.FocusEvent<HTMLInputElement>) => {
+        const input = event.currentTarget;
+        if (input.value !== "" && Number.isFinite(Number(input.value))) {
+          input.value = String(Number(input.value));
+        }
+      },
+    };
+  }
+
   function startCreate() {
     setEditingSku(null);
 
@@ -377,7 +396,7 @@ export default function MasterProductPage() {
 
         description: form.description || "",
 
-        ingredients: selectedIngredients.join("\n"),
+        ingredients: selectedIngredients.join(", "),
 
         benefits: form.benefits || "",
 
@@ -428,7 +447,7 @@ export default function MasterProductPage() {
 
           <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">Master Product</h1>
 
-          <p className="mt-3 text-sm text-[#d6e0d7]">Pusat data produk, kemasan, harga, komposisi, manfaat, dan gambar.</p>
+          <p className="mt-3 text-sm text-[#d6e0d7]">Atur produk katalog di sini. Produk aktif dengan harga jual di atas Rp0 otomatis tampil. Nonaktifkan produk untuk menurunkannya dari katalog.</p>
         </div>
       </header>
 
@@ -521,7 +540,7 @@ export default function MasterProductPage() {
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
                           {product.imageUrl ? (
-                            <img src={imagePreviewUrl(product.imageUrl)} alt={product.productName} className="h-12 w-12 rounded-lg border border-[#e5e0d5] object-cover" />
+                            <ProductImage src={imagePreviewUrl(product.imageUrl)} alt={product.productName} className="h-12 w-12 shrink-0 rounded-lg border border-[#e5e0d5] bg-[#FBF9F4] p-1 object-contain" />
                           ) : (
                             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#f3f0e7] text-xs text-gray-400">Foto</div>
                           )}
@@ -617,18 +636,20 @@ export default function MasterProductPage() {
                         <option value="Sachet">Sachet</option>
 
                         <option value="Pcs">Pcs</option>
+                        <option value="Pouch">Pouch</option>
+                        <option value="Pack">Pack</option>
                       </select>
                       <span className="mt-1 block text-xs font-normal text-gray-500">Kode produk akan mengikuti jenis kemasan: {packageCode(form.packageType)}-0001 (nomor final dibuat server).</span>
                     </label>
 
                     <label className={labelClass}>
                       Berat per Tea Bag (gram)
-                      <input type="number" min="0" step="0.1" value={form.teaBagWeightGram ?? 0} onChange={(e) => updateField("teaBagWeightGram", Number(e.target.value))} className={fieldClass} />
+                      <input type="number" min="0" step="0.1" {...numberField("teaBagWeightGram")} className={fieldClass} />
                     </label>
 
                     <label className={labelClass}>
                       Jumlah Tea Bag per Kemasan
-                      <input type="number" min="0" step="1" value={form.teaBagCount ?? 0} onChange={(e) => updateField("teaBagCount", Number(e.target.value))} className={fieldClass} />
+                      <input type="number" min="0" step="1" {...numberField("teaBagCount")} className={fieldClass} />
                     </label>
                   </div>
 
@@ -640,7 +661,7 @@ export default function MasterProductPage() {
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className={labelClass}>
-                      Harga Jual (Rp) *<input required type="number" min="0" step="1" value={form.sellingPrice ?? 0} onChange={(e) => updateField("sellingPrice", Number(e.target.value))} className={fieldClass} />
+                      Harga Jual (Rp) *<input required type="number" min="0" step="1" {...numberField("sellingPrice")} className={fieldClass} />
                     </label>
 
                     <label className={labelClass}>
@@ -663,8 +684,7 @@ export default function MasterProductPage() {
                         max={form.discountType === "percent" ? 100 : undefined}
                         step="1"
                         disabled={!form.discountType}
-                        value={form.discountValue ?? 0}
-                        onChange={(e) => updateField("discountValue", Number(e.target.value))}
+                        {...numberField("discountValue")}
                         className={fieldClass + " disabled:bg-gray-100"}
                       />
                     </label>
@@ -789,15 +809,16 @@ export default function MasterProductPage() {
                   <h3 className="mb-3 font-semibold">Foto Produk</h3>
 
                   <label className={labelClass}>
-                    URL Gambar HTTPS
-                    <input type="url" value={form.imageUrl || ""} onChange={(e) => updateField("imageUrl", e.target.value)} placeholder="Tempel URL gambar sementara; fitur upload Drive akan dihubungkan berikutnya" className={fieldClass} />
+                    Link Google Drive / URL Gambar
+                    <input type="text" inputMode="url" value={form.imageUrl || ""} onChange={(e) => updateField("imageUrl", e.target.value)} placeholder="Tempel link Google Drive atau URL gambar HTTPS" className={fieldClass} />
+                    <span className="mt-2 block text-xs font-normal text-gray-500">Untuk Drive: Bagikan → Siapa saja yang memiliki link → Pelihat.</span>
                   </label>
 
                   {form.imageUrl && (
                     <div className="mt-3 rounded-xl border border-[#e5e0d5] bg-white p-4">
                       <p className="mb-3 text-xs text-gray-500">Pratinjau gambar</p>
 
-                      <img src={imagePreviewUrl(form.imageUrl)} alt="Pratinjau produk" className="h-40 w-40 rounded-xl border border-[#e5e0d5] object-cover" />
+                      <ProductImage src={imagePreviewUrl(form.imageUrl)} alt="Pratinjau produk" className="h-40 w-full max-w-sm rounded-xl border border-[#e5e0d5] bg-[#FBF9F4] p-3 object-contain" errorMessage="Gambar gagal dimuat. Cek link dan pastikan akses Drive: Siapa saja yang memiliki link (Pelihat)." />
 
                       <button type="button" onClick={() => updateField("imageUrl", "")} className="mt-3 block text-sm font-medium text-red-700 underline">
                         Hapus URL gambar

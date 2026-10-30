@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { products, type Product, type ProductVariant } from "@/lib/products";
+import { type Product, type ProductVariant } from "@/lib/products";
+import { emptyCatalogProduct } from "@/lib/store-catalog";
+import ProductImage from "@/app/components/ProductImage";
+import Link from "next/link";
+import StorefrontMotion from "@/app/components/StorefrontMotion";
+import AmbientMusic from "@/app/components/AmbientMusic";
+import { BotanicalSprig } from "@/app/checkout/CheckoutVisuals";
+import "./storefront.css";
+import { readCart, writeCart } from "@/lib/cart-storage";
 import { SPICES_DATA, type SpiceDetail } from "@/lib/spices";
 
 type Language = "id" | "en";
@@ -384,6 +392,10 @@ function InfoBlock({ title = "", text = "" }: { title?: string; text?: string })
 }
 
 export default function Home() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState("");
+  const [catalogReload, setCatalogReload] = useState(0);
   const [language, setLanguage] = useState<Language>("id");
   const [selectedProduct, setSelectedProduct] = useState<number>(0);
   const [productQuantity, setProductQuantity] = useState<number>(1);
@@ -394,6 +406,7 @@ export default function Home() {
 
   // CART & CHECKOUT STATES
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartReady, setCartReady] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<"cart" | "form" | "payment">("cart");
   const [formError, setFormError] = useState("");
@@ -452,13 +465,12 @@ export default function Home() {
   const [loadingDistricts, setLoadingDistricts] = useState(false);
 
   const t = content[language];
-  const product = products[selectedProduct];
-  const currentVariant = product.variants
-    ? product.variants[selectedVariantIndex]
-    : { size: "1 Pouch", priceValue: product.priceValue, promoPrice: product.promoPrice || "Rp72.800", regularPrice: product.regularPrice || "Rp97.000", discountPercentage: "25% OFF", blendProductId: undefined, bagCount: undefined };
+  const product = products[Math.min(selectedProduct, products.length - 1)] || emptyCatalogProduct;
+  const currentVariant: ProductVariant = product.variants?.[selectedVariantIndex] || product.variants?.[0]
+    || { size: "1 pcs", priceValue: product.priceValue, promoPrice: product.promoPrice || "", regularPrice: product.regularPrice || "", discountPercentage: product.discountPercentage || "" };
   const displayedIngredients = currentVariant.blendProductId
     ? (products.find((item) => item.id === currentVariant.blendProductId)?.ingredients ?? product.ingredients)
-    : product.ingredients;
+    : currentVariant.ingredients || product.ingredients;
 
   const formatRupiah = (amount: number) => {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(amount);
@@ -473,6 +485,44 @@ export default function Home() {
 
   const freePouchesCount = Math.floor(countTenBagPouches / 3);
   const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  useEffect(() => { setCart(readCart()); setCartReady(true); }, []);
+  useEffect(() => { if (cartReady) writeCart(cart); }, [cart, cartReady]);
+
+  useEffect(() => {
+    let active = true;
+    let pending = false;
+    const controller = new AbortController();
+    async function refreshCatalog() {
+      if (pending) return;
+      pending = true;
+      try {
+        const response = await fetch("/api/catalog", { cache: "no-store", signal: controller.signal });
+        const data = await response.json();
+        if (!response.ok || data.success !== true || !Array.isArray(data.products)) throw new Error(data.message || "Katalog belum bisa dimuat.");
+        if (!active) return;
+        const latest: Product[] = data.products;
+        setProducts(latest);
+        setCatalogError("");
+        // Refresh prices and remove products taken down by admin from open carts.
+        setCart(previous => previous.flatMap(item => {
+          const updated = latest.find(p => p.id === item.product.id);
+          const variant = updated?.variants?.find(v => v.sku === item.selectedVariant.sku);
+          return updated && variant ? [{ ...item, product: updated, selectedVariant: variant }] : [];
+        }));
+      } catch (error) {
+        if (active) setCatalogError(error instanceof Error ? error.message : "Katalog belum bisa dimuat.");
+      } finally {
+        pending = false;
+        if (active) setCatalogLoading(false);
+      }
+    }
+    void refreshCatalog();
+    const timer = window.setInterval(() => void refreshCatalog(), 30000);
+    const onFocus = () => void refreshCatalog();
+    window.addEventListener("focus", onFocus);
+    return () => { active = false; controller.abort(); window.clearInterval(timer); window.removeEventListener("focus", onFocus); };
+  }, [catalogReload]);
 
   // AUTO-FILL PROFILE MEMBER & WILAYAH LENGKAP VIA NO HP
   const handleAutoFillByPhone = async () => {
@@ -652,7 +702,7 @@ export default function Home() {
   // FETCH ONGKIR REALTIME + ESTIMASI WAKTU DINAMIS SESUAI PROVINSI
   const fetchShippingRates = async (dId: string, currentProvName?: string) => {
     if (!dId) return;
-    const totalWeightGram = cart.reduce((sum, item) => sum + item.quantity * 100, 0);
+    const totalWeightGram = cart.reduce((sum, item) => sum + item.quantity * (item.selectedVariant.weightGram || 100), 0);
 
     const provName = (currentProvName || customer.provinceName).toLowerCase();
 
@@ -785,9 +835,8 @@ export default function Home() {
   // CART LOGIC
   const addToCart = (item: Product, qty: number) => {
     if (item.status !== "READY STOCK" || qty <= 0) return;
-    const variantToSave = item.variants
-      ? item.variants[selectedVariantIndex]
-      : { size: "10 Tea Bags (Signature Edition)", priceValue: item.priceValue, promoPrice: item.promoPrice || "Rp72.800", regularPrice: item.regularPrice || "Rp97.000", discountPercentage: "25% OFF" };
+    const variantToSave = item.variants?.[selectedVariantIndex] || item.variants?.[0];
+    if (!variantToSave || catalogLoading || catalogError) return;
 
     setCart((prev) => {
       const existing = prev.find((ci) => ci.product.id === item.id && ci.selectedVariant.size === variantToSave.size);
@@ -872,6 +921,10 @@ export default function Home() {
 
   // PROSES PAYMENT & SIMPAN DATA KE SPREADSHEET (DENGAN LOCK ANTI DOUBLE SUBMIT)
   const handleProceedToPayment = async () => {
+    if (!cart.length || catalogError || catalogLoading) {
+      setFormError("Katalog sedang diperbarui. Cek keranjang lalu coba lagi.");
+      return;
+    }
     if (!customer.name || !customer.email || !customer.phone || !customer.provinceName || !customer.cityName || !customer.districtName || !customer.addressDetail || !selectedShipping) {
       setFormError(t.cart.requiredError);
       return;
@@ -902,14 +955,14 @@ export default function Home() {
     const itemsSummary = cart.map((ci) => `${ci.product.name} [${ci.selectedVariant.size}] (${ci.quantity}x)`).join(", ");
 
     // EKSTRAKSI KODE SKU VARIAN & DATA SUBSIDI ONGKIR
-    const skuList = cart.map((ci) => ci.product.number).join(", ");
+    const skuList = cart.map((ci) => ci.selectedVariant.sku || ci.product.number).join(", ");
     const originalShippingFee = selectedShipping ? selectedShipping.originalRate : 0;
     const finalShippingFee = selectedShipping ? selectedShipping.rate : 0;
     const shippingSubsidyAmount = Math.max(0, originalShippingFee - finalShippingFee);
 
     try {
       // 1. Simpan Data Member ke Tab 'Members'
-      await fetch("/api/member", {
+      const memberResponse = await fetch("/api/member", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -925,8 +978,11 @@ export default function Home() {
         }),
       });
 
+      const memberResult = await memberResponse.json();
+      if (!memberResponse.ok || memberResult.success !== true) throw new Error(memberResult.error || "Data pelanggan belum tersimpan.");
+
       // 2. Simpan Master Data Pesanan ke Tab 'Orders'
-      await fetch("/api/member", {
+      const orderResponse = await fetch("/api/member", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -937,6 +993,7 @@ export default function Home() {
           email: customer.email,
           addressDetail: `${customer.addressDetail}, Kec. ${customer.districtName}, ${customer.cityName}, ${customer.provinceName}`,
           sku: skuList,
+          items: cart.map(ci => ({ sku: ci.selectedVariant.sku, quantity: ci.quantity, price: ci.selectedVariant.priceValue })),
           itemsSummary,
           subtotalProducts: subtotalPrice,
           originalShipping: originalShippingFee,
@@ -946,9 +1003,12 @@ export default function Home() {
         }),
       });
 
+      const orderResult = await orderResponse.json();
+      if (!orderResponse.ok || orderResult.success !== true) throw new Error(orderResult.error || "Pesanan belum tersimpan.");
       setCheckoutStep("payment");
     } catch (err) {
       console.error("Gagal simpan data transaksi ke Sheet:", err);
+      setFormError(err instanceof Error ? err.message : "Pesanan belum tersimpan. Coba lagi.");
     } finally {
       setIsSubmittingOrder(false); // RELEASE LOCK
     }
@@ -985,7 +1045,9 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-[#F6F2E8] pb-20 text-[#16382A] selection:bg-[#B69245] selection:text-white md:pb-0">
+    <main className="storefront min-h-screen bg-[#F6F2E8] pb-20 text-[#16382A] selection:bg-[#B69245] selection:text-white md:pb-0">
+      <StorefrontMotion />
+      <AmbientMusic />
       {/* NAVBAR TOP DESKTOP & MOBILE HEADER */}
       <nav className="sticky top-0 z-40 border-b border-[#B69245]/15 bg-[#F6F2E8]/90 backdrop-blur-xl transition-all">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
@@ -1232,346 +1294,19 @@ export default function Home() {
 
       {/* CART DRAWER */}
       {isCartOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-[#0D261C]/60 backdrop-blur-xs transition-opacity">
-          <div className="flex h-full w-full max-w-md flex-col bg-[#FBF9F4] p-6 shadow-2xl">
-            {/* Header Drawer */}
-            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[#16382A]/10 pb-4">
-              <h3 className="font-serif text-2xl tracking-tight text-[#16382A]">{checkoutStep === "cart" ? t.cart.title : checkoutStep === "form" ? t.cart.fillFormTitle : t.cart.transferTitle}</h3>
-              <button onClick={() => setIsCartOpen(false)} className="rounded-full bg-[#16382A]/5 px-3 py-1 text-sm font-bold text-[#16382A] hover:bg-[#16382A]/10 transition">
-                ×
-              </button>
+        <div className="fixed inset-0 z-50 flex justify-end bg-[#0D261C]/60 backdrop-blur-xs">
+          <button type="button" aria-label="Tutup keranjang" className="absolute inset-0" onClick={() => setIsCartOpen(false)} />
+          <div role="dialog" aria-modal="true" aria-labelledby="cart-title" className="relative flex h-full w-full max-w-md flex-col bg-[#FBF9F4] p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#16382A]/10 pb-5"><h3 id="cart-title" className="font-serif text-2xl text-[#16382A]">{t.cart.title}</h3><button type="button" aria-label="Tutup" onClick={() => setIsCartOpen(false)} className="rounded-full bg-[#16382A]/5 px-3 py-1">?</button></div>
+            <div className="flex-1 space-y-4 overflow-y-auto py-6">
+              {!cart.length ? <p className="py-12 text-center text-sm text-[#627067]">{t.cart.empty}</p> : cart.map(item => (
+                <div key={item.selectedVariant.sku} className="flex gap-4 rounded-2xl border border-[#16382A]/10 bg-white p-4">
+                  <ProductImage src={item.selectedVariant.image || item.product.image || ""} alt={item.product.name} className="h-20 w-20 shrink-0 rounded-xl bg-[#F6F3EC] p-2" />
+                  <div className="min-w-0 flex-1"><h4 className="font-serif text-lg text-[#16382A]">{item.product.name}</h4><p className="mt-1 text-[10px] text-[#8E6E2E]">{item.selectedVariant.size}</p><p className="mt-2 text-xs font-bold text-[#16382A]">{formatRupiah(item.selectedVariant.priceValue)}</p><div className="mt-3 inline-flex items-center gap-4 rounded-full border border-[#16382A]/10 px-3 py-1"><button type="button" aria-label="Kurangi jumlah" onClick={() => updateCartQuantity(item.product.id,item.selectedVariant.size,-1)}>-</button><span className="text-xs">{item.quantity}</span><button type="button" aria-label="Tambah jumlah" onClick={() => updateCartQuantity(item.product.id,item.selectedVariant.size,1)}>+</button></div></div>
+                </div>
+              ))}
             </div>
-
-            {/* REFINED PROMO BANNERS */}
-            {cart.length > 0 && (
-              <div className="mt-4 space-y-2">
-
-                {/* BANNER PROMO SUBSIDI ONGKIR DENGAN LOGIKA BARU */}
-                <div className="rounded-xl border border-[#16382A]/10 bg-white p-3 text-center shadow-xs">
-                  {totalQuantity >= 10 ? (
-                    <p className="text-xs font-bold uppercase tracking-widest text-green-700">✓ Subsidi Ongkos Kirim Rp60.000 Aktif</p>
-                  ) : totalQuantity >= 5 ? (
-                    <p className="text-xs text-[#526158]">
-                      Dapat <span className="font-bold text-green-700">Subsidi Ongkir Rp40.000</span>! Tambah <span className="font-bold text-[#16382A]">{10 - totalQuantity} Pouch</span> lagi untuk subsidi{" "}
-                      <span className="font-bold text-[#8E6E2E]">Rp60.000</span>.
-                    </p>
-                  ) : totalQuantity >= 2 ? (
-                    <p className="text-xs text-[#526158]">
-                      Dapat <span className="font-bold text-green-700">Subsidi Ongkir Rp20.000</span>! Tambah <span className="font-bold text-[#16382A]">{5 - totalQuantity} Pouch</span> lagi untuk subsidi{" "}
-                      <span className="font-bold text-[#8E6E2E]">Rp40.000</span>.
-                    </p>
-                  ) : (
-                    <p className="text-xs text-[#526158]">
-                      Dapat <span className="font-bold text-green-700">Subsidi Ongkir Rp7.000</span>. Beli <span className="font-bold text-[#16382A]">1 Pouch lagi</span> untuk subsidi{" "}
-                      <span className="font-bold text-[#8E6E2E]">Rp20.000</span>.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Body Drawer */}
-            <div className="flex-1 overflow-y-auto py-6">
-              {cart.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center text-center">
-                  <svg className="h-10 w-10 opacity-80 text-[#16382A]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M3 3h2l2.4 12.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg>
-                  <p className="mt-4 text-xs font-medium tracking-wide text-[#627067]">{t.cart.empty}</p>
-                </div>
-              ) : checkoutStep === "cart" ? (
-                /* STEP 1: KERANJANG */
-                <div className="space-y-4">
-                  {cart.map((item) => (
-                    <div key={`${item.product.id}-${item.selectedVariant.size}`} className="flex items-center justify-between rounded-2xl border border-[#16382A]/10 bg-white p-4 shadow-xs">
-                      <div className="pr-2">
-                        <h4 className="font-serif text-base font-bold text-[#16382A]">{item.product.name}</h4>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-[#8E6E2E] mt-0.5">{item.selectedVariant.size}</p>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <span className="text-xs font-extrabold text-[#16382A]">{formatRupiah(item.selectedVariant.priceValue)}</span>
-                          <span className="text-[10px] text-gray-400 line-through">{item.selectedVariant.regularPrice}</span>
-                        </div>
-                        <p className="mt-2 text-[11px] font-bold text-[#16382A]">Subtotal: {formatRupiah(item.selectedVariant.priceValue * item.quantity)}</p>
-                      </div>
-
-                      <div className="flex items-center gap-2.5 rounded-full border border-[#16382A]/15 bg-[#F6F2E8] px-3 py-1">
-                        <button onClick={() => updateCartQuantity(item.product.id, item.selectedVariant.size, -1)} className="flex h-5 w-5 items-center justify-center text-xs font-bold text-[#16382A] hover:opacity-60 transition">
-                          -
-                        </button>
-                        <span className="w-4 text-center text-xs font-bold">{item.quantity}</span>
-                        <button onClick={() => updateCartQuantity(item.product.id, item.selectedVariant.size, 1)} className="flex h-5 w-5 items-center justify-center text-xs font-bold text-[#16382A] hover:opacity-60 transition">
-                          +
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-
-                  {freePouchesCount > 0 && (
-                    <div className="rounded-2xl border border-[#B69245]/30 bg-[#F6F2E8] p-4 text-xs text-[#16382A] flex items-center justify-between shadow-xs">
-                      <div>
-                        <p className="font-bold text-[#8E6E2E] uppercase tracking-wider text-[11px]">Bonus Promo Kemitraan</p>
-                        <p className="text-[10px] text-[#627067] mt-0.5">10 Tea Bags Signature Edition</p>
-                      </div>
-                      <span className="font-bold text-xs text-[#0D261C] bg-[#B69245]/20 px-3 py-1 rounded-full border border-[#B69245]/30">+{freePouchesCount} POUCH GRATIS</span>
-                    </div>
-                  )}
-                </div>
-              ) : checkoutStep === "form" ? (
-                /* STEP 2: FORM DATA DIRI DENGAN AUTO-FILL BY NO HP */
-                <div className="space-y-4 text-xs">
-                  {formError && <p className="rounded-xl bg-red-50 p-3.5 text-red-700 font-medium border border-red-200">{formError}</p>}
-
-                  {/* FORM NO WA DITARUH DI ATAS AGAR MUDAH AUTO-FILL */}
-                  <div className="rounded-2xl border border-[#B69245]/30 bg-[#FFFDF9] p-4 shadow-xs">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="font-bold uppercase tracking-wider text-[#16382A] text-xs">1. MASUKKAN NOMOR WHATSAPP / HP *</label>
-                      <button onClick={handleAutoFillByPhone} disabled={autoFillLoading} className="rounded-full bg-[#16382A] px-3.5 py-1.5 text-[10px] font-bold text-white uppercase tracking-wider shadow-xs hover:bg-[#214737] transition">
-                        {autoFillLoading ? "Mencari..." : "⚡ AUTO-FILL DATA HP"}
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <input
-                        type="tel"
-                        placeholder="Contoh: 081234567890"
-                        value={customer.phone}
-                        onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
-                        className="w-full rounded-xl border border-[#16382A]/20 bg-white p-3 text-xs focus:outline-none focus:ring-1 focus:ring-[#B69245]"
-                      />
-                      <div>
-                        <input
-                          type="date"
-                          value={customer.birthDate || ""}
-                          onChange={(e) => setCustomer({ ...customer, birthDate: e.target.value })}
-                          className="w-full rounded-xl border border-[#16382A]/20 bg-white p-3 text-xs focus:outline-none focus:ring-1 focus:ring-[#B69245]"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-[#526158] mt-2.5 leading-relaxed italic">
-                      *Pernah belanja sebelumnya? Masukkan nomor HP lalu klik <strong>'⚡ AUTO-FILL DATA HP'</strong> untuk mengisi profil otomatis. Jika baru pertama kali, silakan lengkapi formulir di bawah.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1.5">{t.cart.name} *</label>
-                    <input
-                      type="text"
-                      placeholder="Contoh: Budi Santoso"
-                      value={customer.name}
-                      onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
-                      className="w-full rounded-xl border border-[#16382A]/20 bg-white p-3 text-xs focus:outline-none focus:ring-1 focus:ring-[#B69245]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1.5">{t.cart.email} *</label>
-                    <input
-                      type="email"
-                      placeholder="Contoh: budi@gmail.com"
-                      value={customer.email}
-                      onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
-                      className="w-full rounded-xl border border-[#16382A]/20 bg-white p-3 text-xs focus:outline-none focus:ring-1 focus:ring-[#B69245]"
-                    />
-                  </div>
-
-                  {/* PROVINSI */}
-                  <div>
-                    <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1.5">{t.cart.province} *</label>
-                    <select
-                      value={customer.provinceId}
-                      onChange={handleProvinceChange}
-                      disabled={loadingProvinces}
-                      className="w-full rounded-xl border border-[#16382A]/20 bg-white p-3 text-xs focus:outline-none focus:ring-1 focus:ring-[#B69245]"
-                    >
-                      <option value="">-- {loadingProvinces ? "Memuat..." : "Pilih Provinsi"} --</option>
-                      {provinces.map((prov) => (
-                        <option key={prov.id} value={prov.id}>
-                          {prov.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* KOTA */}
-                  <div>
-                    <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1.5">{t.cart.city} *</label>
-                    <select
-                      value={customer.cityId}
-                      onChange={handleCityChange}
-                      disabled={!customer.provinceId || loadingCities}
-                      className="w-full rounded-xl border border-[#16382A]/20 bg-white p-3 text-xs focus:outline-none focus:ring-1 focus:ring-[#B69245] disabled:bg-gray-100"
-                    >
-                      <option value="">-- {!customer.provinceId ? "Pilih Provinsi Dulu" : loadingCities ? "Memuat..." : "Pilih Kota / Kabupaten"} --</option>
-                      {cities.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* KECAMATAN */}
-                  <div>
-                    <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1.5">{t.cart.district} *</label>
-                    <select
-                      value={customer.districtId}
-                      onChange={handleDistrictChange}
-                      disabled={!customer.cityId || loadingDistricts}
-                      className="w-full rounded-xl border border-[#16382A]/20 bg-white p-3 text-xs focus:outline-none focus:ring-1 focus:ring-[#B69245] disabled:bg-gray-100"
-                    >
-                      <option value="">-- {!customer.cityId ? "Pilih Kota Dulu" : loadingDistricts ? "Memuat..." : "Pilih Kecamatan"} --</option>
-                      {districts.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* DETAIL ALAMAT */}
-                  <div>
-                    <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-1.5">{t.cart.addressDetail} *</label>
-                    <textarea
-                      rows={2}
-                      placeholder="Nama Jalan, Nomor Rumah, RT/RW, Kode Pos"
-                      value={customer.addressDetail}
-                      onChange={(e) => setCustomer({ ...customer, addressDetail: e.target.value })}
-                      className="w-full rounded-xl border border-[#16382A]/20 bg-white p-3 text-xs focus:outline-none focus:ring-1 focus:ring-[#B69245]"
-                    />
-                  </div>
-
-                  {/* PILIH KURIR */}
-                  {customer.districtId && (
-                    <div className="mt-4 rounded-2xl border border-[#B69245]/30 bg-white p-4 shadow-xs">
-                      <label className="block font-semibold uppercase tracking-wider text-[#16382A] mb-2">{t.cart.shippingTitle} *</label>
-                      {loadingShipping ? (
-                        <p className="py-2 text-xs text-[#8E6E2E]">Menghitung kalkulasi estimasi ongkir...</p>
-                      ) : shippingOptions.length === 0 ? (
-                        <p className="text-xs text-red-500">Pilih kecamatan untuk memuat tarif pengiriman.</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {shippingOptions.map((option, idx) => (
-                            <label key={idx} className={`flex items-center justify-between rounded-xl border p-3 cursor-pointer transition ${selectedShipping?.name === option.name ? "border-[#B69245] bg-[#F6F2E8]" : "border-gray-200"}`}>
-                              <div className="flex items-center gap-2.5">
-                                <input type="radio" name="shipping" checked={selectedShipping?.name === option.name} onChange={() => setSelectedShipping(option)} className="accent-[#16382A]" />
-                                <div>
-                                  <p className="font-bold text-[#16382A] uppercase tracking-wide">
-                                    {option.company} - {option.name}
-                                  </p>
-                                  <p className="text-[10px] text-[#627067]">Estimasi: {option.etd}</p>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                {option.rate === 0 ? (
-                                  <div>
-                                    <span className="text-[10px] text-gray-400 line-through block">{formatRupiah(option.originalRate)}</span>
-                                    <span className="font-bold text-green-700 text-xs">FREE ONGKIR</span>
-                                  </div>
-                                ) : option.originalRate > option.rate ? (
-                                  <div>
-                                    <span className="text-[10px] text-gray-400 line-through block">{formatRupiah(option.originalRate)}</span>
-                                    <span className="font-bold text-[#16382A] text-xs">{formatRupiah(option.rate)}</span>
-                                  </div>
-                                ) : (
-                                  <span className="font-bold text-[#16382A] text-xs">{formatRupiah(option.rate)}</span>
-                                )}
-                              </div>
-                            </label>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* STEP 3: INSTRUKSI TRANSFER BANK MANUAL */
-                <div className="space-y-5 text-sm">
-                  <div className="rounded-2xl border border-[#B69245]/30 bg-white p-5 shadow-xs text-center">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-[#8E6E2E]">Instruksi Transfer Rekening Resmi</p>
-                    <h4 className="mt-2 font-serif text-2xl font-bold text-[#16382A]">{BANK_DETAILS.bankName}</h4>
-
-                    <div className="my-3.5 rounded-2xl bg-[#F6F2E8] p-4 border border-[#16382A]/10">
-                      <p className="font-mono text-2xl font-bold tracking-widest text-[#16382A]">{BANK_DETAILS.accountNumber}</p>
-                      <p className="mt-1 text-xs text-[#526158] font-medium">a.n {BANK_DETAILS.accountHolder}</p>
-                      <button
-                        onClick={() => copyToClipboard(BANK_DETAILS.accountNumber, false)}
-                        className="mt-3.5 inline-flex items-center gap-2 rounded-full bg-[#16382A] px-5 py-2 text-[10px] font-semibold uppercase tracking-wider text-[#F6F2E8] transition hover:bg-[#214737]"
-                      >
-                        📋 {copiedAccount ? "Tersalin!" : "Salin Rekening"}
-                      </button>
-                    </div>
-
-                    <div className="mt-4 rounded-2xl bg-[#FFFDF9] p-4 border border-[#B69245]/30">
-                      <p className="text-xs text-[#627067] font-medium">Total Nominal Transfer:</p>
-                      <p className="font-serif text-3xl font-bold text-[#8E6E2E] my-1">{formatRupiah(grandTotal)}</p>
-                      <button
-                        onClick={() => copyToClipboard(grandTotal.toString(), true)}
-                        className="mt-2.5 inline-flex items-center gap-2 rounded-full bg-[#B69245] px-5 py-2 text-[10px] font-semibold uppercase tracking-wider text-[#0D261C] transition hover:bg-[#c9a352]"
-                      >
-                        💰 {copiedAmount ? "Nominal Tersalin!" : "Salin Nominal"}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-[#16382A]/10 bg-[#F6F2E8] p-4 text-xs space-y-2">
-                    <p className="font-bold text-[#16382A] uppercase tracking-wider">Ringkasan Rincian Pesanan:</p>
-                    <p className="font-bold text-[#8E6E2E]">• No. Seri: {currentOrderSerial}</p>
-                    <p>
-                      • Subtotal ({totalQuantity} Pouch): {formatRupiah(subtotalPrice)}
-                    </p>
-                    {freePouchesCount > 0 && <p className="font-bold text-green-800">• Bonus Promo: +{freePouchesCount} Pouch (10s) Gratis</p>}
-                    <p>
-                      • Layanan Kurir: {selectedShipping?.company.toUpperCase()} ({shippingCost === 0 ? "FREE ONGKIR" : formatRupiah(shippingCost)})
-                    </p>
-                    <p>
-                      • Tujuan: {customer.addressDetail}, Kec. {customer.districtName}, {customer.cityName}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Footer Drawer dengan Proteksi Anti-Double Submit */}
-            {cart.length > 0 && (
-              <div className="border-t border-[#16382A]/10 pt-4">
-                <div className="mb-4 flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[#627067]">{t.cart.total}:</span>
-                  <span className="font-serif text-2xl font-bold text-[#16382A]">{formatRupiah(grandTotal)}</span>
-                </div>
-
-                {checkoutStep === "cart" ? (
-                  <button onClick={() => setCheckoutStep("form")} className="w-full rounded-full bg-[#16382A] py-3.5 text-xs font-semibold uppercase tracking-widest text-[#F6F2E8] transition hover:bg-[#214737]">
-                    {t.cart.checkoutBtn} →
-                  </button>
-                ) : checkoutStep === "form" ? (
-                  <div className="space-y-2">
-                    <button
-                      onClick={handleProceedToPayment}
-                      disabled={isSubmittingOrder}
-                      className={`w-full rounded-full py-3.5 text-xs font-semibold uppercase tracking-widest transition ${
-                        isSubmittingOrder ? "bg-gray-400 cursor-not-allowed text-gray-700" : "bg-[#B69245] text-[#0D261C] hover:bg-[#c9a352]"
-                      }`}
-                    >
-                      {isSubmittingOrder ? "\u23F3 Sedang Memproses Pesanan..." : `${t.cart.payNow} →`}
-                    </button>
-                    <button onClick={() => setCheckoutStep("cart")} className="w-full text-center text-xs text-[#627067] hover:underline">
-                      {t.cart.backToCart}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <a
-                      href={generateWhatsAppUrl()}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex w-full items-center justify-center gap-2 rounded-full bg-[#16382A] py-3.5 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-[#214737]"
-                    >
-                      💬 {t.cart.confirmWa}
-                    </a>
-                    <button onClick={() => setCheckoutStep("form")} className="w-full text-center text-xs text-[#627067] hover:underline">
-                      Ubah Data Alamat
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+            {!!cart.length && <div className="border-t border-[#16382A]/10 pt-5"><div className="mb-5 flex items-center justify-between"><span className="text-xs text-[#627067]">Subtotal produk</span><strong className="font-serif text-2xl text-[#16382A]">{formatRupiah(subtotalPrice)}</strong></div><Link href="/checkout" onClick={() => writeCart(cart)} className="block rounded-full bg-[#16382A] px-6 py-4 text-center text-xs font-semibold uppercase tracking-widest text-white">Lanjut ke checkout ?</Link><p className="mt-3 text-center text-[11px] text-[#627067]">Alamat, pengiriman, dan promo di halaman checkout.</p></div>}
           </div>
         </div>
       )}
@@ -1636,8 +1371,8 @@ export default function Home() {
           <div className="absolute -right-20 bottom-0 h-[480px] w-[480px] rounded-full border-[40px] border-[#16382A]" />
         </div>
 
-        <div className="relative mx-auto grid min-h-[620px] max-w-7xl items-center gap-12 px-6 py-20 lg:grid-cols-2 lg:py-28">
-          <div>
+        <div className="storefront-hero-grid relative mx-auto grid min-h-[620px] max-w-7xl items-center gap-12 px-6 py-20 lg:grid-cols-2 lg:py-28">
+          <div className="storefront-hero-copy">
             <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.32em] text-[#B69245] md:mb-6">{t.hero.eyebrow}</p>
             <h1 className="font-serif text-4xl leading-[1.1] tracking-[-0.03em] text-[#16382A] sm:text-6xl lg:text-7xl xl:text-[5.5rem]">
               {t.hero.title}
@@ -1658,15 +1393,11 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="relative hidden min-h-[500px] items-center justify-center lg:flex">
-            <div className="absolute inset-8 rounded-full border border-[#B69245]/25" />
-            <div className="absolute inset-20 rounded-full border border-[#16382A]/10" />
-            <div className="relative z-10 flex h-80 w-80 items-center justify-center rounded-full bg-[#FBF9F4] p-3 shadow-2xl border border-[#B69245]/20">
-              <img src="/Logo Vartana Bulat.png" alt="Vartana Botanical Wellness Badge" className="h-full w-full object-contain rounded-full" />
-            </div>
-          </div>
+          <div className="storefront-hero-stage"><BotanicalSprig className="storefront-hero-sprig"/><div className="storefront-hero-scene"><img src="/vartana-spices-hero.jpg" alt="Racikan rempah alami VARTANA" /></div></div>
         </div>
       </section>
+
+      <div className="storefront-trust-bar"><span>Botanical wellness</span><span>Diracik dengan perhatian</span><span>Temukan ritual baikmu</span></div>
 
       {/* PHILOSOPHY */}
       <section id="philosophy" className="relative bg-[#FBF9F4] px-6 py-20 md:py-32">
@@ -1695,10 +1426,17 @@ export default function Home() {
             <p className="mt-5 max-w-xl text-[14px] leading-relaxed text-white/60 md:mt-7 md:text-[15px] md:leading-relaxed">{t.collection.text}</p>
           </div>
 
+          {(catalogLoading || catalogError || products.length === 0) && (
+            <div role="status" className="mt-10 rounded-2xl border border-white/15 p-6 text-sm text-white/80">
+              {catalogLoading ? "Memuat katalog…" : catalogError || "Belum ada produk yang tersedia."}
+              {catalogError && <button type="button" onClick={() => { setCatalogLoading(true); setCatalogReload(value => value + 1); }} className="ml-4 underline text-[#D8C28B]">Coba lagi</button>}
+            </div>
+          )}
           <div className="no-scrollbar mt-12 flex gap-4 overflow-x-auto pb-4 md:grid md:grid-cols-2 md:overflow-visible xl:grid-cols-4">
             {products.map((item, index) => (
               <button
-                key={item.number}
+                    key={item.id}
+                aria-pressed={product.id === item.id}
                 onClick={() => {
                   setSelectedProduct(index);
                   setSelectedVariantIndex(0);
@@ -1707,8 +1445,8 @@ export default function Home() {
                 className={`group shrink-0 w-[270px] rounded-2xl border p-6 text-left transition duration-300 md:w-auto md:p-7 ${selectedProduct === index ? "border-[#D8C28B]/70 bg-white/[0.08]" : "border-white/10 bg-white/[0.025] hover:border-[#D8C28B]/40"}`}
               >
                 <div className="mb-5 flex h-32 items-center justify-center overflow-hidden rounded-xl bg-[#FBF9F4] p-3 md:h-40">
-                  <img
-                    src={item.image || item.variants?.[0]?.image || ""}
+                  <ProductImage
+                    src={item.image || item.variants?.[0]?.image || "/Logo Vartana.png"}
                     alt={item.name}
                     className="h-full w-full object-contain"
                     loading="lazy"
@@ -1733,7 +1471,7 @@ export default function Home() {
           </div>
 
           {/* PRODUCT DETAIL */}
-          <div className="mt-10 overflow-hidden rounded-[2rem] border border-white/10 shadow-2xl">
+          {products.length > 0 && <div key={product.id} className="storefront-product-detail mt-10 overflow-hidden rounded-[2rem] border border-white/10 shadow-2xl">
             <div className="grid lg:grid-cols-[0.85fr_1.15fr]">
               <div className="relative overflow-hidden bg-[#102F23] p-8 md:p-14">
                 <div className="relative">
@@ -1749,60 +1487,16 @@ export default function Home() {
                   <h3 className="mt-5 font-serif text-3xl leading-[1.1] tracking-tight text-[#F6F2E8] md:mt-6 md:text-5xl">{product.name}</h3>
                   <p className="mt-4 max-w-md text-[14px] leading-relaxed text-white/60 md:mt-6 md:text-[15px]">{product.description[language]}</p>
 
-                  {product.image && (
-                    <div className={`mt-8 flex items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#0D261C]/50 ${product.id === "vartana-06" ? "min-h-[280px] p-6 md:min-h-[360px]" : "h-[460px] p-1 sm:h-[520px] md:h-[600px] md:p-2"}`}>
-                      <img src={product.image} alt={product.name} className={product.id === "vartana-06" ? "max-h-[310px] w-auto max-w-full object-contain rounded-xl shadow-2xl md:max-h-[400px]" : ["vartana-02", "vartana-03", "vartana-04"].includes(product.id) ? "h-full w-full max-h-[600px] max-w-full scale-[1.2] object-contain rounded-xl shadow-2xl md:max-h-[760px] md:scale-[1.28]" : "h-full w-full max-h-[540px] max-w-full object-contain rounded-xl shadow-2xl md:max-h-[680px]"} />
+                  {(currentVariant.image || product.image) && (
+                    <div className="mt-8 flex h-80 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#FBF9F4] p-5 sm:h-96 md:h-[440px] md:p-8">
+                      <ProductImage src={currentVariant.image || product.image || ""} alt={product.name} className="h-full w-full object-contain" />
                     </div>
                   )}
 
                   {product.status === "READY STOCK" && (
                     <div className="mt-8 border-t border-white/10 pt-7">
                       {product.variants && (
-                        product.id === "vartana-06" ? (
-                          <div className="space-y-5">
-                            <div>
-                              <p className="mb-2.5 text-[9px] font-bold uppercase tracking-[0.22em] text-[#D8C28B]">
-                                {language === "id" ? "Pilih Racikan:" : "Choose Blend:"}
-                              </p>
-                              <div className="grid grid-cols-2 gap-3">
-                                {product.blendOptions?.map((blend) => (
-                                  <button
-                                    key={blend.id}
-                                    onClick={() => {
-                                      const count = currentVariant.bagCount ?? 15;
-                                      const index = product.variants!.findIndex((v) => v.blendProductId === blend.id && v.bagCount === count);
-                                      if (index >= 0) setSelectedVariantIndex(index);
-                                    }}
-                                    className={`rounded-xl border p-3.5 text-left transition ${currentVariant.blendProductId === blend.id ? "border-[#D8C28B] bg-[#D8C28B]/20 text-[#D8C28B] font-bold" : "border-white/15 bg-white/5 text-white/70 hover:border-white/30"}`}
-                                  >
-                                    <p className="text-xs">{blend.name[language]}</p>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            <div>
-                              <p className="mb-2.5 text-[9px] font-bold uppercase tracking-[0.22em] text-[#D8C28B]">
-                                {language === "id" ? "Pilih Isi Stoples:" : "Choose Jar Size:"}
-                              </p>
-                              <div className="grid grid-cols-2 gap-3">
-                                {[15, 20].map((count) => (
-                                  <button
-                                    key={count}
-                                    onClick={() => {
-                                      const index = product.variants!.findIndex((v) => v.blendProductId === currentVariant.blendProductId && v.bagCount === count);
-                                      if (index >= 0) setSelectedVariantIndex(index);
-                                    }}
-                                    className={`rounded-xl border p-3.5 text-left transition ${currentVariant.bagCount === count ? "border-[#D8C28B] bg-[#D8C28B]/20 text-[#D8C28B] font-bold" : "border-white/15 bg-white/5 text-white/70 hover:border-white/30"}`}
-                                  >
-                                    <p className="text-xs">{count} Tea Bags</p>
-                                    <p className="mt-1 text-[10px] opacity-70">{count * 5} g total</p>
-                                    <p className="mt-1 text-sm font-extrabold">{count === 15 ? "Rp59.000" : "Rp65.000"}</p>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
+
                           <div>
                             <p className="mb-2.5 text-[9px] font-bold uppercase tracking-[0.22em] text-[#D8C28B]">
                               {language === "id" ? "Pilih Format Kemasan:" : "Choose Package Format:"}
@@ -1810,18 +1504,17 @@ export default function Home() {
                             <div className="grid grid-cols-2 gap-3">
                               {product.variants.map((v, vIdx) => (
                                 <button
-                                  key={v.size}
+                                  key={v.sku || v.size}
                                   onClick={() => setSelectedVariantIndex(vIdx)}
                                   className={`rounded-xl border p-3.5 text-left transition ${selectedVariantIndex === vIdx ? "border-[#D8C28B] bg-[#D8C28B]/20 text-[#D8C28B] font-bold shadow-xs" : "border-white/15 bg-white/5 text-white/70 hover:border-white/30"}`}
                                 >
-                                  {v.image && <img src={v.image} alt={v.size} className={`mx-auto mb-2 w-full object-contain ${["vartana-02", "vartana-03", "vartana-04"].includes(product.id) ? "h-28 sm:h-32" : "h-20"}`} />}
+                                  {v.image && <ProductImage src={v.image} alt={v.size} className="mx-auto mb-2 h-24 w-full rounded-lg bg-[#FBF9F4] p-2 object-contain" />}
                                   <p className="text-xs">{v.size}</p>
                                   <p className="mt-1 text-sm font-extrabold">{v.promoPrice}</p>
                                 </button>
                               ))}
                             </div>
                           </div>
-                        )
                       )}
 
                       <div className="mt-6 grid gap-4 sm:grid-cols-2 md:gap-5">
@@ -1832,7 +1525,7 @@ export default function Home() {
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#D8C28B]">{t.product.promoPrice}</p>
-                            <span className="rounded-full bg-[#D8C28B] px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-[#0D261C]">{currentVariant.discountPercentage || "SPECIAL OFFER"}</span>
+                            <span className="rounded-full bg-[#D8C28B] px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-[#0D261C]">{currentVariant.discountPercentage || (language === "id" ? "Harga jual" : "Price")}</span>
                           </div>
                           <p className="mt-1 font-serif text-3xl text-[#F6F2E8] md:text-4xl">{currentVariant.promoPrice}</p>
                         </div>
@@ -1864,7 +1557,7 @@ export default function Home() {
 
                   <div className="mt-8 flex items-center gap-4">
                     <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#D8C28B]">{t.product.weight}</span>
-                    <span className="rounded-full border border-white/15 bg-white/[0.03] px-4 py-1.5 text-[11px] text-white/80">{product.id === "vartana-06" && currentVariant.bagCount ? `${currentVariant.bagCount} Tea Bags × 5 g (${currentVariant.bagCount * 5} g)` : product.id === "vartana-05" || product.id === "vartana-07" ? "10 Tea Bags" : t.product.weightValue}</span>
+                    <span className="rounded-full border border-white/15 bg-white/[0.03] px-4 py-1.5 text-[11px] text-white/80">{currentVariant.weightGram ? `${currentVariant.bagCount ? `${currentVariant.bagCount} Tea Bags / ` : ""}${currentVariant.weightGram} g` : product.quantityInfo}</span>
                   </div>
 
                   {/* LEGALITAS P-IRT DI DETAIL PRODUK */}
@@ -1897,18 +1590,18 @@ export default function Home() {
 
               <div className="bg-[#FBF9F4] p-8 text-[#16382A] md:p-14">
                 <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2 md:gap-y-10">
-                  <InfoBlock title={t.product.taste} text={product.taste[language]} />
-                  <InfoBlock title={t.product.aroma} text={product.aroma[language]} />
-                  <InfoBlock title={t.product.difference} text={product.difference[language]} />
-                  <InfoBlock title={t.product.benefit} text={product.benefit[language]} />
+
+
+                  <InfoBlock title={t.product.difference} text={currentVariant.description?.[language] || product.difference[language]} />
+                  <InfoBlock title={t.product.benefit} text={currentVariant.benefit?.[language] || product.benefit[language]} />
                 </div>
                 <div className="mt-10 border-t border-[#B69245]/20 pt-8">
                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#9E7A32]">{t.product.preparation}</p>
-                  <p className="mt-3 text-[14px] leading-relaxed text-[#526158]">{t.product.preparationText}</p>
+                  <p className="mt-3 text-[14px] leading-relaxed text-[#526158]">{currentVariant.brewingInstructions || product.brewingInstructions || t.product.preparationText}</p>
                 </div>
               </div>
             </div>
-          </div>
+          </div>}
         </div>
       </section>
 

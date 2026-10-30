@@ -1,0 +1,38 @@
+VARTANA APPS SCRIPT — PROMO CHECKOUT V2
+
+File VARTANA-AppsScript-v2.txt berisi script LENGKAP dari versi yang kamu kirim, dengan revisi promo checkout dan pencatatan order. Tidak perlu menggabungkan potongan kode.
+
+CARA PASANG
+1. Buka project Apps Script yang dipakai website.
+2. Ganti seluruh isi file kode lama yang kamu kirim dengan isi VARTANA-AppsScript-v2.txt, lalu Save. Jangan tempel di bawah kode lama karena nama fungsi akan dobel.
+3. Pilih fungsi setupCheckoutPromotions, lalu klik Run. Izinkan akses Google jika diminta. Fungsi ini menambah kolom di tab Promotions dan Orders yang sudah ada, serta memindahkan konfigurasi JSON promo lama ke kolom yang bisa dibaca.
+4. Klik Deploy > Manage deployments > pilih Web app yang dipakai website > Edit (ikon pensil) > Version: New version > Deploy. Gunakan deployment yang sama agar URL website tetap berlaku.
+5. Refresh halaman admin website. Atur promo lewat Setting Promo atau kolom Promotions. Tes memakai promo nonaktif lebih dulu.
+
+YANG BERUBAH
+- Mendukung diskon persen, nominal, potongan ongkir, buy X get Y, hadiah SKU lain, dan tebus murah.
+- Kolom Promotions: Scope, Promo Code, Promo Type, Promo Value, Min Spend, Max Discount, Automatic, Stackable, Priority, Buy SKU, Buy Qty, Reward SKU, Reward Qty, Redeem Price, Max Applications.
+- Banner Text menjadi ringkasan manusiawi. Website tetap menerima konfigurasi lengkap dari API.
+- Konfigurasi promo lama checkout-v1/v2 tetap didukung. Data promo produk lama tidak dihapus.
+- Orders mencatat subtotal kotor, kode/nama promo, potongan produk, potongan ongkir, total tebus, rincian promo, dan daftar hadiah.
+- Order baru berstatus MENUNGGU PEMBAYARAN. Konfirmasi pembayaran tetap dilakukan admin setelah bukti transfer diperiksa. Status order lama tidak diubah.
+- Penyimpanan order memakai lock dan pengecekan nomor order untuk mengurangi order ganda saat retry. Subtotal Rp0 yang sah tidak diganti harga fallback.
+- Modul konsinyasi dan fungsi lain dari script yang dikirim tetap dipertahankan.
+
+CARA ISI PROMOTIONS
+- Scope untuk promo checkout: checkout-v2. SKU untuk promo checkout: CHECKOUT.
+- Promo Type: percent / nominal / shipping / bogo / gift / redeem.
+- Promo Value: 10 untuk 10%, 8000 untuk potongan Rp8.000. Isi 0 untuk bogo/gift/redeem.
+- Active: TRUE/FALSE; Automatic dan Stackable juga TRUE/FALSE.
+- Min Spend dan Max Discount: nominal rupiah. Max Discount 0 = tanpa batas tambahan.
+- Priority: angka 1–999. Angka kecil diproses lebih dulu.
+- Buy SKU dan Buy Qty: produk pemicu dan jumlah yang harus dibeli.
+- Reward SKU dan Reward Qty: produk dan jumlah hadiah. Untuk bogo, Reward SKU mengikuti Buy SKU.
+- Redeem Price: harga tebus per unit; harus tidak melebihi harga katalog. Tebus murah selalu dipilih pembeli, bukan otomatis.
+- Max Applications: maksimal kelipatan bonus per order. Contoh Buy Qty 2, Reward Qty 1, Max Applications 3 berarti maksimal 3 hadiah saat membeli minimal 6 produk pemicu.
+- Tanggal Start Date/End Date: YYYY-MM-DD; kosong = tanpa batas tanggal tersebut. Gunakan timezone spreadsheet Asia/Jakarta.
+- Bonus gratis tidak memicu bonus berikutnya. Minimum belanja memakai subtotal produk setelah diskon katalog, sebelum promo checkout dan ongkir. Diskon persen checkout dihitung berurutan berdasarkan prioritas.
+
+BATAS VALIDASI
+Script sudah diuji sintaks dan simulasi spreadsheet lokal. Belum dijalankan atau dipasang ke akun Google kamu. Sesi clasp sebelumnya kedaluwarsa; file ini disiapkan untuk pemasangan manual.
+Pembaruan ini fokus pada promo dan pencatatan order. Ini bukan penyelesaian seluruh temuan audit keamanan Apps Script; pembatasan akses endpoint langsung tetap perlu ditangani terpisah.

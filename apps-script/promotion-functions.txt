@@ -1,0 +1,130 @@
+// VARTANA checkout promotions v2. Existing sheet columns are never reordered.
+function vartanaPromoColumnNames_() {
+  return ['Scope','Promo Code','Promo Type','Promo Value','Min Spend','Max Discount','Automatic','Stackable','Priority','Buy SKU','Buy Qty','Reward SKU','Reward Qty','Redeem Price','Max Applications'];
+}
+function vartanaOrderColumnNames_() {
+  return ['Gross Subtotal Products','Promo Code','Promo Name','Product Discount','Promo Shipping Discount','Redeem Total','Promo Breakdown','Reward Items'];
+}
+function checkoutColumns_(sheet,names) {
+  var headers=sheet.getLastColumn()?sheet.getRange(1,1,1,sheet.getLastColumn()).getDisplayValues()[0]:[];
+  var cols={};
+  names.forEach(function(name){var index=headers.indexOf(name);if(index<0){index=headers.length;headers.push(name);sheet.getRange(1,index+1).setValue(name).setFontWeight('bold');}cols[name]=index+1;});
+  return cols;
+}
+function vartanaBool_(value,fallback) {
+  if(value===undefined||value===null||value==='')return fallback;
+  return value===true||String(value).toUpperCase()==='TRUE';
+}
+function vartanaPromoConfig_(data) {
+  var config={scope:'checkout-v2',code:String(data.code||'').trim().toUpperCase(),type:String(data.type||''),value:Number(data.value||0),minSpend:Number(data.minSpend||0),maxDiscount:Number(data.maxDiscount||0),automatic:vartanaBool_(data.automatic,false),stackable:vartanaBool_(data.stackable,true),priority:Number(data.priority||100),buySku:String(data.buySku||''),buyQty:Number(data.buyQty||1),rewardSku:String(data.rewardSku||''),rewardQty:Number(data.rewardQty||1),redeemPrice:Number(data.redeemPrice||0),maxApplications:Number(data.maxApplications||1)};
+  if(config.type==='bogo')config.rewardSku=config.buySku;
+  if(config.type==='redeem')config.automatic=false;
+  var reward=['bogo','gift','redeem'].indexOf(config.type)>=0;
+  if(!/^[A-Z0-9_-]{3,30}$/.test(config.code)||['percent','nominal','shipping','bogo','gift','redeem'].indexOf(config.type)<0)throw new Error('Kode atau jenis promo tidak valid.');
+  if(![config.value,config.minSpend,config.maxDiscount,config.redeemPrice].every(function(v){return isFinite(v)&&v>=0;})||(!reward&&config.value<=0)||(config.type==='percent'&&config.value>100))throw new Error('Nilai promo tidak valid.');
+  if(![config.priority,config.buyQty,config.rewardQty,config.maxApplications].every(function(v){return Number.isInteger(v)&&v>=1&&v<=999;})||(reward&&(!config.buySku||!config.rewardSku||config.rewardQty*config.maxApplications>999)))throw new Error('Syarat jumlah atau SKU promo tidak valid.');
+  return config;
+}
+function vartanaPromoFields_(c) {
+  return {'Scope':c.scope,'Promo Code':c.code,'Promo Type':c.type,'Promo Value':c.value,'Min Spend':c.minSpend,'Max Discount':c.maxDiscount,'Automatic':c.automatic,'Stackable':c.stackable,'Priority':c.priority,'Buy SKU':c.buySku,'Buy Qty':c.buyQty,'Reward SKU':c.rewardSku,'Reward Qty':c.rewardQty,'Redeem Price':c.redeemPrice,'Max Applications':c.maxApplications};
+}
+function checkoutPromoLabel_(c) {
+  var text=c.type==='percent'?'Diskon '+c.value+'%':c.type==='nominal'?'Potongan Rp'+c.value:c.type==='shipping'?'Potongan ongkir Rp'+c.value:c.type==='redeem'?'Beli '+c.buyQty+' '+c.buySku+', tebus '+c.rewardQty+' '+c.rewardSku+' @Rp'+c.redeemPrice:'Beli '+c.buyQty+' '+c.buySku+', gratis '+c.rewardQty+' '+c.rewardSku;
+  return text+' | Min. Rp'+c.minSpend+(c.maxDiscount?' | Maks. Rp'+c.maxDiscount:'')+' | '+(c.automatic?'Otomatis':'Dipilih pembeli')+' | '+(c.stackable?'Bisa digabung':'Tidak bisa digabung');
+}
+function vartanaConfigFromRow_(row,headers) {
+  function cell(name){var i=headers.indexOf(name);return i>=0?row[i]:'';}
+  if(['checkout-v1','checkout-v2'].indexOf(String(cell('Scope')))>=0&&cell('Promo Code')) {
+    return vartanaPromoConfig_({code:cell('Promo Code'),type:cell('Promo Type'),value:cell('Promo Value'),minSpend:cell('Min Spend'),maxDiscount:cell('Max Discount'),automatic:cell('Automatic'),stackable:cell('Stackable'),priority:cell('Priority'),buySku:cell('Buy SKU'),buyQty:cell('Buy Qty'),rewardSku:cell('Reward SKU'),rewardQty:cell('Reward Qty'),redeemPrice:cell('Redeem Price'),maxApplications:cell('Max Applications')});
+  }
+  try{var raw=JSON.parse(String(row[5]||''));if(['checkout-v1','checkout-v2'].indexOf(raw.scope)>=0)return vartanaPromoConfig_(raw);}catch(error){if(String(row[1])==='CHECKOUT')throw error;}
+  return null;
+}
+function setupCheckoutPromotions() {
+  var ss=SpreadsheetApp.getActiveSpreadsheet(),sheet=ss.getSheetByName(SHEET_PROMOTIONS);
+  if(!sheet)throw new Error('Sheet Promotions belum tersedia. Jalankan setup master terlebih dahulu.');
+  var lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    var cols=checkoutColumns_(sheet,vartanaPromoColumnNames_()),rows=sheet.getDataRange().getValues(),headers=rows[0]||[];
+    for(var i=1;i<rows.length;i++){
+      if(!rows[i][1])continue;
+      try{var config=vartanaConfigFromRow_(rows[i],headers);if(!config)continue;var fields=vartanaPromoFields_(config);Object.keys(fields).forEach(function(key){sheet.getRange(i+1,cols[key]).setValue(fields[key]);});sheet.getRange(i+1,6).setValue(checkoutPromoLabel_(config));}
+      catch(error){console.warn('Promo baris '+(i+1)+' dilewati: '+error.message);}
+    }
+    ['Promo Value','Min Spend','Max Discount','Redeem Price'].forEach(function(key){sheet.getRange(2,cols[key],Math.max(1,sheet.getMaxRows()-1),1).setNumberFormat('#,##0.##');});
+    sheet.setFrozenRows(1);
+    var orders=ss.getSheetByName(SHEET_ORDERS);
+    if(orders){checkoutColumns_(orders,vartanaOrderColumnNames_());vartanaOrderStatusRule_(orders,2,Math.max(1,orders.getMaxRows()-1));}
+  }finally{lock.releaseLock();}
+  return 'Setup Promotions v2 selesai. Data lama dipertahankan.';
+}
+function getPromotions() {
+  var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PROMOTIONS);if(!sheet)return [];
+  var rows=sheet.getDataRange().getValues(),headers=rows[0]||[],result=[];
+  for(var i=1;i<rows.length;i++){
+    var row=rows[i];if(!row[1])continue;
+    var config=null,valid=true;
+    try{config=vartanaConfigFromRow_(row,headers);}catch(error){valid=false;}
+    var item={promotionId:String(row[0]||''),sku:String(row[1]),promotionName:String(row[2]||''),promoPrice:Number(row[3])||0,discountPercentage:Number(row[4])||0,bannerText:config?JSON.stringify(config):String(row[5]||''),startDate:formatDateValue(row[6]),endDate:formatDateValue(row[7]),active:valid&&vartanaBool_(row[8],false)};
+    if(config){item.scope=config.scope;item.checkoutCode=config.code;item.checkoutType=config.type;item.checkoutValue=config.value;item.minSpend=config.minSpend;item.maxDiscount=config.maxDiscount;}
+    result.push(item);
+  }
+  return result;
+}
+function savePromotion(data) {
+  var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PROMOTIONS);if(!sheet)return responseJSON({success:false,message:'Sheet Promotions belum tersedia.'});
+  if(!data.sku)return responseJSON({success:false,message:'SKU wajib diisi.'});
+  var raw=null,config=null;
+  try{raw=JSON.parse(data.bannerText||'');}catch(error){}
+  try{
+    if(raw&&['checkout-v1','checkout-v2'].indexOf(raw.scope)>=0)config=vartanaPromoConfig_(raw);
+    else if(['checkout-v1','checkout-v2'].indexOf(data.scope)>=0)config=vartanaPromoConfig_({code:data.checkoutCode,type:data.checkoutType,value:data.checkoutValue,minSpend:data.minSpend,maxDiscount:data.maxDiscount,automatic:data.automatic,stackable:data.stackable,priority:data.priority,buySku:data.buySku,buyQty:data.buyQty,rewardSku:data.rewardSku,rewardQty:data.rewardQty,redeemPrice:data.redeemPrice,maxApplications:data.maxApplications});
+  }catch(error){return responseJSON({success:false,message:error.message});}
+  var start=String(data.startDate||''),end=String(data.endDate||'');
+  if((start&&end&&start>end)||[start,end].some(function(v){return v&&(!/^\d{4}-\d{2}-\d{2}$/.test(v)||!isFinite(Date.parse(v)));}))return responseJSON({success:false,message:'Periode promo tidak valid.'});
+  var lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    var cols=checkoutColumns_(sheet,vartanaPromoColumnNames_()),rows=sheet.getDataRange().getValues(),headers=rows[0],id=data.promotionId||'PROMO-'+Utilities.getUuid(),found=-1;
+    for(var i=1;i<rows.length;i++){
+      if(String(rows[i][0])===String(id))found=i+1;
+      if(config&&String(rows[i][0])!==String(id)){var existing=null;try{existing=vartanaConfigFromRow_(rows[i],headers);}catch(error){}if(existing&&existing.code===config.code)return responseJSON({success:false,message:'Kode promo sudah digunakan.'});}
+    }
+    var now=new Date(),row=[id,data.sku,data.promotionName||'',Number(data.promoPrice)||0,Number(data.discountPercentage)||0,config?checkoutPromoLabel_(config):data.bannerText||'',start,end,data.active!==false,found>0?rows[found-1][9]:now,now];
+    if(found>0)sheet.getRange(found,1,1,row.length).setValues([row]);else{sheet.appendRow(row);found=sheet.getLastRow();}
+    if(config){var fields=vartanaPromoFields_(config);Object.keys(fields).forEach(function(key){sheet.getRange(found,cols[key]).setValue(fields[key]);});}
+    return responseJSON({success:true,promotionId:id,message:'Promotion tersimpan.'});
+  }finally{lock.releaseLock();}
+}
+function vartanaOrderStatusRule_(sheet,row,count) {
+  var rule=SpreadsheetApp.newDataValidation().requireValueInList(['MENUNGGU PEMBAYARAN','PEMBAYARAN DITERIMA','PESANAN DISIAPKAN','DIKIRIM','SELESAI'],true).setAllowInvalid(false).build();
+  sheet.getRange(row,15,count,1).setDataValidation(rule);
+}
+function recordCheckoutPromoOnOrder_(sheet,row,data) {
+  var cols=checkoutColumns_(sheet,vartanaOrderColumnNames_());
+  var fields={'Gross Subtotal Products':Number(data.grossSubtotalProducts===undefined?data.subtotalProducts:data.grossSubtotalProducts)||0,'Promo Code':data.promoCode||'','Promo Name':data.promoName||'','Product Discount':Number(data.productDiscount)||0,'Promo Shipping Discount':Number(data.promoShippingDiscount)||0,'Redeem Total':Number(data.redeemTotal)||0,'Promo Breakdown':JSON.stringify(data.promoBreakdown||[]),'Reward Items':JSON.stringify(data.rewardItems||[])};
+  Object.keys(fields).forEach(function(key){sheet.getRange(row,cols[key]).setValue(fields[key]);});
+}
+function saveRetailOrderWithPromo_(data) {
+  var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS);
+  if(!sheet)return responseJSON({status:'error',message:'Sheet Orders belum tersedia.'});
+  var serial=String(data.orderSerial||'').trim();
+  if(!serial||!data.phone)return responseJSON({status:'error',message:'Order serial dan nomor WhatsApp wajib diisi.'});
+  var subtotal=data.subtotalProducts===undefined?calculateOrderSubtotalFromSKU(data.sku,data.quantity||1):Number(data.subtotalProducts);
+  if(data.subtotalProducts===undefined&&!subtotal)subtotal=getLegacySubtotalFallback(data.itemsSummary||'');
+  var total=Number(data.grandTotal),shipping=Number(data.customerShippingFee===undefined?Math.max(0,total-subtotal):data.customerShippingFee),subsidy=Number(data.shippingSubsidy||0),original=Number(data.originalShipping===undefined?shipping+subsidy:data.originalShipping);
+  if(![subtotal,total,shipping,subsidy,original].every(function(v){return isFinite(v)&&v>=0;})||Math.abs(total-subtotal-shipping)>0.01)return responseJSON({status:'error',message:'Total pesanan tidak konsisten.'});
+  var lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    var values=sheet.getDataRange().getValues();
+    for(var i=1;i<values.length;i++)if(String(values[i][1]).trim().toUpperCase()===serial.toUpperCase()){
+      if(String(values[i][4])!==String(data.phone)||Number(values[i][13])!==total)return responseJSON({status:'error',message:'Nomor pesanan sudah digunakan dengan rincian berbeda.'});
+      return responseJSON({status:'success',success:true,duplicate:true,orderSerial:serial});
+    }
+    var row=sheet.getLastRow()+1;
+    checkoutColumns_(sheet,vartanaOrderColumnNames_());
+    vartanaOrderStatusRule_(sheet,row,1);
+    sheet.appendRow([new Date(),serial,data.memberId||'-',data.customerName||'-',String(data.phone),data.email||'-',data.addressDetail||'-',data.sku||'-',data.itemsSummary||'-',subtotal,original,subsidy,shipping,total,'MENUNGGU PEMBAYARAN','-']);
+    recordCheckoutPromoOnOrder_(sheet,row,data);
+    return responseJSON({status:'success',success:true,orderSerial:serial,subtotalProducts:subtotal});
+  }finally{lock.releaseLock();}
+}

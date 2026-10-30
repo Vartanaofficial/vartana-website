@@ -1,4 +1,9 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
+
+/* Only scan application code; downloadable documents can be locked by Windows. */
+@source "./**/*.tsx";
+@source "./**/*.ts";
+@source "../lib/**/*.ts";
 
 :root {
   --background: #ffffff;

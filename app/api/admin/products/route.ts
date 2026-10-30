@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminSessionToken } from "@/lib/admin-auth";
+import { calculatePromoPrice } from "@/lib/product-pricing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ function isAdmin(request: NextRequest): boolean {
 }
 
 function getScriptUrl(): URL | null {
-  const raw = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL;
+  const raw = process.env.GOOGLE_SCRIPT_URL || process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL;
   if (!raw) return null;
 
   try {
@@ -73,6 +74,10 @@ function packageCode(packageType: string) {
       return "SAC";
     case "pcs":
       return "PCS";
+    case "pouch":
+      return "POU";
+    case "pack":
+      return "PAC";
     default:
       return "PRD";
   }
@@ -221,7 +226,7 @@ export async function POST(request: NextRequest) {
 
   const packageType = String(body.packageType ?? "Jar").trim();
 
-  if (!["Jar", "Box", "Sachet", "Pcs"].includes(packageType)) {
+  if (!["Jar", "Box", "Sachet", "Pcs", "Pouch", "Pack"].includes(packageType)) {
     return NextResponse.json(
       {
         success: false,
@@ -257,11 +262,11 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (product.imageUrl && !/^https:\/\//i.test(String(product.imageUrl))) {
+  if (product.imageUrl && !/^https:\/\//i.test(String(product.imageUrl)) && !/^\/(?!\/)/.test(String(product.imageUrl))) {
     return NextResponse.json(
       {
         success: false,
-        message: "URL gambar harus menggunakan HTTPS.",
+        message: "Gunakan URL gambar HTTPS atau path gambar lokal seperti /produk.png.",
       },
       { status: 400 },
     );
@@ -306,11 +311,10 @@ export async function POST(request: NextRequest) {
   }
 
   const price = Number(product.sellingPrice);
+  if (!product.discountType) product.discountValue = 0;
   const discountValue = Number(product.discountValue);
 
-  const discount = product.discountType === "percent" ? (price * Math.min(discountValue, 100)) / 100 : product.discountType === "nominal" ? Math.min(discountValue, price) : 0;
-
-  product.promoPrice = Math.max(0, Math.ceil((price - discount) / 100) * 100);
+  product.promoPrice = calculatePromoPrice(price, product.discountType === "nominal" ? "nominal" : "percent", product.discountType ? discountValue : 0);
 
   product.weightGram = Number(product.teaBagWeightGram) * Number(product.teaBagCount);
 

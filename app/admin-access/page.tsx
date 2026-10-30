@@ -6,6 +6,13 @@ import { FormEvent, useEffect, useState } from "react";
 
 const menus = [
   {
+    title: "Setting Promo",
+    description: "Atur kode promo checkout, potongan harga, ongkir, dan periode berlaku.",
+    href: "/admin/promos",
+    number: "05",
+    symbol: "%",
+  },
+  {
     title: "Admin Dashboard",
     description: "Dashboard utama dan kontrol data VARTANA.",
     href: "/admin/dashboard",
@@ -85,6 +92,10 @@ export default function AdminAccessPage() {
         body: JSON.stringify({ username, password }),
       });
 
+      if (!response.headers.get("content-type")?.includes("application/json")) {
+        setError("Endpoint login belum siap. Restart server website lalu coba lagi.");
+        return;
+      }
       const data = await response.json();
 
       if (!response.ok || (data.ok !== true && data.authenticated !== true)) {

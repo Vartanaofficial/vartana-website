@@ -3,6 +3,12 @@ export type Language = "id" | "en";
 export type LocalizedText = Record<Language, string>;
 
 export type ProductVariant = {
+  sku?: string;
+  weightGram?: number;
+  ingredients?: LocalizedText[];
+  description?: LocalizedText;
+  benefit?: LocalizedText;
+  brewingInstructions?: string;
   image?: string;
   size: string;
   priceValue: number;
@@ -14,6 +20,7 @@ export type ProductVariant = {
 };
 
 export type Product = {
+  brewingInstructions?: string;
   id: string;
   number: string;
   name: string;

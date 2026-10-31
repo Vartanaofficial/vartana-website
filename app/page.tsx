@@ -1592,7 +1592,7 @@ export default function Home() {
 
               <div className="relative overflow-hidden bg-[#edf1e7] p-6 text-[#16382A] sm:p-8 md:p-10">
                 <BotanicalSprig className="pointer-events-none absolute -right-12 top-20 w-56 rotate-12 text-[#59774e] opacity-20"/>
-                {language === "en" && !translationAvailable && <p role="status" className="relative mb-4 rounded-xl bg-white p-3 text-xs text-[#526158]">English product translations are currently unavailable. Original Indonesian text is shown below.</p>}
+                {language === "en" && !translationAvailable && <p role="status" className="relative mb-4 rounded-xl bg-white p-3 text-xs text-[#526158]">Some English translations are still being prepared. Untranslated fields retain the original Indonesian text.</p>}
                 <div className="relative mb-7 overflow-hidden rounded-3xl bg-[#173d2b] px-7 py-9 text-[#faf5e9]">
                   <BotanicalSprig className="pointer-events-none absolute -right-5 -top-12 w-40 rotate-12 text-[#d9c58c] opacity-35"/>
                   <p className="relative text-[10px] font-semibold uppercase tracking-[0.26em] text-[#d9c58c]">VARTANA · BOTANICAL WELLNESS</p>

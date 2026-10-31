@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     let products = buildStoreCatalog(await readMasterProducts());
     let translationAvailable = true;
     if (new URL(request.url).searchParams.get("lang") === "en") {
-      try { products = await translateCatalog(products); } catch { translationAvailable = false; }
+      try { const translated = await translateCatalog(products); products = translated.products; translationAvailable = translated.pending === 0; } catch { translationAvailable = false; }
     }
     return NextResponse.json({ success: true, products, translationAvailable }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

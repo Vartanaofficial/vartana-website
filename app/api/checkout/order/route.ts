@@ -39,6 +39,7 @@ export async function POST(req: Request) {
       const summary = quote.lines.map(line => `${line.name} [${line.variant}] (${line.quantity}x)`).join(", ");
       const rewardSummary = quote.rewardLines.map(line=>`${line.kind==='redeem'?'TEBUS MURAH':'GRATIS'} ${line.name} [${line.variant}] (${line.quantity}x @Rp${line.price}) [${line.promoCode}]`).join(", ");
       const orderDetails = {
+        inventoryItems: [...quote.lines,...quote.rewardLines].map(line=>({sku:line.sku,quantity:line.quantity})),
         paymentMethod, orderKey, orderSerial: serial, memberId, customerName: customer.name, phone: customer.phone, email: customer.email,
         addressDetail: `${customer.address}, ${customer.districtName}, ${customer.cityName}, ${customer.provinceName}${customer.postalCode ? ` ${customer.postalCode}` : ""}`,
         sku: [...quote.lines,...quote.rewardLines].map(line => line.sku).join(", "),

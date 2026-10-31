@@ -1,0 +1,88 @@
+﻿// STOCK LEDGER: separate tabs in the existing workbook. Never infer stock from purchase quantities.
+function inventorySheets_(){
+ var ss=SpreadsheetApp.getActiveSpreadsheet();
+ function get(name,headers){var sh=ss.getSheetByName(name);if(!sh){sh=ss.insertSheet(name);sh.getRange(1,1,1,headers.length).setValues([headers]);sh.setFrozenRows(1);}var found=sh.getRange(1,1,1,headers.length).getValues()[0];if(found.join('|')!==headers.join('|'))throw new Error('Struktur '+name+' berbeda. Data tidak diubah.');return sh;}
+ return {ledger:get('InventoryLedger',['Timestamp','Event ID','Kind','Item ID','Quantity Change','Note']),config:get('InventoryConfig',['Item Key','Minimum Stock','Updated At'])};
+}
+function inventoryState_(sheets){
+ var balances={},minimum={},rows=sheets.ledger.getDataRange().getValues(),settings=sheets.config.getDataRange().getValues();
+ for(var i=1;i<rows.length;i++){var key=String(rows[i][2])+':'+String(rows[i][3]);balances[key]=(balances[key]||0)+Number(rows[i][4]||0);}
+ for(var j=1;j<settings.length;j++)minimum[String(settings[j][0])]=Number(settings[j][1])||0;
+ return {balances:balances,minimum:minimum,rows:rows};
+}
+function inventoryRecipes_(){
+ var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ProductCosting'),map={};
+ if(sh&&sh.getLastRow()>1){var rows=sh.getDataRange().getValues();for(var i=1;i<rows.length;i++)try{map[String(rows[i][0])]=JSON.parse(String(rows[i][1]));}catch(e){}}
+ return map;
+}
+function inventoryUsage_(recipe){
+ if(!recipe||recipe.mode!=='recipe'||!isFinite(recipe.batchYield)||recipe.batchYield<=0)throw new Error('Simpan resep komponen HPP dengan jumlah hasil batch terlebih dahulu.');
+ var usage={};(recipe.components||[]).forEach(function(c){if(c.category==='Produksi')return;if(!c.materialId)throw new Error('Hubungkan semua bahan dan kemasan resep ke Master Bahan terlebih dahulu.');var n=Number(c.usageQty)/Number(recipe.batchYield);if(!isFinite(n)||n<=0)throw new Error('Pemakaian resep tidak valid.');usage[c.materialId]=(usage[c.materialId]||0)+n;});
+ if(!Object.keys(usage).length)throw new Error('Resep tidak memiliki bahan atau kemasan terhubung.');return usage;
+}
+function inventoryReport_(){
+ var sheets=inventorySheets_(),state=inventoryState_(sheets),materials=JSON.parse(getRawMaterials_().getContent()).materials||[],products=getProducts(),recipes=inventoryRecipes_();
+ function item(kind,id,name,unit,cost){var key=kind+':'+id,known=Object.prototype.hasOwnProperty.call(state.balances,key),qty=known?Math.max(0,state.balances[key]):null,min=state.minimum[key]||0;return {kind:kind,id:id,name:name,unit:unit,qty:qty,minimum:min,unitCost:cost,value:qty===null?null:qty*cost,low:known&&qty<=min};}
+ var raw=materials.map(function(m){return item('material',m.id,m.name,m.unit,Number(m.purchaseQty)>0?Number(m.purchaseCost)/Number(m.purchaseQty):0);});
+ var finished=products.map(function(p){var x=item('finished',p.sku,p.productName+' '+p.variantName,'pack',Number(p.hpp)||0);x.sellingPrice=Number(p.sellingPrice)||0;try{var usage=inventoryUsage_(recipes[p.sku]),ids=Object.keys(usage),unknown=ids.some(function(id){return state.balances['material:'+id]===undefined;});x.capacity=unknown?null:Math.max(0,Math.min.apply(null,ids.map(function(id){return Math.floor((state.balances['material:'+id]+1e-8)/usage[id]);})));}catch(e){x.capacity=null;x.capacityReason=e.message;}return x;});
+ return responseJSON({success:true,inventoryVersion:1,materials:raw,finished:finished,history:state.rows.slice(-30).reverse().filter(function(r){return r[1]!=='Event ID';}).map(function(r){return {date:formatKonsinyasiDateTime_(r[0]),eventId:r[1],kind:r[2],id:r[3],qty:r[4],note:r[5]};}),valuation:'Harga acuan master saat ini; belum FIFO atau nilai historis pembelian.'});
+}
+function inventoryCommit_(sheets,state,eventId,changes,note){
+ if(state.rows.some(function(r){return String(r[1])===eventId;}))return {duplicate:true};
+ var sums={};changes.forEach(function(c){if(['material','finished'].indexOf(c.kind)<0||!c.id||!isFinite(c.qty))throw new Error('Mutasi stok tidak valid.');var key=c.kind+':'+c.id;sums[key]=(sums[key]||0)+c.qty;});
+ Object.keys(sums).forEach(function(key){if((state.balances[key]||0)+sums[key]<-1e-7)throw new Error('Stok tidak cukup untuk '+key+'. Periksa stok fisik dan catat penerimaan.');});
+ var now=new Date(),rows=changes.map(function(c){return [now,eventId,c.kind,c.id,c.qty,note];});
+ sheets.ledger.getRange(sheets.ledger.getLastRow()+1,1,rows.length,6).setValues(rows);
+ var alerts=Object.keys(sums).filter(function(key){return sums[key]<0&&(state.balances[key]||0)>Number(state.minimum[key]||0)&&(state.balances[key]||0)+sums[key]<=Number(state.minimum[key]||0);});
+ if(alerts.length)try{MailApp.sendEmail('vartana@vartanaglobal.com','[VARTANA] Stok menipis',alerts.map(function(key){return key+': sisa '+((state.balances[key]||0)+sums[key])+'; batas '+(state.minimum[key]||0);}).join('\n')+'\nPeriksa https://www.vartana.id/admin/dashboard?view=stock');}catch(e){console.warn('Email stok belum terkirim: '+e.message);}
+ return {duplicate:false};
+}
+function saveInventory_(data){
+ var operation=String(data.operation||''),kind=String(data.kind||''),id=String(data.id||''),qty=Number(data.qty),requestId=String(data.requestId||''),note=String(data.note||'').trim().slice(0,300);
+ if(!/^[a-f0-9-]{36}$/.test(requestId)||['opening','receive','consume','produce','minimum'].indexOf(operation)<0||['material','finished'].indexOf(kind)<0||!isFinite(qty)||qty<0||qty>1e9)return responseJSON({success:false,message:'Mutasi stok tidak valid.'});
+ if(kind==='finished'&&!Number.isSafeInteger(qty))return responseJSON({success:false,message:'Jumlah pack harus bilangan bulat.'});
+ var lock=LockService.getScriptLock();lock.waitLock(20000);
+ try{
+  var sheets=inventorySheets_(),state=inventoryState_(sheets),key=kind+':'+id,materials=JSON.parse(getRawMaterials_().getContent()).materials||[],products=getProducts();
+  if(!(kind==='material'?materials.some(function(m){return m.id===id;}):products.some(function(p){return p.sku===id;})))throw new Error('Bahan atau SKU tidak ditemukan.');
+  if(operation==='minimum'){
+   var rows=sheets.config.getDataRange().getValues(),row=-1;for(var i=1;i<rows.length;i++)if(String(rows[i][0])===key)row=i+1;
+   var values=[[key,qty,new Date()]];sheets.config.getRange(row>0?row:sheets.config.getLastRow()+1,1,1,3).setValues(values);
+   return responseJSON({success:true});
+  }
+  if(state.rows.some(function(r){return String(r[1])==='INV:'+requestId;}))return responseJSON({success:true,duplicate:true});
+  if(operation==='opening'&&state.balances[key]!==undefined)throw new Error('Stok awal sudah dicatat. Gunakan penerimaan atau pemakaian berikutnya.');
+  if(operation!=='opening'&&qty<=0)throw new Error('Jumlah harus lebih dari nol.');
+  if(operation==='consume'&&!note)throw new Error('Isi alasan pemakaian atau barang keluar.');
+  var changes=[{kind:kind,id:id,qty:operation==='consume'?-qty:qty}];
+  if(operation==='produce'){
+   if(kind!=='finished')throw new Error('Produksi hanya untuk SKU barang jadi.');
+   var usage=inventoryUsage_(inventoryRecipes_()[id]);Object.keys(usage).forEach(function(materialId){if(!materials.some(function(m){return m.id===materialId;}))throw new Error('Bahan resep sudah tidak tersedia: '+materialId);changes.push({kind:'material',id:materialId,qty:-usage[materialId]*qty});});
+  }
+  var result=inventoryCommit_(sheets,state,'INV:'+requestId,changes,operation+(note?' | '+note:''));
+  return responseJSON({success:true,duplicate:result.duplicate});
+ }catch(e){return responseJSON({success:false,message:e.message});}finally{lock.releaseLock();}
+}
+// Called while holding the same script lock as the order status update.
+function inventoryDispatchOrder_(sheet,row,serial){
+ var headers=sheet.getDataRange().getValues()[0],index=headers.indexOf('Inventory Items');
+ if(index<0)return;var raw=sheet.getRange(row,index+1).getValue();if(!raw)return; // Historical orders need manual stock reconciliation.
+ var items=JSON.parse(String(raw));if(!Array.isArray(items)||!items.length)throw new Error('Rincian stok order tidak valid.');
+ var products=getProducts(),changes=items.map(function(it){if(!products.some(function(p){return p.sku===it.sku;})||!Number.isSafeInteger(it.quantity)||it.quantity<1)throw new Error('SKU atau qty stok order tidak valid.');return {kind:'finished',id:it.sku,qty:-it.quantity};});
+ var sheets=inventorySheets_();inventoryCommit_(sheets,inventoryState_(sheets),'ORDER:'+serial,changes,'Barang jadi dialokasikan untuk pesanan '+serial);
+}
+
+// Built-in Google Apps Script translation; persistent source/English pairs in this workbook.
+function getCatalogTranslations_(){
+ var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName('CatalogTranslations'),texts=[],seen={};
+ getProducts().filter(function(p){return p.active;}).forEach(function(p){[p.productName,p.subtitle,p.variantName,p.packageType,p.description,p.benefits,p.brewingInstructions].concat(p.ingredients||[]).forEach(function(v){v=String(v||'');if(v&&!seen[v]){seen[v]=true;texts.push(v);}});});
+ var lock=LockService.getScriptLock();lock.waitLock(20000);
+ try{
+  if(!sh){sh=ss.insertSheet('CatalogTranslations');sh.getRange(1,1,1,3).setValues([['Indonesian','English','Updated At']]);sh.setFrozenRows(1);}
+  var rows=sh.getDataRange().getValues();if(rows[0][0]!=='Indonesian'||rows[0][1]!=='English')throw new Error('Header CatalogTranslations tidak sesuai.');
+  var dictionary={};for(var i=1;i<rows.length;i++)if(rows[i][0]&&rows[i][1])dictionary[String(rows[i][0])]=String(rows[i][1]);
+  var start=Date.now(),pending=0;
+  texts.forEach(function(text){if(dictionary[text])return;if(Date.now()-start>16000){pending++;return;}try{var en=LanguageApp.translate(text,'id','en');if(en){sh.appendRow([text,en,new Date()]);dictionary[text]=en;}else pending++;}catch(e){pending++;}});
+  return responseJSON({success:true,translationVersion:1,translations:dictionary,pending:pending});
+ }finally{lock.releaseLock();}
+}

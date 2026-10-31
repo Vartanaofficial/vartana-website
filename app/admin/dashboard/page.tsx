@@ -1,4 +1,5 @@
 "use client";
+import Inventory from "./Inventory";
 import ProductCosting from "./ProductCosting";
 import { analyzeOrderItems, type AnalysisProduct } from "@/lib/admin-order-analysis";
 import { orderFinancialIssues } from "@/lib/order-financials";
@@ -43,7 +44,7 @@ type MemberItem = {
 };
 
 export default function AdminDashboard() {
-  const [activeMenuTab, setActiveMenuTab] = useState<"omset" | "profit">("omset");
+  const [activeMenuTab, setActiveMenuTab] = useState<"omset" | "profit" | "stock">("omset");
   const [isProfitAuthenticated, setIsProfitAuthenticated] = useState<boolean>(false);
   const [profitUsername, setProfitUsername] = useState<string>("");
   const [profitPin, setProfitPin] = useState<string>("");
@@ -91,6 +92,7 @@ export default function AdminDashboard() {
     }
   };
 
+  useEffect(() => { if (new URLSearchParams(window.location.search).get("view") === "stock") setActiveMenuTab("stock"); }, []);
   useEffect(() => {
     fetch("/api/admin/auth/session", { cache: "no-store" }).then(res => res.json()).then(data => {
       if (data.authenticated) { setIsAuthenticated(true); void fetchDashboardData(); }
@@ -463,6 +465,7 @@ export default function AdminDashboard() {
           >
             💰 2. Profit & P&L Closing
           </button>
+          <button onClick={() => setActiveMenuTab("stock")} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider ${activeMenuTab === "stock" ? "bg-[#16382A] text-white" : "text-[#526158]"}`}>3. Stok Bahan & Barang Jadi</button>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -497,7 +500,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {activeMenuTab === "omset" ? (
+      {activeMenuTab === "stock" ? <Inventory/> : activeMenuTab === "omset" ? (
         <>
           <div className="mt-4 md:mt-6 rounded-2xl md:rounded-3xl border border-[#B69245]/30 bg-white p-3.5 md:p-5 shadow-xs space-y-3">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">

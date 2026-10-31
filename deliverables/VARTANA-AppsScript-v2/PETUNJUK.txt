@@ -77,3 +77,13 @@ NOMOR ORDER RETAIL DAN EMAIL ORDER BARU
 - Order Key mencegah order ganda saat checkout diulang. Penomoran dan pemeriksaan duplikat menggunakan Script Lock.
 - Email order baru ke vartana@vartanaglobal.com setelah tersimpan. Notification Email Status mencatat SENT atau FAILED. Duplikat tidak mengirim email ulang; kegagalan email tidak menggagalkan order.
 - Save kode lengkap, jalankan setupOrderEmailNotifications sekali untuk memberikan izin email (tidak mengirim pesan), lalu Deploy New version pada deployment retail yang sama. Checkout versi baru membutuhkan deployment ini.
+
+STOK DAN TERJEMAHAN
+Ganti seluruh kode Apps Script dengan TXT lengkap, simpan, lalu Deploy > Manage deployments > Edit > New version pada deployment yang sama.
+Buka Admin Dashboard > 3. Stok. Isi stok awal fisik bahan dan pack jadi sendiri; jumlah beli di master harga bukan stok fisik.
+Atur batas minimum tiap item. Catat produksi lewat SKU barang jadi: resep HPP harus terhubung dengan Material ID. Produksi mengurangi bahan/kemasan dan menambah pack dalam satu mutasi.
+Pesanan baru mengurangi pack saat PESANAN DISIAPKAN / DIKIRIM / SELESAI, sekali per order. Pesanan historis tanpa rincian Inventory Items perlu rekonsiliasi manual. Retur masuk dicatat secara eksplisit lewat penerimaan stok.
+P&L tetap memakai HPP barang jadi. Nilai persediaan memakai harga acuan master saat ini, bukan FIFO. Kapasitas per SKU berbagi bahan sehingga tidak dijumlahkan.
+Tab InventoryLedger, InventoryConfig, CatalogTranslations dibuat otomatis pada workbook yang sama. Jangan mengubah header.
+Terjemahan memakai LanguageApp bawaan Apps Script tanpa API key berbayar, mengikuti kuota harian Google. Hasil disimpan di CatalogTranslations dan dapat dikoreksi pada kolom English. Teks baru diterjemahkan bertahap saat katalog Inggris dimuat; muat ulang bila masih ada teks tertunda.
+Email stok menipis dikirim saat pemakaian melewati batas minimum; memerlukan izin MailApp dan kuota email. Jalankan setupOrderEmailNotifications bila perlu mengotorisasi email.

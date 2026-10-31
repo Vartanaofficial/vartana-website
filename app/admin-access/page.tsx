@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 
 const menus = [
+  { title: "Stok Bahan & Barang Jadi", description: "Stok tersedia, nilai persediaan, produksi, dan pengingat stok menipis.", href: "/admin/dashboard?view=stock", number: "06", symbol: "" },
   {
     title: "Setting Promo",
     description: "Atur kode promo checkout, potongan harga, ongkir, dan periode berlaku.",
@@ -50,7 +51,7 @@ function MenuIcon({ href }: { href: string }) {
     "/admin/master-product": <><path d="m12 3 9 5v9l-9 5-9-5V8l9-5Zm0 10v9M3 8l9 5 9-5M8 5l9 5v4"/></>,
     "/admin/konsinyasi": <><path d="M3 10V6l4-3h10l4 3v4M3 10h18M5 10v11h14V10M9 21v-7h6v7M3 6h18"/><path d="M3 10a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></>,
   };
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8" aria-hidden="true">{paths[href]}</svg>;
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8" aria-hidden="true">{paths[href] || <><path d="M4 7h16v14H4zM2 3h20v4H2zM9 11h6"/></>}</svg>;
 }
 
 export default function AdminAccessPage() {

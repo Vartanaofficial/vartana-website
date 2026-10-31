@@ -76,6 +76,18 @@ export default function AmbientMusic() {
   const [volume, setVolume] = useState(25), [error, setError] = useState("");
   const audio = useRef<AudioContext | null>(null), master = useRef<GainNode | null>(null);
   const stop = useRef<(() => void) | null>(null), enabled = useRef(false), root = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const drag = useRef<{ id: number; x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
+  const suppressClick = useRef(false);
+  function bounded(x: number, y: number) {
+    const rect = root.current?.getBoundingClientRect();
+    return { x: Math.max(8, Math.min(x, window.innerWidth - (rect?.width || 200) - 8)), y: Math.max(8, Math.min(y, window.innerHeight - (rect?.height || 56) - 8)) };
+  }
+  useEffect(() => {
+    const resize = () => { setPosition(current => current ? bounded(current.x, current.y) : null); setOpen(false); };
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
   useEffect(() => {
     const outside = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) setOpen(false); };
     const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { setOpen(false); root.current?.querySelector<HTMLButtonElement>(".ambient-trigger")?.focus(); } };
@@ -113,8 +125,9 @@ export default function AmbientMusic() {
     await audio.current?.suspend();
   }
   const selected = themes.find(item => item.id === theme)!;
-  return <div ref={root} className={`ambient-player ${playing ? "is-playing" : ""}`}>
-    {open && <section id="ambient-options" className="ambient-panel" aria-label="Pilihan suasana musik">
+  const panelStyle = position ? { position: "fixed" as const, right: "auto", bottom: "auto", left: Math.max(8, Math.min(position.x, window.innerWidth - 306)), top: Math.max(8, Math.min(position.y - 440, window.innerHeight - 456)), maxHeight: "calc(100dvh - 32px)" } : undefined;
+  return <div ref={root} className={`ambient-player ${playing ? "is-playing" : ""}`} style={position ? { left: position.x, top: position.y, right: "auto", bottom: "auto" } : undefined}>
+    {open && <section id="ambient-options" className="ambient-panel" style={panelStyle} aria-label="Pilihan suasana musik">
       <div className="ambient-panel-heading"><span>Ruang tenangmu</span><button type="button" aria-label="Tutup pilihan musik" onClick={() => setOpen(false)}>×</button></div>
       <p>Pilih suasana untuk menemani ritualmu.</p>
       <div className="ambient-themes">{themes.map(item => <button type="button" key={item.id} aria-pressed={theme === item.id} disabled={busy} onClick={() => void play(item.id)}><span>{item.name}<small>{item.description}</small></span><span aria-hidden="true">{theme === item.id ? "●" : "○"}</span></button>)}</div>
@@ -123,7 +136,32 @@ export default function AmbientMusic() {
       <p className="ambient-footnote">Suasana instrumental sintetis · tanpa vokal</p>
       {error && <p role="status">{error}</p>}
     </section>}
-    <button className="ambient-trigger" type="button" aria-label="Pilih tema musik" aria-expanded={open} aria-controls="ambient-options" onClick={() => setOpen(value => !value)}>
+    <button className="ambient-trigger" type="button" aria-label="Pilih tema musik; geser untuk memindahkan" title="Klik untuk musik · geser untuk memindahkan" style={{ touchAction: "none", cursor: "grab", userSelect: "none" }} aria-expanded={open} aria-controls="ambient-options"
+      onPointerDown={event => {
+        if (!event.isPrimary || event.button !== 0) return;
+        const rect = root.current!.getBoundingClientRect();
+        suppressClick.current = false;
+        drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, left: rect.left, top: rect.top, moved: false };
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={event => {
+        const current = drag.current;
+        if (!current || current.id !== event.pointerId) return;
+        const dx = event.clientX - current.x, dy = event.clientY - current.y;
+        if (!current.moved && Math.hypot(dx, dy) < 6) return;
+        current.moved = true; suppressClick.current = true; setOpen(false);
+        setPosition(bounded(current.left + dx, current.top + dy));
+      }}
+      onPointerUp={event => { if (drag.current?.id === event.pointerId) { drag.current = null; event.currentTarget.releasePointerCapture(event.pointerId); } }}
+      onPointerCancel={() => { drag.current = null; suppressClick.current = false; }}
+      onLostPointerCapture={() => { drag.current = null; }}
+      onKeyDown={event => {
+        const delta = { ArrowLeft: [-20, 0], ArrowRight: [20, 0], ArrowUp: [0, -20], ArrowDown: [0, 20] }[event.key];
+        if (!delta) return;
+        event.preventDefault(); const rect = root.current!.getBoundingClientRect();
+        setOpen(false); setPosition(bounded(rect.left + delta[0], rect.top + delta[1]));
+      }}
+      onClick={event => { if (suppressClick.current && event.detail !== 0) { suppressClick.current = false; return; } setOpen(value => !value); }}>
       <span className="ambient-record" aria-hidden="true"><span>V</span></span><span>{selected.name}<small>{playing ? "ON · PILIH SUASANA" : "OFF · PILIH SUASANA"}</small></span>
     </button>
   </div>;

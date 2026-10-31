@@ -359,7 +359,7 @@ const content = {
       copyright: "© 2026 VARTANA. All rights reserved.",
     },
     cart: {
-      title: "Keranjang Belanja",
+      title: "Shopping Cart",
       empty: "Your shopping cart is currently empty.",
       total: "Total Payment",
       checkoutBtn: "Proceed to Delivery Info",
@@ -395,6 +395,7 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState("");
+  const [translationAvailable, setTranslationAvailable] = useState(true);
   const [catalogReload, setCatalogReload] = useState(0);
   const [language, setLanguage] = useState<Language>("id");
   const [selectedProduct, setSelectedProduct] = useState<number>(0);
@@ -497,12 +498,13 @@ export default function Home() {
       if (pending) return;
       pending = true;
       try {
-        const response = await fetch("/api/catalog", { cache: "no-store", signal: controller.signal });
+        const response = await fetch(`/api/catalog?lang=${language}`, { cache: "no-store", signal: controller.signal });
         const data = await response.json();
         if (!response.ok || data.success !== true || !Array.isArray(data.products)) throw new Error(data.message || "Katalog belum bisa dimuat.");
         if (!active) return;
         const latest: Product[] = data.products;
         setProducts(latest);
+        setTranslationAvailable(data.translationAvailable !== false);
         setCatalogError("");
         // Refresh prices and remove products taken down by admin from open carts.
         setCart(previous => previous.flatMap(item => {
@@ -522,7 +524,7 @@ export default function Home() {
     const onFocus = () => void refreshCatalog();
     window.addEventListener("focus", onFocus);
     return () => { active = false; controller.abort(); window.clearInterval(timer); window.removeEventListener("focus", onFocus); };
-  }, [catalogReload]);
+  }, [catalogReload, language]);
 
   // AUTO-FILL PROFILE MEMBER & WILAYAH LENGKAP VIA NO HP
   const handleAutoFillByPhone = async () => {
@@ -1084,7 +1086,7 @@ export default function Home() {
               className="flex items-center gap-1.5 rounded-full border border-[#B69245]/30 bg-[#F6F2E8] px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A] hover:bg-[#B69245] hover:text-white transition shadow-xs"
             >
               <span>🔍</span>
-              <span className="hidden md:inline">Lacak Pesanan</span>
+              <span className="hidden md:inline">{language === "en" ? "Track Order" : "Lacak Pesanan"}</span>
             </button>
 
             {/* BUTTON CART */}
@@ -1122,7 +1124,7 @@ export default function Home() {
       <circle cx="10.5" cy="10.5" r="6.5" />
       <path d="m16 16 4 4" />
     </svg>
-    <span>Lacak Pesanan</span>
+    <span>{language === "en" ? "Track Order" : "Lacak Pesanan"}</span>
   </button>
   <a href="#collection" className="flex shrink-0 items-center rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
     {t.nav.collection}
@@ -1590,6 +1592,7 @@ export default function Home() {
 
               <div className="relative overflow-hidden bg-[#edf1e7] p-6 text-[#16382A] sm:p-8 md:p-10">
                 <BotanicalSprig className="pointer-events-none absolute -right-12 top-20 w-56 rotate-12 text-[#59774e] opacity-20"/>
+                {language === "en" && !translationAvailable && <p role="status" className="relative mb-4 rounded-xl bg-white p-3 text-xs text-[#526158]">English product translations are currently unavailable. Original Indonesian text is shown below.</p>}
                 <div className="relative mb-7 overflow-hidden rounded-3xl bg-[#173d2b] px-7 py-9 text-[#faf5e9]">
                   <BotanicalSprig className="pointer-events-none absolute -right-5 -top-12 w-40 rotate-12 text-[#d9c58c] opacity-35"/>
                   <p className="relative text-[10px] font-semibold uppercase tracking-[0.26em] text-[#d9c58c]">VARTANA · BOTANICAL WELLNESS</p>

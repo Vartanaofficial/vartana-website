@@ -21,6 +21,6 @@ test('material import preserves edited supplier prices on repeat and keeps recip
  assert.equal(c.saveRawMaterials_({materials:[m],skipExisting:true}).saved,1);
  assert.equal(c.saveRawMaterials_({materials:[{...m,purchaseCost:70000}]}).saved,1);
  assert.equal(c.saveRawMaterials_({materials:[m],skipExisting:true}).saved,0);
- assert.equal(c.getRawMaterials_().materials[0].purchaseCost,70000);assert.equal(sheets.RawMaterials.rows.length,2);assert.equal(sheets.RawMaterials.rows[1][10],70);
+ assert.equal(c.getRawMaterials_().materials[0].purchaseCost,70000);assert.equal(sheets.RawMaterials.rows.length,2);assert.equal(sheets.RawMaterials.rows[1][10],"=IFERROR(F2/G2,0)");
  const before=JSON.stringify(sheets.RawMaterials.rows);assert.equal(c.saveRawMaterials_({materials:[{...m,purchaseQty:0}]}).success,false);assert.equal(JSON.stringify(sheets.RawMaterials.rows),before);
 });

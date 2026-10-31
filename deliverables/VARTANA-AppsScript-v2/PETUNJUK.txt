@@ -87,3 +87,11 @@ P&L tetap memakai HPP barang jadi. Nilai persediaan memakai harga acuan master s
 Tab InventoryLedger, InventoryConfig, CatalogTranslations dibuat otomatis pada workbook yang sama. Jangan mengubah header.
 Terjemahan memakai LanguageApp bawaan Apps Script tanpa API key berbayar, mengikuti kuota harian Google. Hasil disimpan di CatalogTranslations dan dapat dikoreksi pada kolom English. Teks baru diterjemahkan bertahap saat katalog Inggris dimuat; muat ulang bila masih ada teks tertunda.
 Email stok menipis dikirim saat pemakaian melewati batas minimum; memerlukan izin MailApp dan kuota email. Jalankan setupOrderEmailNotifications bila perlu mengotorisasi email.
+
+PERBAIKAN TERJEMAHAN V2
+Ganti seluruh kode dari VARTANA-AppsScript-v2.txt (jangan ditempel di bawah kode lama), lalu Simpan.
+Pilih fungsi prepareCatalogTranslations pada dropdown editor Apps Script, klik Run/Jalankan, dan setujui izin jika diminta.
+Execution log menampilkan jumlah teks siap dan tertunda. Jika tertunda karena batas waktu, jalankan lagi. Jika kuota harian habis, lanjutkan setelah kuota pulih.
+Deploy > Manage deployments > pilih deployment yang dipakai website > Edit > New version > Deploy. URL deployment tetap sama.
+Kamus rempah memperbaiki Kayu Manis=Cinnamon, Lada Putih=White Pepper, Pala Biji=Nutmeg, dan lainnya. Teks panjang diproses per bagian. Hasil kalimat bebas tetap terjemahan mesin; koreksi editorial dapat diisi pada kolom English di CatalogTranslations.
+Refresh website dan pilih EN. Perubahan lokal juga memerlukan refresh; screenshot lama menampilkan player versi sebelumnya.

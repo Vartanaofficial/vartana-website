@@ -1,0 +1,41 @@
+﻿// Terjemahan produk publik. Nama rempah dipertahankan dengan istilah botani yang tepat.
+function catalogGlossary_(){return {'Jahe':'Ginger','Jahe Merah':'Red Ginger','Kunyit':'Turmeric','Serai':'Lemongrass','Kapulaga':'Cardamom','Cengkeh':'Clove','Kayu Manis':'Cinnamon','Lada Putih':'White Pepper','Lada Hitam':'Black Pepper','Pala Biji':'Nutmeg','Biji Pala':'Nutmeg','Adas':'Fennel','Biji Adas':'Fennel Seeds','Rosella':'Roselle','Kulit Pala':'Mace'};}
+function catalogTranslationChunks_(text){
+ var chunks=[],rest=String(text||'');
+ while(rest.length>3500){var end=rest.lastIndexOf('\n',3500);if(end<1750)end=rest.lastIndexOf(' ',3500);if(end<1)end=3500;else end++;chunks.push(rest.slice(0,end));rest=rest.slice(end);}
+ if(rest)chunks.push(rest);return chunks;
+}
+function catalogTranslateText_(text){
+ var glossary=catalogGlossary_();if(glossary[text])return glossary[text];
+ var prepared=text;
+ Object.keys(glossary).sort(function(a,b){return b.length-a.length;}).forEach(function(name){prepared=prepared.replace(new RegExp('\\b'+name+'\\b','gi'),glossary[name]);});
+ var result=catalogTranslationChunks_(prepared).map(function(chunk){var translated=LanguageApp.translate(chunk,'id','en');if(!translated||!translated.trim())throw new Error('Hasil terjemahan kosong.');return translated;}).join('\n');
+ if(!result.trim())throw new Error('Hasil terjemahan kosong.');
+ return result.replace(/wood\s+sweet/gi,'Cinnamon').replace(/her findings/gi,'These findings');
+}
+function getCatalogTranslations_(){
+ var ss=SpreadsheetApp.getActiveSpreadsheet(),texts=[],seen=Object.create(null);
+ getProducts().filter(function(p){return p.active;}).forEach(function(p){[p.productName,p.subtitle,p.variantName,p.packageType,p.description,p.benefits,p.brewingInstructions].concat(p.ingredients||[]).forEach(function(v){v=String(v||'');if(v&&!seen[v]){seen[v]=true;texts.push(v);}});});
+ var lock=LockService.getScriptLock();if(!lock.tryLock(1500))return responseJSON({success:false,message:'Terjemahan sedang diproses. Coba lagi sebentar.'});
+ try{
+  var sh=ss.getSheetByName('CatalogTranslations');
+  if(!sh){sh=ss.insertSheet('CatalogTranslations');sh.getRange(1,1,1,3).setValues([['Indonesian','English','Updated At']]);sh.setFrozenRows(1);}
+  var rows=sh.getDataRange().getValues();if(rows[0][0]!=='Indonesian'||rows[0][1]!=='English')throw new Error('Header CatalogTranslations tidak sesuai.');
+  var dictionary=Object.create(null),glossary=catalogGlossary_(),start=Date.now(),pending=0,lastError='';
+  for(var i=1;i<rows.length;i++)if(rows[i][0]&&rows[i][1])dictionary[String(rows[i][0])]=String(rows[i][1]);
+  texts.forEach(function(text){
+   if(glossary[text]){dictionary[text]=glossary[text];return;}
+   if(dictionary[text]){dictionary[text]=dictionary[text].replace(/wood\s+sweet/gi,'Cinnamon').replace(/her findings/gi,'These findings');return;}
+   if(Date.now()-start>16000){pending++;return;}
+   try{var en=catalogTranslateText_(text);sh.appendRow([text,en,new Date()]);dictionary[text]=en;}catch(e){pending++;lastError=String(e.message||e).slice(0,200);}
+  });
+  return responseJSON({success:true,translationVersion:2,translations:dictionary,pending:pending,message:pending?'Sebagian teks menunggu terjemahan. Jalankan prepareCatalogTranslations dari Apps Script atau tunggu penyegaran katalog.':'',lastError:lastError});
+ }finally{lock.releaseLock();}
+}
+// Pilih fungsi ini di editor Apps Script, lalu Run untuk izin dan mengisi teks yang masih tertunda.
+function prepareCatalogTranslations(){
+ var result=JSON.parse(getCatalogTranslations_().getContent());
+ if(!result.success)throw new Error(result.message);
+ var message='Terjemahan siap: '+Object.keys(result.translations).length+' teks. Tertunda: '+result.pending+'.'+(result.lastError?' Info: '+result.lastError:'');
+ console.log(message);return message;
+}

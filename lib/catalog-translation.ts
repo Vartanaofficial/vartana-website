@@ -12,7 +12,7 @@ export async function translateCatalog(products:Product[]):Promise<{products:Pro
  }
  products.forEach(p=>collect(p));
  const data=await requestMasterScript('getCatalogTranslations');
- if(data.translationVersion!==1||!data.translations)throw Error('Perbarui Apps Script untuk terjemahan otomatis.');
+ if(![1,2].includes(data.translationVersion)||!data.translations)throw Error('Perbarui Apps Script untuk terjemahan otomatis.');
  const dictionary=new Map<string,string>(Object.entries(data.translations).filter((entry):entry is [string,string]=>typeof entry[1]==='string'));
  const pending=[...texts].filter(text=>!dictionary.has(text)).length;
  function apply(value:unknown,field=''):unknown{

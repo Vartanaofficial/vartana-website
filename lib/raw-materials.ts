@@ -21,3 +21,5 @@ export function bomForPackage(name:string,count:number,grams:number){
  if(!Number.isSafeInteger(count)||count<=0||!Number.isFinite(grams)||grams<=0)throw Error("Lengkapi jumlah tea bag dan gram per tea bag di Master Product.");
  return sample.weights.map(([name,weight])=>({name,category:"Bahan baku" as const,unit:"gram",purchaseCost:0,purchaseQty:1000,usageQty:weight/sample.total*count*grams}));
 }
+
+export function normalizeMaterialPurchase(m:RawMaterial){return validateMaterial(m?.unit==="kg"?{...m,unit:"gram",purchaseQty:m.purchaseQty*1000}:m);}

@@ -104,7 +104,7 @@ const content = {
       taste: "Karakter Rasa",
       aroma: "Profil Aroma",
       difference: "Keunggulan Racikan",
-      benefit: "Saran Penyajian",
+      benefit: "Manfaat Bahan",
       preparation: "Petunjuk Penyeduhan",
       preparationText: "1 tea bag · ±9 g · 200 ml air bersih · 90–95°C · 3–5 menit ekstraksi",
       regularPrice: "Harga Reguler",
@@ -266,7 +266,7 @@ const content = {
       taste: "Taste Profile",
       aroma: "Aroma Profile",
       difference: "Blend Distinction",
-      benefit: "Suggested Occasion",
+      benefit: "Ingredient Benefits",
       preparation: "Brewing Guide",
       preparationText: "1 tea bag · ±9 g · 200 ml fresh water · 90–95°C · 3–5 minutes steep time",
       regularPrice: "Regular Price",
@@ -1588,16 +1588,26 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="bg-[#FBF9F4] p-8 text-[#16382A] md:p-14">
-                <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2 md:gap-y-10">
-
-
-                  <InfoBlock title={t.product.difference} text={currentVariant.description?.[language] || product.difference[language]} />
-                  <InfoBlock title={t.product.benefit} text={currentVariant.benefit?.[language] || product.benefit[language]} />
+              <div className="relative overflow-hidden bg-[#edf1e7] p-6 text-[#16382A] sm:p-8 md:p-10">
+                <BotanicalSprig className="pointer-events-none absolute -right-12 top-20 w-56 rotate-12 text-[#59774e] opacity-20"/>
+                <div className="relative mb-7 overflow-hidden rounded-3xl bg-[#173d2b] px-7 py-9 text-[#faf5e9]">
+                  <BotanicalSprig className="pointer-events-none absolute -right-5 -top-12 w-40 rotate-12 text-[#d9c58c] opacity-35"/>
+                  <p className="relative text-[10px] font-semibold uppercase tracking-[0.26em] text-[#d9c58c]">VARTANA · BOTANICAL WELLNESS</p>
+                  <h3 className="relative mt-4 max-w-xs font-serif text-3xl leading-tight">{language === "id" ? "Dari alam, untuk ritual harianmu." : "From nature, for your daily ritual."}</h3>
                 </div>
-                <div className="mt-10 border-t border-[#B69245]/20 pt-8">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#9E7A32]">{t.product.preparation}</p>
-                  <p className="mt-3 text-[14px] leading-relaxed text-[#526158]">{currentVariant.brewingInstructions || product.brewingInstructions || t.product.preparationText}</p>
+                <div className="relative space-y-5">
+                  <section className="rounded-3xl border border-[#d6decc] bg-[#fbfcf7] p-6 shadow-sm sm:p-7">
+                    <div className="mb-4 flex items-center gap-3"><span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e6edda] text-[#426343]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-6 w-6"><path d="M5 19C4 8 9 4 20 4c0 11-5 16-15 15Zm0 0L16 8"/></svg></span><h4 className="text-xs font-bold uppercase tracking-[0.16em]">{t.product.difference}</h4></div>
+                    <p className="whitespace-pre-line text-sm leading-7 text-[#526158]">{currentVariant.description?.[language] || product.difference[language] || "—"}</p>
+                  </section>
+                  <section className="rounded-3xl border border-[#cbd9c0] bg-[#e2ead9] p-6 shadow-sm sm:p-7">
+                    <div className="mb-5 flex items-center gap-3"><span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#173d2b] text-[#e5d39c]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-6 w-6"><path d="M12 21V10m0 7C4 17 3 12 3 8c6 0 9 3 9 9Zm0-4c0-7 4-10 9-10 0 6-3 10-9 10Z"/></svg></span><h4 className="text-xs font-bold uppercase tracking-[0.16em]">{t.product.benefit}</h4></div>
+                    <div className="space-y-4">{(currentVariant.benefit?.[language] || product.benefit[language] || "—").split(/\n+|(?<=[.!?])\s+(?=[A-Z][^:.!?]{1,28}:)/).filter(Boolean).map((paragraph, index) => <p key={index} className="border-l-2 border-[#8da377] pl-4 text-sm leading-7 text-[#3e5841]">{paragraph}</p>)}</div>
+                  </section>
+                  <section className="rounded-3xl border border-[#e0d3b3] bg-[#f4ead3] p-6 shadow-sm sm:p-7">
+                    <div className="mb-4 flex items-center gap-3"><span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e7d6ad] text-[#715723]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-6 w-6"><path d="M4 9h13v7a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V9Zm13 1h2a3 3 0 0 1 0 6h-2M8 6V3m5 3V3M3 22h16"/></svg></span><h4 className="text-xs font-bold uppercase tracking-[0.16em] text-[#715723]">{t.product.preparation}</h4></div>
+                    <p className="whitespace-pre-line text-sm leading-7 text-[#655b43]">{currentVariant.brewingInstructions || product.brewingInstructions || t.product.preparationText}</p>
+                  </section>
                 </div>
               </div>
             </div>

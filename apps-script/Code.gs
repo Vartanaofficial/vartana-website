@@ -3206,7 +3206,7 @@ function saveRawMaterials_(data){
       var x=list[n],key=x.name.trim().toLowerCase(),row=ids[x.id];
       if(data.skipExisting&&(row||names[key]))continue;
       var targetRow=row||sh.getLastRow()+1;
-      var values=[x.id,x.name,JSON.stringify(x),new Date(),x.category,x.purchaseCost,x.purchaseQty,x.unit,x.supplier,x.source,"=IFERROR(F"+targetRow+"/G"+targetRow+",0)"];
+      var values=[x.id,x.name,JSON.stringify(x),new Date(),x.category,x.purchaseCost,x.purchaseQty,x.unit,x.supplier,x.source,"=F"+targetRow+"/G"+targetRow];
       if(row)sh.getRange(row,1,1,11).setValues([values]);else{sh.appendRow(values);ids[x.id]=sh.getLastRow();}
       names[key]=x.id;saved++;
     }

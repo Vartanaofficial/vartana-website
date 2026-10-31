@@ -2,6 +2,8 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
 export type SalesReportOrder = {
+  totalCogs?: number | null;
+  totalUnits?: number;
   orderSerial?: string;
   memberId?: string;
   customerName?: string;
@@ -57,17 +59,8 @@ const getQuantity = (summary: string) => {
   return matches.length ? Number(matches[matches.length - 1][1]) : 1;
 };
 
-const getCogsPerUnit = (summary: string) => {
-  if (summary.includes("5 Tea Bags")) return 15000;
-  if (summary.includes("Signature") || summary.includes("10 Tea Bags")) {
-    return 26400;
-  }
-  return 18139;
-};
-
 const getRevenue = (order: SalesReportOrder) => {
-  const subtotal = Number(order.subtotalProducts || 0);
-  return subtotal > 0 ? subtotal : Number(order.grandTotal || 0);
+  return order.subtotalProducts !== undefined && order.subtotalProducts !== null ? Number(order.subtotalProducts) : 0;
 };
 
 const buildMonthlySummaries = (orders: SalesReportOrder[]) => {
@@ -92,12 +85,12 @@ const buildMonthlySummaries = (orders: SalesReportOrder[]) => {
 
     const row = buckets.get(month)!;
     const summary = order.itemsSummary || "";
-    const quantity = getQuantity(summary);
+    const quantity = order.totalUnits ?? getQuantity(summary);
 
     row.revenue += getRevenue(order);
     row.transactions += 1;
     row.units += quantity;
-    row.cogs += getCogsPerUnit(summary) * quantity;
+    row.cogs += order.totalCogs ?? 0;
   }
 
   const months = [...buckets.keys()].sort();
@@ -311,6 +304,7 @@ export function generateSalesReportPdf(
   const revenue = selected.reduce((sum, row) => sum + row.revenue, 0);
   const transactions = selected.reduce((sum, row) => sum + row.transactions, 0);
   const units = selected.reduce((sum, row) => sum + row.units, 0);
+  const missingCogs = periodOrders.some(order => order.totalCogs == null);
   const cogs = selected.reduce((sum, row) => sum + row.cogs, 0);
   const estimatedProfit = revenue - cogs;
   const margin = revenue > 0 ? (estimatedProfit / revenue) * 100 : 0;
@@ -326,18 +320,18 @@ export function generateSalesReportPdf(
   drawKpi(doc, 14, 56, 88, "TOTAL OMZET", rupiah(revenue));
   drawKpi(doc, 108, 56, 88, "TRANSAKSI", String(transactions));
   drawKpi(doc, 14, 80, 88, "UNIT TERJUAL", String(units));
-  drawKpi(doc, 108, 80, 88, "ESTIMASI LABA KOTOR", rupiah(estimatedProfit));
+  drawKpi(doc, 108, 80, 88, "ESTIMASI LABA KOTOR", missingCogs ? "HPP belum lengkap" : rupiah(estimatedProfit));
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(...MUTED);
   doc.text(
-    `Estimasi margin laba kotor: ${margin.toFixed(1)}%`,
+    missingCogs ? "Margin belum tersedia: HPP belum lengkap." : `Estimasi margin laba kotor: ${margin.toFixed(1)}%`,
     14,
     107
   );
   doc.text(
-    `Estimasi HPP: ${rupiah(cogs)} | Dasar omzet: subtotal produk jika tersedia, jika tidak menggunakan grandTotal.`,
+    missingCogs ? "Modal belum lengkap. Omzet memakai subtotal produk tersimpan." : `Estimasi HPP master saat ini: ${rupiah(cogs)} | Omzet: subtotal produk tersimpan.`,
     14,
     113,
     { maxWidth: 180 }
@@ -365,9 +359,9 @@ export function generateSalesReportPdf(
       rupiah(row.revenue),
       String(row.transactions),
       String(row.units),
-      rupiah(row.cogs),
-      rupiah(row.estimatedProfit),
-      `${row.estimatedMargin.toFixed(1)}%`,
+      missingCogs ? "Belum lengkap" : rupiah(row.cogs),
+      missingCogs ? "Belum tersedia" : rupiah(row.estimatedProfit),
+      missingCogs ? "-" : `${row.estimatedMargin.toFixed(1)}%`,
     ]),
     theme: "grid",
     styles: {

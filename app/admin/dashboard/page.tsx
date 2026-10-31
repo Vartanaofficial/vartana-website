@@ -1,9 +1,12 @@
 "use client";
+import { analyzeOrderItems, type AnalysisProduct } from "@/lib/admin-order-analysis";
+import { orderFinancialIssues } from "@/lib/order-financials";
 import { generateSalesReportPdf } from "./pdf-report";
 
 import { useState, useEffect, useMemo } from "react";
 
 type OrderItem = {
+  rowKey?: string;
   orderSerial: string;
   memberId: string;
   customerName: string;
@@ -23,6 +26,7 @@ type OrderItem = {
 };
 
 type MemberItem = {
+  rowKey?: string;
   memberId: string;
   name: string;
   email: string;
@@ -31,11 +35,6 @@ type MemberItem = {
   cityName: string;
   districtName: string;
   totalOrders?: number;
-};
-
-const ADMIN_CREDENTIALS = {
-  username: "adminvartana",
-  accessCode: "VARTANA2026",
 };
 
 export default function AdminDashboard() {
@@ -51,8 +50,10 @@ export default function AdminDashboard() {
   const [authError, setAuthError] = useState<string>("");
 
   const [activeTab, setActiveTab] = useState<"orders" | "members">("orders");
+  const [products, setProducts] = useState<AnalysisProduct[]>([]);
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [members, setMembers] = useState<MemberItem[]>([]);
+  const [dataError, setDataError] = useState("");
   const [loading, setLoading] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -73,115 +74,49 @@ export default function AdminDashboard() {
       const res = await fetch("/api/admin/data");
       if (!res.ok) throw new Error("Gagal mengambil data dari server");
       const data = await res.json();
-      if (data.orders) setOrders(data.orders);
-      if (data.members) setMembers(data.members);
+      if (!Array.isArray(data.orders) || !Array.isArray(data.members)) throw new Error("Respons data pesanan tidak valid.");
+      setOrders(data.orders.map((order: OrderItem, index: number) => ({ ...order, rowKey: `order-row-${index}` })));
+      setProducts(Array.isArray(data.products) ? data.products : []);
+      setMembers(data.members.map((member: MemberItem, index: number) => ({ ...member, rowKey: `member-row-${index}` })));
+      setDataError("");
     } catch (err) {
-      console.warn("API lambat, menggunakan fallback data aman:", err);
-      setOrders([
-        {
-          orderSerial: "TRX-001",
-          memberId: "M001",
-          customerName: "Budi Santoso",
-          phone: "08123456789",
-          email: "budi@mail.com",
-          addressDetail: "Jakarta",
-          sku: "VRT-01",
-          itemsSummary: "Signature Blend (10 Tea Bags) (2x)",
-          subtotalProducts: 145600,
-          originalShipping: 15000,
-          shippingSubsidy: 10000,
-          customerShippingFee: 5000,
-          grandTotal: 150600,
-          status: "SELESAI",
-          resiJNT: "JP123456",
-          createdAt: "2026-06-01 10:00:00",
-        },
-        {
-          orderSerial: "TRX-002",
-          memberId: "M002",
-          customerName: "Siti Rahma",
-          phone: "08987654321",
-          email: "siti@mail.com",
-          addressDetail: "Bandung",
-          sku: "VRT-04",
-          itemsSummary: "Personal Pack (5 Tea Bags) (3x)",
-          subtotalProducts: 120000,
-          originalShipping: 12000,
-          shippingSubsidy: 5000,
-          customerShippingFee: 7000,
-          grandTotal: 125000,
-          status: "DIKIRIM",
-          resiJNT: "JP789012",
-          createdAt: "2026-06-02 11:30:00",
-        },
-        {
-          orderSerial: "TRX-003",
-          memberId: "M003",
-          customerName: "Ahmad Fauzi",
-          phone: "0811223344",
-          email: "ahmad@mail.com",
-          addressDetail: "Surabaya",
-          sku: "VRT-01",
-          itemsSummary: "Signature Blend (10 Tea Bags) (1x)",
-          subtotalProducts: 72800,
-          originalShipping: 10000,
-          shippingSubsidy: 5000,
-          customerShippingFee: 5000,
-          grandTotal: 77800,
-          status: "SELESAI",
-          resiJNT: "JP998877",
-          createdAt: "2026-06-25 14:20:00",
-        },
-      ]);
+      setDataError(err instanceof Error ? err.message : "Data dashboard gagal dimuat.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const savedAuth = sessionStorage.getItem("vartana_admin_auth");
-    if (savedAuth === "true") {
-      setIsAuthenticated(true);
-      fetchDashboardData();
-    }
-    const savedProfitAuth = sessionStorage.getItem("vartana_profit_auth");
-    if (savedProfitAuth === "true") {
-      setIsProfitAuthenticated(true);
-    }
+    fetch("/api/admin/auth/session", { cache: "no-store" }).then(res => res.json()).then(data => {
+      if (data.authenticated) { setIsAuthenticated(true); void fetchDashboardData(); }
+    }).catch(() => setAuthError("Sesi belum dapat diverifikasi. Silakan login kembali."));
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (inputUsername.trim().toLowerCase() === ADMIN_CREDENTIALS.username && inputAccessCode.trim() === ADMIN_CREDENTIALS.accessCode) {
-      setIsAuthenticated(true);
-      sessionStorage.setItem("vartana_admin_auth", "true");
-      setAuthError("");
-      fetchDashboardData();
-    } else {
-      setAuthError("Username atau Kode Akses yang Anda masukkan salah!");
-    }
+  const authenticate = async (username: string, password: string) => {
+    const response = await fetch("/api/admin/auth/login", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.message || "Login gagal.");
   };
-
-  const handleProfitLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (profitUsername.trim().toLowerCase() === "adminvartana" && profitPin.trim() === "281023") {
-      setIsProfitAuthenticated(true);
-      sessionStorage.setItem("vartana_profit_auth", "true");
-      setProfitAuthError("");
-    } else {
-      setProfitAuthError("Username atau PIN Keuangan salah!");
-    }
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault(); setAuthError("");
+    try { await authenticate(inputUsername, inputAccessCode); setInputAccessCode(""); setIsAuthenticated(true); await fetchDashboardData(); }
+    catch (error) { setAuthError(error instanceof Error ? error.message : "Login gagal."); }
   };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setIsProfitAuthenticated(false);
-    sessionStorage.removeItem("vartana_admin_auth");
-    sessionStorage.removeItem("vartana_profit_auth");
-    setInputUsername("");
-    setInputAccessCode("");
-    setProfitUsername("");
-    setProfitPin("");
+  const handleProfitLogin = async (e: React.FormEvent) => {
+    e.preventDefault(); setProfitAuthError("");
+    try { await authenticate(profitUsername, profitPin); setProfitPin(""); setIsProfitAuthenticated(true); }
+    catch (error) { setProfitAuthError(error instanceof Error ? error.message : "Login gagal."); }
+  };
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/admin/auth/logout", { method: "POST" });
+      if (!response.ok) throw new Error("Logout gagal. Coba lagi.");
+      setIsAuthenticated(false); setIsProfitAuthenticated(false); setOrders([]); setMembers([]);
+      setInputUsername(""); setInputAccessCode(""); setProfitUsername(""); setProfitPin("");
+      window.location.href = "/admin-access";
+    } catch (error) { setDataError(error instanceof Error ? error.message : "Logout gagal."); }
   };
 
   const handleUpdateOrder = async (orderSerial: string) => {
@@ -245,16 +180,15 @@ export default function AdminDashboard() {
         }
       }
       if (selectedSkuFilter) {
-        const skuString = ord.sku || "";
-        const summary = ord.itemsSummary || "";
-        if (selectedSkuFilter.includes("VRT-01") && !skuString.includes("VRT-01") && !summary.includes("Signature")) return false;
-        if (selectedSkuFilter.includes("VRT-04") && !skuString.includes("VRT-04") && !summary.includes("Warm")) return false;
-        if (selectedSkuFilter.includes("10S") && !summary.includes("10 Tea Bags")) return false;
-        if (selectedSkuFilter.includes("05S") && !summary.includes("5 Tea Bags")) return false;
+        if (!analyzeOrderItems(ord, products).items.some(item => item.product.sku === selectedSkuFilter)) return false;
       }
       return true;
     });
-  }, [orders, startDate, endDate, selectedSkuFilter]);
+  }, [orders, startDate, endDate, selectedSkuFilter, products]);
+
+  const financialIssues = filteredOrdersByPeriod.filter((order) => orderFinancialIssues(order).length > 0);
+  const validFinancialOrders = useMemo(() => filteredOrdersByPeriod.filter(order => ["PEMBAYARAN DITERIMA", "PESANAN DISIAPKAN", "DIKIRIM", "SELESAI"].includes(order.status)), [filteredOrdersByPeriod]);
+  const unknownNetCount = validFinancialOrders.filter(order => order.subtotalProducts == null || !Number.isFinite(Number(order.subtotalProducts))).length;
 
   const metrics = useMemo(() => {
     let grossTotal = 0;
@@ -266,10 +200,11 @@ export default function AdminDashboard() {
     let totalCogs = 0;
     let totalUnitsSold = 0;
 
-    filteredOrdersByPeriod.forEach((ord) => {
-      const grand = Number(ord.grandTotal || 0);
-      const net = Number(ord.subtotalProducts || grand);
-      const origShip = Number(ord.originalShipping || 0);
+    validFinancialOrders.forEach((ord) => {
+      const grand = Number.isFinite(Number(ord.grandTotal)) && Number(ord.grandTotal) <= Number.MAX_SAFE_INTEGER ? Number(ord.grandTotal || 0) : 0;
+      const net = ord.subtotalProducts == null ? 0 : Number(ord.subtotalProducts);
+      const shippingIssues = orderFinancialIssues(ord);
+      const origShip = shippingIssues.includes("originalShipping") || shippingIssues.includes("shippingMismatch") ? 0 : Number(ord.originalShipping || 0);
       const subShip = Number(ord.shippingSubsidy || 0);
       const custShip = Number(ord.customerShippingFee || 0);
 
@@ -279,27 +214,16 @@ export default function AdminDashboard() {
       shippingSubsidyTotal += subShip;
       customerShippingTotal += custShip;
 
-      const summary = ord.itemsSummary || "";
-      const matchQty = summary.match(/\((\d+)x\)/);
-      const qty = matchQty ? parseInt(matchQty[1]) : 1;
-      totalUnitsSold += qty;
-
-      if (summary.includes("5 Tea Bags")) {
-        totalRegularValue += 50000 * qty;
-        totalCogs += 15000 * qty;
-      } else if (summary.includes("Signature") || summary.includes("10 Tea Bags")) {
-        totalRegularValue += 97000 * qty;
-        totalCogs += 26400 * qty;
-      } else {
-        totalRegularValue += 97000 * qty;
-        totalCogs += 18139 * qty;
-      }
+      const analysis = analyzeOrderItems(ord, products);
+      totalUnitsSold += analysis.units;
+      totalRegularValue += analysis.regular ?? Number(ord.subtotalProducts || 0);
+      totalCogs += analysis.cogs ?? 0;
     });
 
-    const totalProductDiscount = Math.max(0, totalRegularValue - netSalesTotal);
+    const totalProductDiscount = unknownNetCount ? 0 : Math.max(0, totalRegularValue - netSalesTotal);
     const totalCombinedSubsidy = totalProductDiscount + shippingSubsidyTotal;
-    const totalOrdersCount = filteredOrdersByPeriod.length;
-    const aov = totalOrdersCount > 0 ? Math.round(netSalesTotal / totalOrdersCount) : 0;
+    const totalOrdersCount = validFinancialOrders.length;
+    const aov = totalOrdersCount > 0 ? Math.round(grossTotal / totalOrdersCount) : 0;
     const pphEstimated = Math.round(grossTotal * 0.005);
 
     const grossProfit = netSalesTotal - totalCogs;
@@ -331,7 +255,7 @@ export default function AdminDashboard() {
       discountPercent,
       subsidyPercent,
     };
-  }, [filteredOrdersByPeriod]);
+  }, [validFinancialOrders, products, unknownNetCount]);
 
   // ANALISIS TRAFFIC OMSET HARIAN & HARI DALAM SEMINGGU
   const trafficAnalysis = useMemo(() => {
@@ -357,7 +281,7 @@ export default function AdminDashboard() {
 
     const byDateNum: Record<string, { count: number; omset: number }> = {};
 
-    filteredOrdersByPeriod.forEach((ord) => {
+    validFinancialOrders.forEach((ord) => {
       if (!ord.createdAt) return;
       const datePart = ord.createdAt.split(" ")[0]; // YYYY-MM-DD
       const dateObj = new Date(datePart);
@@ -365,7 +289,7 @@ export default function AdminDashboard() {
 
       const dayName = daysNameMap[dateObj.getDay().toString()] || "Senin";
       const dayNum = dateObj.getDate().toString(); // Tanggal 1 s.d 31
-      const net = Number(ord.subtotalProducts || ord.grandTotal || 0);
+      const net = Number(ord.subtotalProducts ?? 0);
 
       if (byDayOfWeek[dayName]) {
         byDayOfWeek[dayName].count += 1;
@@ -380,48 +304,24 @@ export default function AdminDashboard() {
     });
 
     return { byDayOfWeek, byDateNum };
-  }, [filteredOrdersByPeriod]);
+  }, [validFinancialOrders]);
 
   const skuStats = useMemo(() => {
-    const stats: Record<string, { name: string; size: string; hppPerPouch: number; qty: number; omset: number }> = {
-      "VRT-01-10S": { name: "Signature Blend (9gr)", size: "10 Tea Bags Pouch", hppPerPouch: 26400, qty: 0, omset: 0 },
-      "VRT-01-05S": { name: "Personal Pack", size: "5 Tea Bags Pack", hppPerPouch: 15000, qty: 0, omset: 0 },
-      "VRT-02-10S": { name: "Morning Energy", size: "10 Tea Bags Pouch", hppPerPouch: 26400, qty: 0, omset: 0 },
-      "VRT-04-10S": { name: "Warm Balance", size: "10 Tea Bags Pouch", hppPerPouch: 26400, qty: 0, omset: 0 },
-    };
-
-    orders.forEach((ord) => {
-      if (startDate || endDate) {
-        const ordDateStr = ord.createdAt ? ord.createdAt.split(" ")[0] : "";
-        if (ordDateStr) {
-          if (startDate && ordDateStr < startDate) return;
-          if (endDate && ordDateStr > endDate) return;
-        }
-      }
-
-      const summary = ord.itemsSummary || "";
-      const skuString = ord.sku || "";
-      const net = Number(ord.subtotalProducts || ord.grandTotal || 0);
-      const matchQty = summary.match(/\((\d+)x\)/);
-      const qtyCount = matchQty ? parseInt(matchQty[1]) : 1;
-
-      if (summary.includes("5 Tea Bags") || skuString.includes("05S")) {
-        stats["VRT-01-05S"].qty += qtyCount;
-        stats["VRT-01-05S"].omset += net;
-      } else if (summary.includes("Signature") || skuString.includes("VRT-01")) {
-        stats["VRT-01-10S"].qty += qtyCount;
-        stats["VRT-01-10S"].omset += net;
-      } else if (summary.includes("Warm") || skuString.includes("VRT-04")) {
-        stats["VRT-04-10S"].qty += qtyCount;
-        stats["VRT-04-10S"].omset += net;
-      } else {
-        stats["VRT-01-10S"].qty += qtyCount;
-        stats["VRT-01-10S"].omset += net;
-      }
+    const stats: Record<string, { name: string; size: string; hppPerPouch: number; qty: number; omset: number }> = {};
+    validFinancialOrders.forEach((order) => {
+      const analysis = analyzeOrderItems(order, products);
+      const weight = analysis.items.reduce((sum, item) => sum + item.net, 0);
+      analysis.items.forEach((item) => {
+        const p = item.product;
+        const row = stats[p.sku] ||= { name: p.productName, size: p.variantName || "", hppPerPouch: Number(p.hpp) || 0, qty: 0, omset: 0 };
+        row.qty += item.qty;
+        row.omset += weight ? (analysis.net || 0) * item.net / weight : 0;
+      });
     });
-
     return stats;
-  }, [orders, startDate, endDate]);
+  }, [validFinancialOrders, products]);
+  const missingCostCount = validFinancialOrders.filter(order => analyzeOrderItems(order, products).cogs === null).length;
+  const recoveredCount = orders.filter(order => (order as OrderItem & { recoveredLegacy?: boolean }).recoveredLegacy).length;
 
   const finalFilteredOrders = useMemo(() => {
     return filteredOrdersByPeriod.filter((ord) => {
@@ -513,10 +413,10 @@ export default function AdminDashboard() {
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-[#16382A] mb-1">Kode Akses / PIN</label>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-[#16382A] mb-1">Password Admin</label>
               <input
                 type="password"
-                placeholder="Masukkan PIN Akses"
+                placeholder="Masukkan password admin"
                 value={inputAccessCode}
                 onChange={(e) => setInputAccessCode(e.target.value)}
                 className="w-full rounded-2xl border border-[#16382A]/20 bg-white p-3.5 text-xs text-[#16382A] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#B69245]"
@@ -575,10 +475,10 @@ export default function AdminDashboard() {
               </button>
             </>
           )}
-                    <button onClick={() => { const valid = orders.filter((o) => o.createdAt && /^\d{4}-\d{2}/.test(o.createdAt)); if (!valid.length) { alert("Tidak ada transaksi yang tersedia untuk dibuat menjadi PDF."); return; } try { generateSalesReportPdf(valid, "all"); } catch (e) { alert(e instanceof Error ? e.message : "PDF gagal dibuat."); } }} className="rounded-full border border-[#16382A]/20 bg-white px-3 py-2 text-xs font-bold text-[#16382A] hover:bg-[#16382A] hover:text-white transition">
+                    <button onClick={() => { const valid = orders.filter((o) => o.subtotalProducts != null && o.createdAt && /^\d{4}-\d{2}/.test(o.createdAt)); if (!valid.length) { alert("Tidak ada transaksi yang tersedia untuk dibuat menjadi PDF."); return; } try { generateSalesReportPdf(valid.map(order => ({ ...order, totalCogs: analyzeOrderItems(order, products).cogs, totalUnits: analyzeOrderItems(order, products).units })), "all"); } catch (e) { alert(e instanceof Error ? e.message : "PDF gagal dibuat."); } }} className="rounded-full border border-[#16382A]/20 bg-white px-3 py-2 text-xs font-bold text-[#16382A] hover:bg-[#16382A] hover:text-white transition">
             📄 Download PDF Semua Periode
           </button>
-          <button onClick={() => { const month = new Date().toISOString().slice(0, 7); const valid = orders.filter((o) => o.createdAt && o.createdAt.slice(0, 7) === month); if (!valid.length) { alert("Tidak ada transaksi untuk bulan ini."); return; } try { generateSalesReportPdf(valid, "monthly", month); } catch (e) { alert(e instanceof Error ? e.message : "PDF gagal dibuat."); } }} className="rounded-full border border-[#B69245] bg-[#FFFDF9] px-3 py-2 text-xs font-bold text-[#8E6E2E] hover:bg-[#B69245] hover:text-white transition">
+          <button onClick={() => { const month = new Date().toISOString().slice(0, 7); const valid = orders.filter((o) => o.subtotalProducts != null && o.createdAt && o.createdAt.slice(0, 7) === month); if (!valid.length) { alert("Tidak ada transaksi untuk bulan ini."); return; } try { generateSalesReportPdf(valid.map(order => ({ ...order, totalCogs: analyzeOrderItems(order, products).cogs, totalUnits: analyzeOrderItems(order, products).units })), "monthly", month); } catch (e) { alert(e instanceof Error ? e.message : "PDF gagal dibuat."); } }} className="rounded-full border border-[#B69245] bg-[#FFFDF9] px-3 py-2 text-xs font-bold text-[#8E6E2E] hover:bg-[#B69245] hover:text-white transition">
             📄 Download PDF Bulan Ini
           </button>
           <button onClick={fetchDashboardData} className="rounded-full border border-[#16382A]/20 bg-white px-3 py-2 text-xs font-bold text-[#16382A] hover:bg-[#16382A] hover:text-white transition">
@@ -590,6 +490,13 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {unknownNetCount > 0 && <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">Total transfer mencakup seluruh pesanan berstatus pembayaran diterima sampai selesai. Net Sales baru mencakup nominal yang terverifikasi; {unknownNetCount} pesanan masih perlu rincian ongkir. Pesanan menunggu pembayaran tidak masuk omzet diterima.</div>}
+      {recoveredCount > 0 && <div className="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-blue-950">{recoveredCount} pesanan lama dipulihkan dari susunan kolom lama. Total transfer tersimpan digunakan kembali; rincian ongkir/subsidi yang belum pasti perlu diverifikasi.</div>}
+      {missingCostCount > 0 && <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">HPP belum tersedia untuk {missingCostCount} pesanan. Isi modal per SKU di master Products. Laba dan margin belum dapat dipastikan; perhitungan modal memakai HPP master saat ini.</div>}
+      {dataError && <div role="alert" className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">{dataError} Gunakan tombol refresh untuk mencoba lagi.</div>}
+      {financialIssues.length > 0 && <div role="alert" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+        <strong>{financialIssues.length} pesanan memiliki nominal kosong atau tidak konsisten.</strong> Pesanan tetap ada di tabel. Nominal yang belum valid tidak dijumlahkan; Net Sales yang terbaca tetap dihitung. Periksa subtotal, ongkir, subsidi, dan grand total di sheet Orders. Rp0 pada ringkasan tidak berarti tidak ada transaksi.
+      </div>}
       {activeMenuTab === "omset" ? (
         <>
           <div className="mt-4 md:mt-6 rounded-2xl md:rounded-3xl border border-[#B69245]/30 bg-white p-3.5 md:p-5 shadow-xs space-y-3">
@@ -673,7 +580,7 @@ export default function AdminDashboard() {
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#8E6E2E]">📊 KOMPOSISI DISKON & SUBSIDI TOKO</span>
                   <span className="text-xs font-extrabold text-[#16382A]">Total: {formatRupiah(metrics.totalCombinedSubsidy)}</span>
                 </div>
-                <p className="text-[11px] text-[#526158]">Perbandingan total diskon produk murni vs subsidi ongkir toko</p>
+                <p className="text-[11px] text-[#526158]">Estimasi dari harga master saat ini; belum tersedia jika Net Sales belum lengkap</p>
               </div>
               <div>
                 <div className="h-3.5 w-full overflow-hidden rounded-full bg-gray-100 flex p-0.5 border border-gray-200">
@@ -683,7 +590,7 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-2 gap-2 mt-3 text-[11px] font-bold">
                   <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-2.5">
                     <span className="text-amber-800 block text-[9px] uppercase">Diskon Retail Produk</span>
-                    <span className="text-amber-900 text-sm font-serif font-bold">{formatRupiah(metrics.totalProductDiscount)}</span>
+                    <span className="text-amber-900 text-sm font-serif font-bold">{unknownNetCount ? "Belum lengkap" : formatRupiah(metrics.totalProductDiscount)}</span>
                     <span className="text-[9px] text-amber-700 block font-normal mt-0.5">Porsi: {metrics.discountPercent}%</span>
                   </div>
                   <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-2.5">
@@ -700,7 +607,7 @@ export default function AdminDashboard() {
             <div className="rounded-2xl border border-gray-200 bg-white p-3 md:p-4 shadow-xs">
               <p className="text-[9px] font-bold uppercase text-gray-400">1. Omset Reguler Katalog</p>
               <p className="font-serif text-base md:text-xl font-bold text-gray-600 mt-1">{formatRupiah(metrics.totalRegularValue)}</p>
-              <p className="text-[9px] text-gray-400 mt-0.5">Harga Tanpa Diskon</p>
+              <p className="text-[9px] text-gray-400 mt-0.5">Estimasi harga master saat ini</p>
             </div>
             <div className="rounded-2xl border border-[#B69245]/40 bg-white p-3 md:p-4 shadow-xs">
               <p className="text-[9px] font-bold uppercase text-[#8E6E2E]">2. Net Sales (Omset Produk)</p>
@@ -871,7 +778,7 @@ export default function AdminDashboard() {
                     {finalFilteredOrders.map((ord) => {
                       const isEditing = editingSerial === ord.orderSerial;
                       return (
-                        <tr key={ord.orderSerial} className="hover:bg-gray-50/80 transition">
+                        <tr key={ord.rowKey || ord.orderSerial} className="hover:bg-gray-50/80 transition">
                           <td className="p-3 align-top font-mono">
                             <span className="font-bold text-[#8E6E2E] block text-xs">{ord.orderSerial}</span>
                             <span className="text-[10px] text-gray-400">{ord.createdAt || "-"}</span>
@@ -884,7 +791,7 @@ export default function AdminDashboard() {
                             {ord.sku && <span className="font-mono text-[9px] bg-gray-100 px-1.5 py-0.5 rounded mr-1 font-bold">{ord.sku}</span>}
                             <p className="text-gray-700 font-medium text-[11px] truncate md:whitespace-normal">{ord.itemsSummary}</p>
                           </td>
-                          <td className="p-3 align-top text-right font-semibold text-[#16382A]">{formatRupiah(Number(ord.subtotalProducts || ord.grandTotal))}</td>
+                          <td className="p-3 align-top text-right font-semibold text-[#16382A]">{ord.subtotalProducts == null ? "Perlu verifikasi" : formatRupiah(Number(ord.subtotalProducts))}</td>
                           <td className="p-3 align-top text-right text-rose-600 font-medium">-{formatRupiah(Number(ord.shippingSubsidy || 0))}</td>
                           <td className="p-3 align-top text-right font-bold text-[#8E6E2E]">{formatRupiah(Number(ord.grandTotal))}</td>
                           <td className="p-3 align-top">
@@ -961,7 +868,7 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody className="divide-y divide-gray-100 text-[11px]">
                     {filteredMembers.map((m) => (
-                      <tr key={m.memberId} className="hover:bg-gray-50/80 transition">
+                      <tr key={m.rowKey || m.memberId} className="hover:bg-gray-50/80 transition">
                         <td className="p-3 font-mono font-bold text-[#8E6E2E]">{m.memberId}</td>
                         <td className="p-3 font-bold text-[#16382A]">{m.name}</td>
                         <td className="p-3 font-mono">{m.phone}</td>
@@ -1001,10 +908,10 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#16382A] mb-1">PIN Keuangan</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#16382A] mb-1">Password Admin</label>
                   <input
                     type="password"
-                    placeholder="Masukkan PIN..."
+                    placeholder="Password admin yang sama dengan login workspace"
                     value={profitPin}
                     onChange={(e) => setProfitPin(e.target.value)}
                     className="w-full rounded-2xl border border-gray-300 p-3.5 text-xs text-[#16382A] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#B69245]"
@@ -1046,14 +953,14 @@ export default function AdminDashboard() {
                 </div>
                 <div className="rounded-3xl border border-[#B69245]/30 bg-white p-5 shadow-xs">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Gross Profit & Margin</p>
-                  <h3 className="text-2xl font-serif font-bold text-emerald-800 mt-2">{formatRupiah(metrics.grossProfit)}</h3>
-                  <span className="text-[10px] text-emerald-600 font-semibold mt-1 block">Margin: {metrics.grossMargin}% dari Net Sales</span>
+                  <h3 className="text-2xl font-serif font-bold text-emerald-800 mt-2">{missingCostCount || unknownNetCount ? "Data belum lengkap" : formatRupiah(metrics.grossProfit)}</h3>
+                  <span className="text-[10px] text-emerald-600 font-semibold mt-1 block">Margin: {missingCostCount || unknownNetCount ? "?" : `${metrics.grossMargin}%`} dari Net Sales</span>
                 </div>
                 <div className="rounded-3xl border border-[#B69245]/30 bg-gradient-to-br from-[#16382A] to-[#0D261C] p-5 text-white shadow-md">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Net Profit & Margin</p>
-                  <h3 className="text-2xl font-serif font-bold text-white mt-2">{formatRupiah(metrics.netProfit)}</h3>
+                  <h3 className="text-2xl font-serif font-bold text-white mt-2">{missingCostCount || unknownNetCount ? "Data belum lengkap" : formatRupiah(metrics.netProfit)}</h3>
                   <span className="text-[10px] text-emerald-300 font-semibold mt-1 block">
-                    Margin Bersih: {metrics.netMargin}% (AOV: {formatRupiah(metrics.aov)})
+                    Margin Bersih: {missingCostCount || unknownNetCount ? "?" : `${metrics.netMargin}%`} (AOV: {formatRupiah(metrics.aov)})
                   </span>
                 </div>
               </div>
@@ -1089,9 +996,9 @@ export default function AdminDashboard() {
                                   {item.size} — <code className="font-mono text-[#8E6E2E]">{code}</code>
                                 </span>
                               </td>
-                              <td className="py-3 px-3 text-center font-mono text-gray-600">{formatRupiah(item.hppPerPouch)}</td>
+                              <td className="py-3 px-3 text-center font-mono text-gray-600">{item.hppPerPouch > 0 ? formatRupiah(item.hppPerPouch) : "Belum diisi"}</td>
                               <td className="py-3 px-3 text-center font-bold text-[#16382A]">{item.qty} Pouch</td>
-                              <td className="py-3 px-3 text-right font-semibold text-red-600">{formatRupiah(totalSkuHpp)}</td>
+                              <td className="py-3 px-3 text-right font-semibold text-red-600">{item.hppPerPouch > 0 ? formatRupiah(totalSkuHpp) : "Belum diisi"}</td>
                               <td className="py-3 px-3 text-right font-bold text-[#8E6E2E]">{formatRupiah(item.omset)}</td>
                             </tr>
                           );
@@ -1167,13 +1074,13 @@ export default function AdminDashboard() {
                       </tr>
                       <tr>
                         <td className="py-3.5 px-4 text-gray-700">Total COGS (HPP / Modal Produksi Seluruh Unit Terjual)</td>
-                        <td className="py-3.5 px-4 text-red-600 font-semibold">({formatRupiah(metrics.totalCogs)})</td>
+                        <td className="py-3.5 px-4 text-red-600 font-semibold">({missingCostCount || unknownNetCount ? "Data belum lengkap" : formatRupiah(metrics.totalCogs)})</td>
                         <td className="py-3.5 px-4 text-gray-500">{metrics.netSalesTotal > 0 ? Math.round((metrics.totalCogs / metrics.netSalesTotal) * 100) : 0}%</td>
                       </tr>
                       <tr className="bg-amber-50/50">
                         <td className="py-3.5 px-4 font-bold text-[#8E6E2E]">Gross Profit (Laba Kotor Dagang)</td>
-                        <td className="py-3.5 px-4 font-bold text-[#8E6E2E]">{formatRupiah(metrics.grossProfit)}</td>
-                        <td className="py-3.5 px-4 font-bold text-[#8E6E2E]">{metrics.grossMargin}%</td>
+                        <td className="py-3.5 px-4 font-bold text-[#8E6E2E]">{missingCostCount || unknownNetCount ? "Data belum lengkap" : formatRupiah(metrics.grossProfit)}</td>
+                        <td className="py-3.5 px-4 font-bold text-[#8E6E2E]">{missingCostCount || unknownNetCount ? "?" : `${metrics.grossMargin}%`}</td>
                       </tr>
                       <tr>
                         <td className="py-3.5 px-4 text-gray-700">Total Biaya Operasional / Subsidi Ongkir Toko</td>
@@ -1182,8 +1089,8 @@ export default function AdminDashboard() {
                       </tr>
                       <tr className="bg-emerald-50/80 border-t-2 border-emerald-200">
                         <td className="py-4 px-4 font-serif text-sm font-bold text-emerald-900">NET PROFIT (Laba Bersih Akhir)</td>
-                        <td className="py-4 px-4 font-serif text-sm font-bold text-emerald-900">{formatRupiah(metrics.netProfit)}</td>
-                        <td className="py-4 px-4 font-serif text-sm font-bold text-emerald-900">{metrics.netMargin}%</td>
+                        <td className="py-4 px-4 font-serif text-sm font-bold text-emerald-900">{missingCostCount || unknownNetCount ? "Data belum lengkap" : formatRupiah(metrics.netProfit)}</td>
+                        <td className="py-4 px-4 font-serif text-sm font-bold text-emerald-900">{missingCostCount || unknownNetCount ? "?" : `${metrics.netMargin}%`}</td>
                       </tr>
                     </tbody>
                   </table>

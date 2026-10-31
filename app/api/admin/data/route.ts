@@ -1,17 +1,16 @@
 ﻿import { NextResponse } from "next/server";
+import { recoverLegacyOrder } from "@/lib/admin-order-analysis";
+import { masterScriptUrl } from "@/lib/master-products";
 
 const REQUEST_TIMEOUT_MS = 30000;
 
 export async function GET() {
-  const GOOGLE_SCRIPT_URL =
-    process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL ||
-    "https://script.google.com/macros/s/AKfycbwlkCGZevJQeGSgU714QpIICydQnsDBBQ_l_VSZHKis4FF9ocjeWU9sLat2wiJcLBdh/exec";
-
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    const url = `${GOOGLE_SCRIPT_URL}?action=getAdminData`;
+    const url = masterScriptUrl();
+    url.searchParams.set("action", "getAdminData");
 
     const res = await fetch(url, {
       cache: "no-store",
@@ -50,7 +49,7 @@ export async function GET() {
 
     const data = await res.json();
 
-    if (!data || typeof data !== "object") {
+    if (!data || !Array.isArray(data.orders) || !Array.isArray(data.members)) {
       console.error("Data Google Apps Script tidak valid:", data);
 
       return NextResponse.json(
@@ -59,7 +58,7 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json({ ...data, orders: data.orders.map(recoverLegacyOrder) });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       console.error("Google Apps Script request timeout.");

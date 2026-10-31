@@ -36,3 +36,6 @@ CARA ISI PROMOTIONS
 BATAS VALIDASI
 Script sudah diuji sintaks dan simulasi spreadsheet lokal. Belum dijalankan atau dipasang ke akun Google kamu. Sesi clasp sebelumnya kedaluwarsa; file ini disiapkan untuk pemasangan manual.
 Pembaruan ini fokus pada promo dan pencatatan order. Ini bukan penyelesaian seluruh temuan audit keamanan Apps Script; pembatasan akses endpoint langsung tetap perlu ditangani terpisah.
+
+PERBAIKAN PEMBACAAN DASHBOARD
+Orders dibaca berdasarkan nama header, mendukung nominal teks Rp72.800, dan mempertahankan subsidi 0. Nilai kosong tidak ditebak. Ganti seluruh kode Apps Script dengan file TXT terbaru, simpan, lalu Deploy > Manage deployments > Edit > New version > Deploy pada deployment yang sama. Tidak perlu menjalankan setupAndMigrateSheet untuk perbaikan ini.

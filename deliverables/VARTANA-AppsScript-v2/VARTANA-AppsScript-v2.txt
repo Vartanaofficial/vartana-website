@@ -983,138 +983,7 @@ function doGet(e) {
       action === "fetchOrders"
     ) {
 
-      var orders = [];
-
-
-      if (orderSheet) {
-
-        var rows =
-          orderSheet
-            .getDataRange()
-            .getValues();
-
-
-        for (
-          var a = 1;
-          a < rows.length;
-          a++
-        ) {
-
-          var dateVal =
-            rows[a][0];
-
-          var formattedDate =
-            dateVal
-              ? Utilities.formatDate(
-                  new Date(dateVal),
-                  ss.getSpreadsheetTimeZone(),
-                  "yyyy-MM-dd HH:mm"
-                )
-              : "-";
-
-
-          var grand =
-            Number(rows[a][13]) || 0;
-
-
-          var summary =
-            rows[a][8]
-              ? String(rows[a][8])
-              : "-";
-
-
-          var subtotal =
-            Number(rows[a][9]);
-
-
-          // --------------------------------------------------
-          // Legacy fallback hanya untuk ORDER LAMA
-          // --------------------------------------------------
-
-          if (!subtotal || subtotal === 0) {
-
-            subtotal =
-              getLegacySubtotalFallback(
-                summary
-              );
-          }
-
-
-          var custShip =
-            Number(rows[a][12]) > 0
-              ? Number(rows[a][12])
-              : Math.max(
-                  0,
-                  grand - subtotal
-                );
-
-
-          var subShip =
-            Number(rows[a][11]) > 0
-              ? Number(rows[a][11])
-              : 7000;
-
-
-          var origShip =
-            Number(rows[a][10]) > 0
-              ? Number(rows[a][10])
-              : custShip + subShip;
-
-
-          orders.push({
-
-            createdAt:
-              formattedDate,
-
-            orderSerial:
-              rows[a][1] || "-",
-
-            memberId:
-              rows[a][2] || "-",
-
-            customerName:
-              rows[a][3] || "-",
-
-            phone:
-              rows[a][4] || "-",
-
-            email:
-              rows[a][5] || "-",
-
-            addressDetail:
-              rows[a][6] || "-",
-
-            sku:
-              rows[a][7] || "VRT-01-10S",
-
-            itemsSummary:
-              summary,
-
-            subtotalProducts:
-              subtotal,
-
-            originalShipping:
-              origShip,
-
-            shippingSubsidy:
-              subShip,
-
-            customerShippingFee:
-              custShip,
-
-            grandTotal:
-              grand,
-
-            status:
-              rows[a][14] ||
-              "PEMBAYARAN DITERIMA",
-
-            resiJNT:
-              rows[a][15] || "-"
-          });
-        }
-      }
-
+      var orders = vartanaReadOrders_(orderSheet);
 
       // ------------------------------------------------------
       // MEMBERS
@@ -3179,4 +3048,76 @@ function saveRetailOrderWithPromo_(data) {
     recordCheckoutPromoOnOrder_(sheet,row,data);
     return responseJSON({status:'success',success:true,orderSerial:serial,subtotalProducts:subtotal});
   }finally{lock.releaseLock();}
+}
+
+// Read by header: a tracking number must never become a shipping amount.
+function vartanaReadMoney_(value) {
+  if (typeof value === 'number') return isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER ? value : null;
+  if (typeof value !== 'string' || !value.trim()) return null;
+  var text = value.trim().replace(/^Rp\.?\s*/i, '').replace(/\s/g, '');
+  if (/^\d{1,3}(\.\d{3})+(,\d{1,2})?$/.test(text)) text = text.replace(/\./g, '').replace(',', '.');
+  else if (/^\d{1,3}(,\d{3})+(\.\d{1,2})?$/.test(text)) text = text.replace(/,/g, '');
+  else if (/^\d+(,\d{1,2})?$/.test(text)) text = text.replace(',', '.');
+  else if (!/^\d+(\.\d{1,2})?$/.test(text)) return null;
+  var number = Number(text);
+  return isFinite(number) && number >= 0 && number <= Number.MAX_SAFE_INTEGER ? number : null;
+}
+
+function vartanaReadOrders_(sheet) {
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  var rows = sheet.getDataRange().getValues();
+  function normalize(value) { return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''); }
+  var headers = rows[0].map(normalize);
+  function cell(row, names) {
+    for (var n = 0; n < names.length; n++) {
+      var index = headers.indexOf(normalize(names[n]));
+      if (index >= 0) return row[index];
+    }
+    return '';
+  }
+  function text(row, names) { return String(cell(row, names) || ''); }
+  function money(row, names) { return vartanaReadMoney_(cell(row, names)); }
+  var output = [];
+  for (var i = 1; i < rows.length; i++) {
+    var row = rows[i], serial = text(row, ['Order Serial', 'Order ID', 'Nomor Order']);
+    if (!serial) continue;
+    var date = cell(row, ['Timestamp', 'Created At']);
+    var legacyTotal = vartanaReadMoney_(row[8]);
+    var legacy = /\(\d+\s*x\)/i.test(String(row[7] || '')) && legacyTotal !== null &&
+      (money(row, ['Grand Total', 'Total Pembayaran']) === null || money(row, ['Grand Total', 'Total Pembayaran']) === 0);
+    var record = {
+      createdAt: date ? formatKonsinyasiDateTime_(date) : '',
+      orderSerial: serial,
+      memberId: text(row, ['Member ID']),
+      customerName: text(row, ['Nama Customer', 'Customer Name']),
+      phone: text(row, ['No. WhatsApp', 'No. WA', 'Phone']),
+      email: text(row, ['Email']),
+      addressDetail: text(row, ['Detail Alamat', 'Address Detail']),
+      sku: text(row, ['SKU']),
+      itemsSummary: text(row, ['Items Summary']),
+      subtotalProducts: money(row, ['Subtotal Products', 'Net Sales', 'Net Sales (Omset Produk)']),
+      originalShipping: money(row, ['Original Shipping', 'Ongkir Asli']),
+      shippingSubsidy: money(row, ['Shipping Subsidy', 'Subsidi Ongkir']),
+      customerShippingFee: money(row, ['Customer Shipping Fee', 'Ongkir Customer']),
+      grandTotal: money(row, ['Grand Total', 'Total Pembayaran']),
+      status: text(row, ['Status']),
+      resiJNT: text(row, ['No. Resi J&T', 'Resi JNT']),
+      grossSubtotalProducts: money(row, ['Gross Subtotal Products']),
+      productDiscount: money(row, ['Product Discount'])
+    };
+    if (legacy) {
+      record.sku = '';
+      record.itemsSummary = String(row[7]);
+      record.grandTotal = legacyTotal;
+      record.customerShippingFee = vartanaReadMoney_(row[12]);
+      record.shippingSubsidy = vartanaReadMoney_(row[11]);
+      record.originalShipping = null;
+      record.subtotalProducts = record.customerShippingFee !== null && record.customerShippingFee <= legacyTotal ? legacyTotal - record.customerShippingFee : null;
+      record.status = String(row[9] || '');
+      record.resiJNT = String(row[10] || '');
+      record.recoveredLegacy = true;
+    }
+    output.push(record);
+  }
+  return output;
 }

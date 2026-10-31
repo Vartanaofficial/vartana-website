@@ -1,0 +1,320 @@
+﻿"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+
+type Mitra = { kodeMitra: string; namaToko: string; alamat?: string; namaPIC?: string; status?: string };
+type Product = { sku: string; namaProduk: string; kategori?: string; varian?: string; satuan: string; hargaKonsinyasi: number; status?: string };
+type Line = { sku: string; qty: number };
+type SO = {
+  nomorSO?: string;
+  tanggalSO?: string;
+  kodeMitra?: string;
+  namaToko?: string;
+  total?: number;
+  status?: string;
+  catatan?: string;
+  items?: Array<{ sku?: string; namaProduk?: string; qty?: number; hargaKonsinyasi?: number; subtotal?: number }>;
+};
+
+const inputClass = "w-full rounded-xl border border-[#dce5db] bg-white px-3.5 py-3 text-sm text-[#193d2b] outline-none focus:border-[#326b49] focus:ring-2 focus:ring-[#326b49]/10";
+const rupiah = (n: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(n) || 0);
+const today = () => new Date().toLocaleDateString("en-CA");
+
+export default function SalesOrderKonsinyasiPage() {
+  const [mitra, setMitra] = useState<Mitra[]>([]);
+  const [produk, setProduk] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<SO[]>([]);
+  const [tanggalSO, setTanggalSO] = useState(today());
+  const [kodeMitra, setKodeMitra] = useState("");
+  const [catatan, setCatatan] = useState("");
+  const [lines, setLines] = useState<Line[]>([{ sku: "", qty: 1 }]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [mRes, pRes, soRes] = await Promise.all([
+        fetch("/api/konsinyasi?action=getKonsinyasiMitra", { cache: "no-store" }),
+        fetch("/api/konsinyasi/produk?action=getKonsinyasiProduk", { cache: "no-store" }),
+        fetch("/api/konsinyasi/so?action=getKonsinyasiSO", { cache: "no-store" }),
+      ]);
+      const [mData, pData, soData] = await Promise.all([mRes.json(), pRes.json(), soRes.json()]);
+      if (!mRes.ok || mData.success === false) throw new Error(mData.message || "Gagal memuat master mitra.");
+      if (!pRes.ok || pData.success === false) throw new Error(pData.message || "Gagal memuat master produk.");
+      if (!soRes.ok || soData.success === false) throw new Error(soData.message || "Gagal memuat riwayat Sales Order.");
+      setMitra(Array.isArray(mData.mitra) ? mData.mitra : []);
+      setProduk(Array.isArray(pData.produk) ? pData.produk : []);
+      const rows = soData.salesOrder ?? soData.salesOrders ?? soData.data ?? [];
+      setOrders(Array.isArray(rows) ? rows : []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal memuat data Sales Order.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadAll();
+  }, [loadAll]);
+  const activeMitra = useMemo(() => mitra.filter((x) => String(x.status || "AKTIF").toUpperCase() === "AKTIF"), [mitra]);
+  const activeProducts = useMemo(() => produk.filter((x) => String(x.status || "AKTIF").toUpperCase() === "AKTIF"), [produk]);
+  const selectedMitra = activeMitra.find((x) => x.kodeMitra === kodeMitra);
+  const cart = lines
+    .map((line, index) => ({ ...line, index, product: activeProducts.find((p) => p.sku === line.sku), subtotal: (activeProducts.find((p) => p.sku === line.sku)?.hargaKonsinyasi || 0) * Math.max(0, Number(line.qty) || 0) }))
+    .filter((x) => x.sku);
+  const total = cart.reduce((sum, line) => sum + line.subtotal, 0);
+
+  function updateLine(index: number, field: keyof Line, value: string | number) {
+    setLines((current) => current.map((line, i) => (i === index ? { ...line, [field]: value } : line)));
+  }
+  function addLine() {
+    setLines((current) => [...current, { sku: "", qty: 1 }]);
+  }
+  function removeLine(index: number) {
+    setLines((current) => (current.length === 1 ? [{ sku: "", qty: 1 }] : current.filter((_, i) => i !== index)));
+  }
+
+  async function saveSO(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+    if (!selectedMitra) {
+      setError("Pilih mitra aktif terlebih dahulu.");
+      return;
+    }
+    if (!cart.length || cart.some((x) => !x.product || !Number.isInteger(Number(x.qty)) || Number(x.qty) < 1)) {
+      setError("Pilih minimal satu produk dan pastikan kuantitas berupa bilangan bulat minimal 1.");
+      return;
+    }
+    const seen = new Set<string>();
+    for (const item of cart) {
+      if (seen.has(item.sku)) {
+        setError("SKU yang sama tidak boleh dimasukkan dua kali. Ubah kuantitas pada baris SKU tersebut.");
+        return;
+      }
+      seen.add(item.sku);
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        tanggalSO,
+        kodeMitra: selectedMitra.kodeMitra,
+        namaToko: selectedMitra.namaToko,
+        catatan: catatan.trim(),
+        total,
+        items: cart.map((x) => ({ sku: x.product!.sku, namaProduk: x.product!.namaProduk, satuan: x.product!.satuan, qty: Number(x.qty), hargaKonsinyasi: Number(x.product!.hargaKonsinyasi), subtotal: x.subtotal })),
+      };
+      const response = await fetch("/api/konsinyasi/so", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "saveKonsinyasiSO", data: payload }) });
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result.message || "Sales Order gagal disimpan.");
+      setNotice(result.message || `Sales Order berhasil disimpan${result.nomorSO ? `: ${result.nomorSO}` : "."}`);
+      setTanggalSO(today());
+      setKodeMitra("");
+      setCatatan("");
+      setLines([{ sku: "", qty: 1 }]);
+      await loadAll();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Sales Order gagal disimpan.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-[#f5f5ef] p-4 text-[#193d2b] sm:p-7 lg:p-9">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <Link href="/admin/konsinyasi" className="text-sm text-[#55745c] hover:underline">
+          â† Kembali ke Konsinyasi
+        </Link>
+        <header className="relative overflow-hidden rounded-3xl bg-[#173d2b] p-6 text-white shadow-lg sm:p-9">
+          <div className="pointer-events-none absolute -right-8 -top-14 h-56 w-56 rounded-full border border-[#c5a45d]/30" />
+          <div className="relative">
+            <p className="mb-4 inline-flex rounded-full border border-[#c5a45d]/40 px-3 py-1.5 text-xs tracking-[0.18em] text-[#e6d4a5]">VARTANA Â· PARTNERSHIP</p>
+            <p className="text-sm text-[#d1dfd3]">OPERATIONS MANAGEMENT</p>
+            <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">Sales Order</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-[#d1dfd3]">Buat pesanan konsinyasi multi-produk, hitung total otomatis, simpan ke database, dan pantau riwayat pesanan mitra.</p>
+          </div>
+        </header>
+        {notice && <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{notice}</div>}
+        {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+        <form onSubmit={saveSO} className="space-y-6">
+          <section className="rounded-2xl border border-[#e5e6dc] bg-white p-5 shadow-sm sm:p-7">
+            <div className="mb-5">
+              <p className="text-xs font-semibold tracking-[0.16em] text-[#a1833f]">TRANSAKSI BARU</p>
+              <h2 className="mt-2 text-xl font-semibold">Informasi Pesanan</h2>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="text-sm font-medium">
+                Tanggal SO
+                <input type="date" className={`${inputClass} mt-2`} value={tanggalSO} onChange={(e) => setTanggalSO(e.target.value)} required />
+              </label>
+              <label className="text-sm font-medium">
+                Mitra <span className="text-red-500">*</span>
+                <select className={`${inputClass} mt-2`} value={kodeMitra} onChange={(e) => setKodeMitra(e.target.value)} required>
+                  <option value="">Pilih mitra aktif</option>
+                  {activeMitra.map((m) => (
+                    <option key={m.kodeMitra} value={m.kodeMitra}>
+                      {m.kodeMitra} â€” {m.namaToko}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {selectedMitra && (
+              <div className="mt-4 rounded-xl bg-[#f5f5ef] p-4 text-sm">
+                <p className="font-semibold">{selectedMitra.namaToko}</p>
+                <p className="mt-1 text-gray-600">{selectedMitra.alamat || "Alamat belum tersedia"}</p>
+                <p className="mt-1 text-gray-500">PIC: {selectedMitra.namaPIC || "â€”"}</p>
+              </div>
+            )}
+          </section>
+          <section className="overflow-hidden rounded-2xl border border-[#e5e6dc] bg-white shadow-sm">
+            <div className="flex flex-col justify-between gap-3 border-b border-[#eceee6] p-5 sm:flex-row sm:items-center sm:p-6">
+              <div>
+                <h2 className="text-lg font-semibold">Daftar Produk</h2>
+                <p className="mt-1 text-sm text-gray-500">Pilih SKU dari Master Produk Konsinyasi.</p>
+              </div>
+              <button type="button" onClick={addLine} className="rounded-xl border border-[#dce5db] px-4 py-2.5 text-sm font-semibold hover:bg-[#f5f5ef]">
+                + Tambah Produk
+              </button>
+            </div>
+            {loading ? (
+              <p className="p-8 text-sm text-gray-500">Memuat master produk...</p>
+            ) : activeProducts.length === 0 ? (
+              <p className="p-8 text-sm text-amber-700">Belum ada produk aktif. Tambahkan produk terlebih dahulu di Master Produk.</p>
+            ) : (
+              <div className="space-y-4 p-4 sm:p-6">
+                {lines.map((line, index) => {
+                  const p = activeProducts.find((item) => item.sku === line.sku);
+                  const subtotal = (p?.hargaKonsinyasi || 0) * (Number(line.qty) || 0);
+                  return (
+                    <div key={index} className="grid gap-3 rounded-xl border border-[#e5e6dc] p-4 md:grid-cols-[minmax(0,2fr)_100px_minmax(120px,1fr)_auto] md:items-end">
+                      <label className="text-sm font-medium">
+                        Produk / SKU
+                        <select className={`${inputClass} mt-2`} value={line.sku} onChange={(e) => updateLine(index, "sku", e.target.value)} required>
+                          <option value="">Pilih produk</option>
+                          {activeProducts.map((item) => (
+                            <option key={item.sku} value={item.sku} disabled={lines.some((other, i) => i !== index && other.sku === item.sku)}>
+                              {item.sku} â€” {item.namaProduk}
+                              {item.varian ? ` (${item.varian})` : ""}
+                            </option>
+                          ))}
+                        </select>
+                        {p && <span className="mt-1 block text-xs text-gray-500">Satuan: {p.satuan}</span>}
+                      </label>
+                      <label className="text-sm font-medium">
+                        Qty
+                        <input type="number" min={1} step={1} className={`${inputClass} mt-2`} value={line.qty} onChange={(e) => updateLine(index, "qty", Number(e.target.value))} required />
+                      </label>
+                      <div className="text-sm">
+                        <p className="text-gray-500">Harga / subtotal</p>
+                        <p className="mt-2 font-medium">{p ? rupiah(p.hargaKonsinyasi) : "â€”"}</p>
+                        <p className="mt-1 font-semibold text-[#24563b]">{rupiah(subtotal)}</p>
+                      </div>
+                      <button type="button" onClick={() => removeLine(index)} className="rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50">
+                        Hapus
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="border-t border-[#eceee6] bg-[#fcfcf9] p-5 sm:p-6">
+              <label className="block text-sm font-medium">
+                Catatan pesanan
+                <textarea className={`${inputClass} mt-2`} rows={2} value={catatan} onChange={(e) => setCatatan(e.target.value)} placeholder="Opsional: catatan pengiriman atau permintaan mitra" />
+              </label>
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Total pesanan</p>
+                  <p className="mt-1 text-2xl font-bold text-[#173d2b]">{rupiah(total)}</p>
+                  <p className="mt-1 text-xs text-gray-500">{cart.length} jenis produk dipilih</p>
+                </div>
+                <button
+                  type="submit"
+                  disabled={saving || loading || !activeProducts.length}
+                  className="rounded-xl bg-[#173d2b] px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-[#24563b] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {saving ? "Menyimpan Sales Order..." : "Simpan Sales Order"}
+                </button>
+              </div>
+            </div>
+          </section>
+        </form>
+        <section className="overflow-hidden rounded-2xl border border-[#e5e6dc] bg-white shadow-sm">
+          <div className="flex flex-col justify-between gap-3 border-b border-[#eceee6] p-5 sm:flex-row sm:items-center sm:p-6">
+            <div>
+              <h2 className="text-lg font-semibold">Riwayat Sales Order</h2>
+              <p className="mt-1 text-sm text-gray-500">Data yang dikembalikan oleh Apps Script.</p>
+            </div>
+            <button type="button" onClick={() => void loadAll()} className="rounded-xl border border-[#dce5db] px-4 py-2.5 text-sm font-semibold hover:bg-[#f5f5ef]">
+              â†» Refresh
+            </button>
+          </div>
+          {loading ? (
+            <p className="p-8 text-sm text-gray-500">Memuat riwayat...</p>
+          ) : orders.length === 0 ? (
+            <div className="p-10 text-center">
+              <p className="font-semibold">Belum ada Sales Order</p>
+              <p className="mt-2 text-sm text-gray-500">Sales Order yang berhasil disimpan akan muncul di sini jika Apps Script mengembalikan daftar SO.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead className="bg-[#f7f7f1] text-xs uppercase tracking-wider text-gray-500">
+                  <tr>
+                    <th className="px-5 py-4">Nomor SO</th>
+                    <th className="px-5 py-4">Tanggal</th>
+                    <th className="px-5 py-4">Mitra</th>
+                    <th className="px-5 py-4">Total</th>
+                    <th className="px-5 py-4">Status</th>
+                    <th className="px-5 py-4 text-right">Dokumen</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {orders.map((so, i) => (
+                    <tr key={so.nomorSO || `${so.kodeMitra}-${so.tanggalSO}-${i}`}>
+                      <td className="px-5 py-4 font-semibold">{so.nomorSO || "â€”"}</td>
+                      <td className="px-5 py-4">{so.tanggalSO || "â€”"}</td>
+                      <td className="px-5 py-4">{so.namaToko || so.kodeMitra || "â€”"}</td>
+                      <td className="px-5 py-4 font-semibold">{rupiah(Number(so.total) || 0)}</td>
+                      <td className="px-5 py-4">{so.status || "DRAFT"}</td>
+                      <td className="px-5 py-4 text-right">
+                        <button type="button" onClick={() => window.print()} className="rounded-lg border border-[#dce5db] px-3 py-2 text-xs font-semibold hover:bg-[#f5f5ef]">
+                          Cetak
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+        <footer className="pb-3 text-center text-xs text-gray-400">VARTANA BOTANICAL WELLNESS Â· ROOTED IN EARTH, BUILT FOR GROWTH</footer>
+      </div>
+      <style jsx global>{`
+        @media print {
+          body {
+            background: white !important;
+          }
+          button,
+          a,
+          form {
+            display: none !important;
+          }
+          main {
+            background: white !important;
+            padding: 0 !important;
+          }
+        }
+      `}</style>
+    </main>
+  );
+}
+

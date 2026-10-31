@@ -1,0 +1,40 @@
+[1mdiff --git a/app/page.tsx b/app/page.tsx[m
+[1mindex 04836e7..2505f9d 100644[m
+[1m--- a/app/page.tsx[m
+[1m+++ b/app/page.tsx[m
+[36m@@ -521,7 +521,7 @@[m [mconst content = {[m
+   id: {[m
+     nav: {[m
+       philosophy: "Filosofi",[m
+[31m-      collection: "Koleksi",[m
+[32m+[m[32m      collection: "Belanja",[m
+       science: "Riset & Khasiat",[m
+       origin: "Cerita & Esensi",[m
+       purpose: "Tujuan",[m
+[36m@@ -532,7 +532,7 @@[m [mconst content = {[m
+       title: "Kebaikan murni dari alam,",[m
+       accent: "untuk ritual keseharian.",[m
+       text: "Mengangkat kekayaan botanikal Nusantara dalam racikan otentik yang disajikan dengan dedikasi tinggi pada kualitas bahan, proses, dan keberlanjutan.",[m
+[31m-      primary: "Jelajahi Koleksi",[m
+[32m+[m[32m      primary: "Mulai Belanja",[m
+       secondary: "Tentang VARTANA",[m
+     },[m
+     philosophy: {[m
+[36m@@ -683,7 +683,7 @@[m [mconst content = {[m
+   en: {[m
+     nav: {[m
+       philosophy: "Philosophy",[m
+[31m-      collection: "Collection",[m
+[32m+[m[32m      collection: "Shop",[m
+       science: "Spice Benefits",[m
+       origin: "Story & Essence",[m
+       purpose: "Purpose",[m
+[36m@@ -694,7 +694,7 @@[m [mconst content = {[m
+       title: "Pure goodness of nature,",[m
+       accent: "for your daily rituals.",[m
+       text: "Elevating Indonesia's botanical richness into authentic blends crafted with dedication to quality, process, and sustainability.",[m
+[31m-      primary: "Explore Collection",[m
+[32m+[m[32m      primary: "Shop Now",[m
+       secondary: "About VARTANA",[m
+     },[m
+     philosophy: {[m

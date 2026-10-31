@@ -1,0 +1,1403 @@
+﻿=== MASTER PRODUCT PAGE ===
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+
+
+
+function getDirectImageUrl(rawUrl: string): string {
+  const url = rawUrl.trim();
+  if (!url) return "";
+
+  const driveFileMatch = url.match(
+    /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/
+  );
+
+  const driveOpenMatch = url.match(
+    /drive\.google\.com\/(?:open|uc)\?.*?[?&]id=([a-zA-Z0-9_-]+)/
+  );
+
+  const fileId = driveFileMatch?.[1] || driveOpenMatch?.[1];
+
+  if (fileId) {
+    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+  }
+
+  return url;
+}
+type Product = {
+  sku: string;
+  productNumber?: string;
+  productName: string;
+  variantName?: string;
+  subtitle?: string;
+  status?: string;
+  description?: string;
+  imageUrl?: string;
+  hpp?: number;
+  weightGram?: number;
+  active?: boolean;
+};
+
+const emptyProduct: Product = {
+  sku: "",
+  productName: "",
+  productNumber: "",
+  variantName: "",
+  subtitle: "",
+  status: "Active",
+  description: "",
+  imageUrl: "",
+  hpp: 0,
+  weightGram: 0,
+  active: true,
+};
+
+const fieldClass =
+  "w-full rounded-xl border border-[#ded8ca] bg-white px-4 py-3 text-sm text-[#173b2b] outline-none focus:border-[#a88b43]";
+
+export default function MasterProductPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingSku, setEditingSku] = useState<string | null>(null);
+  const [form, setForm] = useState<Product>(emptyProduct);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const loadProducts = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/admin/products", {
+        cache: "no-store",
+      });
+      const data = await response.json();
+
+      if (!response.ok || data.success !== true) {
+        throw new Error(data.message || "Gagal mengambil data produk.");
+      }
+
+      setProducts(Array.isArray(data.products) ? data.products : []);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Gagal mengambil data produk. Periksa sesi admin."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadProducts();
+  }, [loadProducts]);
+
+  const filteredProducts = products.filter((product) => {
+    const keyword = search.toLowerCase();
+
+    const matchesSearch = [
+      product.sku,
+      product.productName,
+      product.variantName,
+      product.productNumber,
+    ].some((value) => String(value || "").toLowerCase().includes(keyword));
+
+    const isActive = product.active !== false;
+    const matchesFilter =
+      filter === "all" ||
+      (filter === "active" && isActive) ||
+      (filter === "inactive" && !isActive);
+
+    return matchesSearch && matchesFilter;
+  });
+
+  function startCreate() {
+    setEditingSku(null);
+    setForm({ ...emptyProduct });
+    setMessage("");
+    setError("");
+    setFormOpen(true);
+  }
+
+  function startEdit(product: Product) {
+    setEditingSku(product.sku);
+    setForm({
+      ...emptyProduct,
+      ...product,
+      active: product.active !== false,
+    });
+    setMessage("");
+    setError("");
+    setFormOpen(true);
+  }
+
+  function updateField<K extends keyof Product>(
+    key: K,
+    value: Product[K]
+  ) {
+    setForm((previous) => ({ ...previous, [key]: value }));
+  }
+
+  async function saveProduct(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const payload = {
+        ...form,
+        sku: form.sku.trim(),
+        productName: form.productName.trim(),
+        productNumber: form.productNumber || "",
+        variantName: form.variantName || "",
+        subtitle: form.subtitle || "",
+        status: form.active ? "Active" : "Inactive",
+        description: form.description || "",
+        imageUrl: form.imageUrl || "",
+        hpp: Number(form.hpp || 0),
+        weightGram: Number(form.weightGram || 0),
+        active: form.active !== false,
+      };
+
+      const response = await fetch("/api/admin/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.success !== true) {
+        throw new Error(data.message || "Gagal menyimpan produk.");
+      }
+
+      setMessage(data.message || "Produk berhasil disimpan.");
+      setFormOpen(false);
+      await loadProducts();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Terjadi kesalahan saat menyimpan."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-[#f7f5ef] text-[#173b2b]">
+      <header className="bg-[#103b2b] px-6 py-7 text-white sm:px-10">
+        <div className="mx-auto max-w-7xl">
+          <Link
+            href="/admin-access"
+            className="text-sm text-[#dfc783] hover:text-white"
+          >
+            ← Kembali ke Admin Control Center
+          </Link>
+          <p className="mt-6 text-xs tracking-[0.25em] text-[#dfc783]">
+            VARTANA INTERNAL SYSTEM
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">
+            Master Product
+          </h1>
+          <p className="mt-3 text-sm text-[#d6e0d7]">
+            Pusat data produk, SKU, varian, gambar, dan informasi produk.
+          </p>
+        </div>
+      </header>
+
+      <section className="mx-auto max-w-7xl px-6 py-8 sm:px-10">
+        {message && (
+          <div className="mb-5 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+            {message}
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            {error}
+            <button
+              type="button"
+              onClick={() => void loadProducts()}
+              className="ml-3 font-semibold underline"
+            >
+              Coba lagi
+            </button>
+          </div>
+        )}
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-[#e1dccf] bg-white p-5">
+            <p className="text-sm text-gray-500">Total Produk</p>
+            <p className="mt-3 text-3xl font-semibold">{products.length}</p>
+            <p className="mt-2 text-xs text-gray-500">Data master produk</p>
+          </div>
+
+          <div className="rounded-2xl border border-[#e1dccf] bg-white p-5">
+            <p className="text-sm text-gray-500">Produk Aktif</p>
+            <p className="mt-3 text-3xl font-semibold">
+              {products.filter((product) => product.active !== false).length}
+            </p>
+            <p className="mt-2 text-xs text-gray-500">
+              Produk yang dapat dikelola
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-[#e1dccf] bg-white p-5">
+            <p className="text-sm text-gray-500">Ditampilkan</p>
+            <p className="mt-3 text-3xl font-semibold">
+              {filteredProducts.length}
+            </p>
+            <p className="mt-2 text-xs text-gray-500">
+              Sesuai pencarian dan filter
+            </p>
+          </div>
+        </div>
+
+        <section className="mt-8 rounded-2xl border border-[#e1dccf] bg-white p-5 sm:p-7">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <h2 className="text-xl font-semibold">Daftar Produk</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Tambah dan perbarui informasi master produk.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={startCreate}
+              className="rounded-xl bg-[#173b2b] px-5 py-3 text-sm font-medium text-white hover:bg-[#24523d]"
+            >
+              + Tambah Produk
+            </button>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_200px]">
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Cari SKU, nama, atau varian produk..."
+              className={fieldClass}
+            />
+            <select
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+              className={fieldClass}
+            >
+              <option value="all">Semua Status</option>
+              <option value="active">Aktif</option>
+              <option value="inactive">Nonaktif</option>
+            </select>
+          </div>
+
+          <div className="mt-6 overflow-x-auto rounded-xl border border-[#e5e0d5]">
+            <table className="w-full min-w-[760px] text-left text-sm">
+              <thead className="bg-[#f3f0e7] text-[#526456]">
+                <tr>
+                  <th className="px-4 py-4 font-medium">Produk</th>
+                  <th className="px-4 py-4 font-medium">SKU</th>
+                  <th className="px-4 py-4 font-medium">Varian</th>
+                  <th className="px-4 py-4 font-medium">HPP</th>
+                  <th className="px-4 py-4 font-medium">Status</th>
+                  <th className="px-4 py-4 font-medium">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#eee9de]">
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
+                      Memuat data produk...
+                    </td>
+                  </tr>
+                ) : filteredProducts.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
+                      {products.length === 0
+                        ? "Belum ada data produk yang berhasil dimuat."
+                        : "Produk tidak ditemukan."}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredProducts.map((product) => (
+                    <tr key={product.sku} className="hover:bg-[#faf9f6]">
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          {product.imageUrl ? (
+                            <img
+                              src={product.imageUrl}
+                              alt={product.productName}
+                              className="h-12 w-12 rounded-lg border border-[#e5e0d5] object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#f3f0e7] text-xs text-gray-400">
+                              Foto
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-semibold">{product.productName}</p>
+                            <p className="mt-1 text-xs text-gray-500">
+                              {product.productNumber || "Tanpa nomor produk"}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 font-mono text-xs">{product.sku}</td>
+                      <td className="px-4 py-4">{product.variantName || "—"}</td>
+                      <td className="px-4 py-4">
+                        {Number(product.hpp || 0).toLocaleString("id-ID", {
+                          style: "currency",
+                          currency: "IDR",
+                          maximumFractionDigits: 0,
+                        })}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs ${
+                            product.active !== false
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {product.active !== false ? "Aktif" : "Nonaktif"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <button
+                          type="button"
+                          onClick={() => startEdit(product)}
+                          className="font-semibold text-[#876c2e] hover:underline"
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {formOpen && (
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4">
+            <div className="mx-auto my-6 max-w-3xl rounded-2xl bg-[#fdfcf8] p-6 shadow-2xl sm:p-8">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs tracking-[0.2em] text-[#9b7b35]">
+                    PRODUCT MASTER DATA
+                  </p>
+                  <h2 className="mt-2 text-2xl font-semibold">
+                    {editingSku ? "Edit Produk" : "Tambah Produk"}
+                  </h2>
+                  <p className="mt-2 text-sm text-gray-500">
+                    Isi informasi produk dengan benar sebelum menyimpan.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormOpen(false)}
+                  className="rounded-full border border-[#ded8ca] px-3 py-2 text-sm"
+                >
+                  Tutup
+                </button>
+              </div>
+
+              <form onSubmit={saveProduct} className="mt-7 space-y-5">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block text-sm font-medium">
+                    SKU *
+                    <input
+                      required
+                      minLength={2}
+                      maxLength={80}
+                      pattern="[A-Za-z0-9._-]+"
+                      value={form.sku}
+                      disabled={Boolean(editingSku)}
+                      onChange={(event) => updateField("sku", event.target.value)}
+                      placeholder="Contoh: VRT-01"
+                      className={`${fieldClass} mt-2 disabled:bg-gray-100`}
+                    />
+                    {editingSku && (
+                      <span className="mt-1 block text-xs text-gray-500">
+                        SKU tidak dapat diubah setelah produk dibuat.
+                      </span>
+                    )}
+                  </label>
+
+                  <label className="block text-sm font-medium">
+                    Nama Produk *
+                    <input
+                      required
+                      maxLength={200}
+                      value={form.productName}
+                      onChange={(event) => updateField("productName", event.target.value)}
+                      placeholder="Contoh: Signature Blend"
+                      className={`${fieldClass} mt-2`}
+                    />
+                  </label>
+
+                  <label className="block text-sm font-medium">
+                    Nomor Produk
+                    <input
+                      value={form.productNumber || ""}
+                      onChange={(event) => updateField("productNumber", event.target.value)}
+                      className={`${fieldClass} mt-2`}
+                    />
+                  </label>
+
+                  <label className="block text-sm font-medium">
+                    Varian
+                    <input
+                      value={form.variantName || ""}
+                      onChange={(event) => updateField("variantName", event.target.value)}
+                      placeholder="Contoh: Herbal Signature"
+                      className={`${fieldClass} mt-2`}
+                    />
+                  </label>
+
+                  <label className="block text-sm font-medium">
+                    Berat Produk (gram)
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.weightGram ?? 0}
+                      onChange={(event) => updateField("weightGram", Number(event.target.value))}
+                      className={`${fieldClass} mt-2`}
+                    />
+                  </label>
+
+                  <label className="block text-sm font-medium">
+                    HPP (Rupiah)
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.hpp ?? 0}
+                      onChange={(event) => updateField("hpp", Number(event.target.value))}
+                      className={`${fieldClass} mt-2`}
+                    />
+                  </label>
+                </div>
+
+                <label className="block text-sm font-medium">
+                  Subtitle / Deskripsi Singkat
+                  <input
+                    value={form.subtitle || ""}
+                    onChange={(event) => updateField("subtitle", event.target.value)}
+                    className={`${fieldClass} mt-2`}
+                  />
+                </label>
+
+                <label className="block text-sm font-medium">
+                  Deskripsi Produk
+                  <textarea
+                    rows={4}
+                    value={form.description || ""}
+                    onChange={(event) => updateField("description", event.target.value)}
+                    placeholder="Cerita produk, karakter rasa, dan penjelasan produk..."
+                    className={`${fieldClass} mt-2`}
+                  />
+                </label>
+
+                <label className="block text-sm font-medium">
+                  URL Gambar Utama (HTTPS)
+                  <input
+                    type="url"
+                    value={form.imageUrl || ""}
+                    onChange={(event) => updateField("imageUrl", event.target.value)}
+                    placeholder="https://..."
+                    className={`${fieldClass} mt-2`}
+                  />
+                </label>
+
+                {form.imageUrl && /^https:\/\//i.test(form.imageUrl) && (
+                  <div className="rounded-xl border border-[#e5e0d5] bg-white p-4">
+                    <p className="mb-3 text-xs text-gray-500">Pratinjau gambar</p>
+                    <img
+                      src={getDirectImageUrl(form.imageUrl || "")}
+                      alt="Pratinjau produk"
+                      className="h-40 w-40 rounded-xl border border-[#e5e0d5] object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => updateField("imageUrl", "")}
+                      className="mt-3 text-sm font-medium text-red-700 underline"
+                    >
+                      Hapus URL gambar
+                    </button>
+                  </div>
+                )}
+
+                <label className="block text-sm font-medium">
+                  Status Produk
+                  <select
+                    value={form.active === false ? "inactive" : "active"}
+                    onChange={(event) => updateField("active", event.target.value === "active")}
+                    className={`${fieldClass} mt-2`}
+                  >
+                    <option value="active">Aktif</option>
+                    <option value="inactive">Nonaktif</option>
+                  </select>
+                </label>
+
+                {error && (
+                  <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">
+                    {error}
+                  </p>
+                )}
+
+                <div className="flex flex-col-reverse gap-3 border-t border-[#e5e0d5] pt-5 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setFormOpen(false)}
+                    className="rounded-xl border border-[#ded8ca] px-5 py-3 text-sm"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="rounded-xl bg-[#173b2b] px-6 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {saving ? "Menyimpan..." : "Simpan Produk"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+
+
+
+=== MASTER PRODUCT API ===
+import { NextRequest, NextResponse } from "next/server";
+import { verifyAdminSessionToken } from "@/lib/admin-auth";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const TIMEOUT_MS = 30000;
+
+function isAdmin(request: NextRequest): boolean {
+  const token = request.cookies.get("vartana_admin_session")?.value;
+  const secret = process.env.ADMIN_SESSION_SECRET;
+
+  return Boolean(
+    token &&
+    secret &&
+    secret.length >= 32 &&
+    verifyAdminSessionToken(token, secret)
+  );
+}
+
+function getScriptUrl(): URL | null {
+  const raw = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL;
+  if (!raw) return null;
+
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:" || url.hostname !== "script.google.com") {
+      return null;
+    }
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+async function scriptRequest(url: URL, init?: RequestInit) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url.toString(), {
+      ...init,
+      cache: "no-store",
+      signal: controller.signal,
+    });
+
+    const text = await response.text();
+
+    if (!response.ok) {
+      throw new Error(`Apps Script HTTP ${response.status}`);
+    }
+
+    let data: Record<string, unknown>;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error("Apps Script memberikan respons bukan JSON.");
+    }
+
+    return data;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function GET(request: NextRequest) {
+  if (!isAdmin(request)) {
+    return NextResponse.json(
+      { success: false, message: "Sesi admin tidak valid." },
+      { status: 401 }
+    );
+  }
+
+  const url = getScriptUrl();
+  if (!url) {
+    return NextResponse.json(
+      { success: false, message: "Konfigurasi Apps Script tidak tersedia." },
+      { status: 500 }
+    );
+  }
+
+  url.searchParams.set("action", "getProducts");
+
+  try {
+    const data = await scriptRequest(url);
+    return NextResponse.json({
+      success: true,
+      products: Array.isArray(data.products) ? data.products : [],
+    });
+  } catch (error) {
+    console.error("Admin products GET failed:", error);
+    return NextResponse.json(
+      { success: false, message: "Gagal mengambil master produk." },
+      { status: 502 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  if (!isAdmin(request)) {
+    return NextResponse.json(
+      { success: false, message: "Sesi admin tidak valid." },
+      { status: 401 }
+    );
+  }
+
+  const url = getScriptUrl();
+  if (!url) {
+    return NextResponse.json(
+      { success: false, message: "Konfigurasi Apps Script tidak tersedia." },
+      { status: 500 }
+    );
+  }
+
+  let body: Record<string, unknown>;
+
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { success: false, message: "Format data tidak valid." },
+      { status: 400 }
+    );
+  }
+
+  const sku = String(body.sku ?? "").trim();
+  const productName = String(body.productName ?? "").trim();
+
+  if (!/^[A-Za-z0-9._-]{2,80}$/.test(sku)) {
+    return NextResponse.json(
+      { success: false, message: "Format SKU tidak valid." },
+      { status: 400 }
+    );
+  }
+
+  if (!productName || productName.length > 200) {
+    return NextResponse.json(
+      { success: false, message: "Nama produk wajib diisi (maksimal 200 karakter)." },
+      { status: 400 }
+    );
+  }
+
+  const optionalTextFields = [
+    "productNumber",
+    "variantName",
+    "subtitle",
+    "status",
+    "description",
+    "imageUrl",
+  ] as const;
+
+  const product: Record<string, unknown> = {
+    sku,
+    productName,
+    active: body.active !== false,
+  };
+
+  for (const field of optionalTextFields) {
+    if (body[field] !== undefined) {
+      if (typeof body[field] !== "string") {
+        return NextResponse.json(
+          { success: false, message: `Field ${field} harus berupa teks.` },
+          { status: 400 }
+        );
+      }
+      product[field] = (body[field] as string).trim();
+    }
+  }
+
+  if (
+    product.imageUrl &&
+    (typeof product.imageUrl !== "string" ||
+      !/^https:\/\//i.test(product.imageUrl))
+  ) {
+    return NextResponse.json(
+      { success: false, message: "URL gambar harus menggunakan HTTPS." },
+      { status: 400 }
+    );
+  }
+
+  for (const field of ["hpp", "weightGram"] as const) {
+    if (body[field] !== undefined) {
+      const value = Number(body[field]);
+      if (!Number.isFinite(value) || value < 0) {
+        return NextResponse.json(
+          { success: false, message: `${field} harus berupa angka nol atau lebih.` },
+          { status: 400 }
+        );
+      }
+      product[field] = value;
+    }
+  }
+
+  try {
+    // Tentukan create/update dari SKU yang sudah tersimpan.
+    const readUrl = new URL(url);
+    readUrl.searchParams.set("action", "getProducts");
+    const existingData = await scriptRequest(readUrl);
+    const existingProducts = Array.isArray(existingData.products)
+      ? existingData.products as Array<Record<string, unknown>>
+      : [];
+
+    const exists = existingProducts.some(
+      (item) =>
+        String(item.sku ?? "").trim().toUpperCase() === sku.toUpperCase()
+    );
+
+    const saveUrl = new URL(url);
+    const payload = {
+      action: exists ? "updateProduct" : "createProduct",
+      ...product,
+    };
+
+    const result = await scriptRequest(saveUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload),
+    });
+
+    if (result.success !== true) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: String(result.message ?? "Apps Script menolak penyimpanan."),
+        },
+        { status: 502 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      action: exists ? "updated" : "created",
+      sku,
+      message: exists
+        ? "Master produk berhasil diperbarui."
+        : "Master produk berhasil dibuat.",
+    });
+  } catch (error) {
+    console.error("Admin products POST failed:", error);
+    return NextResponse.json(
+      { success: false, message: "Gagal menyimpan master produk." },
+      { status: 502 }
+    );
+  }
+}
+
+=== PUBLIC PRODUCT DATA ===
+// Shared VARTANA product catalog
+export type Language = "id" | "en";
+export type LocalizedText = Record<Language, string>;
+
+type ProductVariant = {
+  image?: string;
+  size: string;
+  priceValue: number;
+  promoPrice: string;
+  regularPrice: string;
+  discountPercentage: string;
+};
+
+type Product = {
+  id: string;
+  number: string;
+  name: string;
+  subtitle: string;
+  status: "READY STOCK" | "COMING SOON";
+  image?: string;
+  variants?: ProductVariant[];
+  priceValue: number;
+  regularPrice?: string;
+  promoPrice?: string;
+  discountPercentage?: string;
+  quantityInfo?: string;
+  ingredients: LocalizedText[];
+  description: LocalizedText;
+  taste: LocalizedText;
+  aroma: LocalizedText;
+  difference: LocalizedText;
+  benefit: LocalizedText;
+};
+
+export const products: Product[] = [
+  {
+    id: "vartana-01",
+    number: "VRT-01",
+    name: "Signature Blend",
+    subtitle: "BLEND No. 01",
+    status: "READY STOCK",
+    image: "/signature-blend-vartana1.jpeg",
+    priceValue: 72800,
+    regularPrice: "Rp97.000",
+    promoPrice: "Rp72.800",
+    discountPercentage: "25% OFF",
+    quantityInfo: "PILIH FORMAT KEMASAN POUCH",
+    variants: [
+      {
+        size: "10 Tea Bags (Signature Edition)",
+        priceValue: 72800,
+        promoPrice: "Rp72.800",
+        regularPrice: "Rp97.000",
+        discountPercentage: "25% OFF",
+      },
+      {
+        size: "5 Tea Bags (Personal Pack)",
+        priceValue: 40000,
+        promoPrice: "Rp40.000",
+        regularPrice: "Rp50.000",
+        discountPercentage: "20% OFF",
+      },
+    ],
+    ingredients: [
+      { id: "Jahe", en: "Ginger" },
+      { id: "Kunyit", en: "Turmeric" },
+      { id: "Serai", en: "Lemongrass" },
+      { id: "Kayu Manis", en: "Cinnamon" },
+      { id: "Cengkeh", en: "Clove" },
+      { id: "Kapulaga", en: "Cardamom" },
+      { id: "Adas", en: "Fennel" },
+      { id: "Lada Putih", en: "White Pepper" },
+      { id: "Lada Hitam", en: "Black Pepper" },
+      { id: "Pala", en: "Nutmeg" },
+      { id: "Bunga Lawang", en: "Star Anise" },
+    ],
+    description: {
+      id: "Racikan khas VARTANA dengan perpaduan sepuluh rempah terlengkap. Menghadirkan karakter hangat, kompleks, dan seimbang bagi tubuh.",
+      en: "VARTANA's signature blend crafted with ten essential botanicals. Delivering a warm, complex, and harmonious wellness experience.",
+    },
+    taste: {
+      id: "Rasa hangat mendalam dengan sentuhan rempah kaya yang bertingkat secara seimbang.",
+      en: "Deep, warming taste with layered spice notes that finish with refined balance.",
+    },
+    aroma: {
+      id: "Harum aromatik jahe, kayu manis, dan cengkeh yang menyatu lembut dengan kapulaga serta pala.",
+      en: "An inviting aroma of ginger, cinnamon, and clove seamlessly laced with cardamom and nutmeg.",
+    },
+    difference: {
+      id: "Formulasi botanical paling komprehensif dalam rangkaian seri VARTANA Botanical Wellness.",
+      en: "The most comprehensive formulation in the VARTANA Botanical Wellness Series.",
+    },
+    benefit: {
+      id: "Ideal dinikmati kapan saja saat tubuh membutuhkan kenyamanan, ketenangan, dan kesegaran alami.",
+      en: "Ideal for any moment when your body seeks comfort, calm, and natural rejuvenation.",
+    },
+  },
+  {
+    id: "vartana-02",
+    number: "VRT-02",
+    name: "Morning Energy",
+    subtitle: "BLEND No. 02",
+    status: "READY STOCK",
+    priceValue: 76000,
+    regularPrice: "Rp98.700",
+    promoPrice: "Rp76.000",
+    discountPercentage: "23% OFF",
+    quantityInfo: "10 TEA BAGS",
+    variants: [
+        {
+          size: "Box + Pouch",
+          priceValue: 76000,
+          promoPrice: "Rp76.000",
+          regularPrice: "Rp98.700",
+          discountPercentage: "23% OFF",
+          image: "/morning-energy.png"
+        }
+      ],
+    ingredients: [
+      { id: "Jahe", en: "Ginger" },
+      { id: "Serai", en: "Lemongrass" },
+      { id: "Rosella", en: "Roselle" },
+      { id: "Kayu Manis", en: "Cinnamon" },
+      { id: "Cengkeh", en: "Clove" },
+      { id: "Kapulaga", en: "Cardamom" },
+      { id: "Lada Putih", en: "White Pepper" },
+      { id: "Lada Hitam", en: "Black Pepper" },
+      { id: "Pala", en: "Nutmeg" },
+    ],
+    description: {
+      id: "Racikan segar berkarakter jahe dan serai yang jernih, dirancang khusus untuk membangkitkan vitalitas di pagi hari.",
+      en: "A vibrant blend highlighting crisp ginger and lemongrass, tailored to awaken vitality for your morning routine.",
+    },
+    taste: {
+      id: "Segar, tajam, dan aromatik dengan dominasi kehangatan jahe serta kecerahan serai.",
+      en: "Fresh, crisp, and aromatic with a uplifting ginger and lemongrass presence.",
+    },
+    aroma: {
+      id: "Aroma sitrus alami serai yang dipadukan dengan aksen rempah hangat pembawa semangat.",
+      en: "Natural citrus notes of lemongrass coupled with invigorating spice accents.",
+    },
+    difference: {
+      id: "Profil rasa paling cerah dan segar, diformulasikan untuk memulai aktivitas penuh energi.",
+      en: "The brightest and most refreshing profile, formulated to start your day with energy.",
+    },
+    benefit: {
+      id: "Pilihan tepat di pagi hari untuk memberikan kesegaran pikiran dan kesiapan fisik.",
+      en: "Perfect for morning rituals to clear the mind and invigorate the body.",
+    },
+  },
+  {
+    id: "vartana-03",
+    number: "VRT-03",
+    name: "Golden Turmeric",
+    subtitle: "BLEND No. 03",
+    status: "READY STOCK",
+    priceValue: 75900,
+    regularPrice: "Rp98.700",
+    promoPrice: "Rp75.900",
+    discountPercentage: "23% OFF",
+    quantityInfo: "10 TEA BAGS",
+    variants: [
+        {
+          size: "Box + Pouch",
+          priceValue: 75900,
+          promoPrice: "Rp75.900",
+          regularPrice: "Rp98.700",
+          discountPercentage: "23% OFF",
+          image: "/golden-turmeric.png"
+        }
+      ],
+    ingredients: [
+      { id: "Kunyit", en: "Turmeric" },
+      { id: "Jahe", en: "Ginger" },
+      { id: "Serai", en: "Lemongrass" },
+      { id: "Kayu Manis", en: "Cinnamon" },
+      { id: "Cengkeh", en: "Clove" },
+      { id: "Kapulaga", en: "Cardamom" },
+      { id: "Lada Putih", en: "White Pepper" },
+      { id: "Lada Hitam", en: "Black Pepper" },
+      { id: "Pala", en: "Nutmeg" },
+    ],
+    description: {
+      id: "Racikan keemasan berbasis kunyit pilihan dan rempah pendukung, kaya akan zat antioksidan untuk pelindung tubuh.",
+      en: "A golden formulation centered around selected turmeric, delivering rich antioxidant support for daily resilience.",
+    },
+    taste: {
+      id: "Earthy, hangat, dan kaya akan karakter botanikal yang mantap di tenggorokan.",
+      en: "Earthy, soothing, and rich with a grounded botanical character.",
+    },
+    aroma: {
+      id: "Aroma herbal khas kunyit organik yang dipadu secara harmonis dengan kayu manis dan jahe.",
+      en: "Distinct earthy herbal notes of organic turmeric balanced with cinnamon and ginger.",
+    },
+    difference: {
+      id: "Satu-satunya racikan dengan kunyit sebagai pilar utama pembawa manfaat antioksidan.",
+      en: "The singular blend centered on turmeric as the cornerstone for antioxidant protection.",
+    },
+    benefit: {
+      id: "Disarankan untuk memelihara daya tahan tubuh dan merawat kesehatan organ dalam secara berkala.",
+      en: "Recommended for maintaining daily immunity and promoting internal holistic well-being.",
+    },
+  },
+  {
+    id: "vartana-04",
+    number: "VRT-04",
+    name: "Warm Balance",
+    subtitle: "BLEND No. 04",
+    status: "READY STOCK",
+    priceValue: 76500,
+    regularPrice: "Rp98.700",
+    promoPrice: "Rp76.500",
+    discountPercentage: "23% OFF",
+    quantityInfo: "10 TEA BAGS",
+    variants: [
+        {
+          size: "Box + Pouch",
+          priceValue: 76500,
+          promoPrice: "Rp76.500",
+          regularPrice: "Rp98.700",
+          discountPercentage: "23% OFF",
+          image: "/warm-balance.png"
+        }
+      ],
+    ingredients: [
+      { id: "Jahe", en: "Ginger" },
+      { id: "Serai", en: "Lemongrass" },
+      { id: "Kayu Manis", en: "Cinnamon" },
+      { id: "Cengkeh", en: "Clove" },
+      { id: "Kapulaga", en: "Cardamom" },
+      { id: "Lada Putih", en: "White Pepper" },
+      { id: "Lada Hitam", en: "Black Pepper" },
+      { id: "Pala", en: "Nutmeg" },
+    ],
+    description: {
+      id: "Komposisi rempah penenang yang lembut, diciptakan untuk mengembalikan keseimbangan dan ketenangan pikiran.",
+      en: "A gentle warming composition crafted to restore inner balance and quiet the mind after a long day.",
+    },
+    taste: {
+      id: "Rasa lembut, hangat mengalir, dengan sentuhan manis alami dari rempah berkualitas.",
+      en: "Smooth, gently warming, with subtle natural sweetness from premium spices.",
+    },
+    aroma: {
+      id: "Aroma manis-rempah lembut dari kayu manis dan pala yang memberikan efek menenangkan.",
+      en: "Soft sweet-spicy aroma of cinnamon and nutmeg that invites relaxation.",
+    },
+    difference: {
+      id: "Karakter rasa paling halus yang dirancang khusus tanpa rasa yang terlalu tajam.",
+      en: "The smoothest profile specially crafted for gentle, soothing moments.",
+    },
+    benefit: {
+      id: "Sangat pas dinikmati sore atau malam hari sebelum beristirahat untuk kenyamanan maksimal.",
+      en: "Best enjoyed in the evening or night to ease stress and encourage deep rest.",
+    },
+  },
+];
+
+=== REFERENSI KATALOG, KERANJANG, CHECKOUT ===
+
+  app\page.tsx:1:"use client";
+  app\page.tsx:2:
+  app\page.tsx:3:import { useState, useEffect } from "react";
+> app\page.tsx:4:import { products, type Product, type ProductVariant } from "@/lib/products";
+  app\page.tsx:5:import { SPICES_DATA } from "@/lib/spices";
+  app\page.tsx:6:
+  app\page.tsx:7:type Language = "id" | "en";
+  app\page.tsx:8:type LocalizedText = Record<Language, string>;
+  app\page.tsx:9:
+  app\page.tsx:10:
+  app\page.tsx:11:
+> app\page.tsx:12:type CartItem = {
+  app\page.tsx:13:  product: Product;
+  app\page.tsx:14:  selectedVariant: ProductVariant;
+  app\page.tsx:15:  quantity: number;
+  app\page.tsx:16:};
+  app\page.tsx:17:
+  app\page.tsx:18:type ShippingOption = {
+  app\page.tsx:99:      benefit: "Saran Penyajian",
+  app\page.tsx:100:      preparation: "Petunjuk Penyeduhan",
+  app\page.tsx:101:      preparationText: "1 tea bag · ±9 g · 200 ml air bersih · 90–95°C · 3–5 menit ekstraksi",
+> app\page.tsx:102:      regularPrice: "Harga Reguler",
+> app\page.tsx:103:      promoPrice: "Harga Penawaran",
+  app\page.tsx:104:      pouch: "Format Kemasan",
+> app\page.tsx:105:      addToCart: "Tambah ke Keranjang",
+  app\page.tsx:106:      buyNow: "Beli Sekarang",
+  app\page.tsx:107:      selectQuantity: "Jumlah Pesanan",
+  app\page.tsx:108:    },
+  app\page.tsx:109:    science: {
+  app\page.tsx:110:      eyebrow: "EVIDENCE-BASED BOTANICAL",
+  app\page.tsx:111:      title: "Landasan Ilmiah & Khasiat Rempah",
+  app\page.tsx:204:      title: "Keranjang Belanja",
+  app\page.tsx:205:      empty: "Keranjang belanja Anda saat ini masih kosong.",
+  app\page.tsx:206:      total: "Total Pembayaran",
+> app\page.tsx:207:      checkoutBtn: "Lanjut ke Data Pengiriman",
+  app\page.tsx:208:      fillFormTitle: "Informasi Pembeli & Alamat",
+  app\page.tsx:209:      name: "Nama Lengkap",
+  app\page.tsx:210:      email: "Alamat Email",
+  app\page.tsx:211:      phone: "Nomor WhatsApp / HP",
+  app\page.tsx:212:      province: "Provinsi",
+  app\page.tsx:213:      city: "Kota / Kabupaten",
+  app\page.tsx:261:      benefit: "Suggested Occasion",
+  app\page.tsx:262:      preparation: "Brewing Guide",
+  app\page.tsx:263:      preparationText: "1 tea bag · ±9 g · 200 ml fresh water · 90–95°C · 3–5 minutes steep time",
+> app\page.tsx:264:      regularPrice: "Regular Price",
+> app\page.tsx:265:      promoPrice: "Special Offer",
+  app\page.tsx:266:      pouch: "Packaging Size",
+> app\page.tsx:267:      addToCart: "Add to Cart",
+  app\page.tsx:268:      buyNow: "Buy Now",
+  app\page.tsx:269:      selectQuantity: "Select Quantity",
+  app\page.tsx:270:    },
+  app\page.tsx:271:    science: {
+  app\page.tsx:272:      eyebrow: "EVIDENCE-BASED BOTANICAL",
+  app\page.tsx:273:      title: "Botanical Research & Benefits",
+  app\page.tsx:354:      title: "Keranjang Belanja",
+  app\page.tsx:355:      empty: "Your shopping cart is currently empty.",
+  app\page.tsx:356:      total: "Total Payment",
+> app\page.tsx:357:      checkoutBtn: "Proceed to Delivery Info",
+  app\page.tsx:358:      fillFormTitle: "Customer & Shipping Details",
+  app\page.tsx:359:      name: "Full Name",
+  app\page.tsx:360:      email: "Email Address",
+  app\page.tsx:361:      phone: "WhatsApp / Mobile Number",
+  app\page.tsx:362:      province: "Province",
+  app\page.tsx:363:      city: "City / Regency",
+  app\page.tsx:392:  // MOBILE STORY TAB STATE
+  app\page.tsx:393:  const [activeStoryTab, setActiveStoryTab] = useState<number>(0);
+  app\page.tsx:394:
+> app\page.tsx:395:  // CART & CHECKOUT STATES
+  app\page.tsx:396:  const [cart, setCart] = useState<CartItem[]>([]);
+  app\page.tsx:397:  const [isCartOpen, setIsCartOpen] = useState(false);
+> app\page.tsx:398:  const [checkoutStep, setCheckoutStep] = useState<"cart" | "form" | "payment">("cart");
+  app\page.tsx:399:  const [formError, setFormError] = useState("");
+  app\page.tsx:400:  const [currentOrderSerial, setCurrentOrderSerial] = useState("");
+  app\page.tsx:401:  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false); // LOCK STATE ANTI DOUBLE CLICK
+  app\page.tsx:402:
+  app\page.tsx:403:  // TRACKING & HISTORY MODAL STATES
+  app\page.tsx:404:  const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
+  app\page.tsx:455:  const product = products[selectedProduct];
+  app\page.tsx:456:  const currentVariant = product.variants
+  app\page.tsx:457:    ? product.variants[selectedVariantIndex]
+> app\page.tsx:458:    : { size: "1 Pouch", priceValue: product.priceValue, promoPrice: product.promoPrice || "Rp72.800", regularPrice: product.regularPrice || "Rp97.000", discountPercentage: "25% OFF" };
+  app\page.tsx:459:
+  app\page.tsx:460:  const formatRupiah = (amount: number) => {
+  app\page.tsx:461:    return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(amount);
+  app\page.tsx:462:  };
+  app\page.tsx:463:
+  app\page.tsx:464:  const countTenBagPouches = cart.reduce((sum, item) => {
+  app\page.tsx:713:        });
+  app\page.tsx:714:
+  app\page.tsx:715:        const parsedRates: ShippingOption[] = rawRates.map((item: any) => {
+> app\page.tsx:716:          const origRate = item.price;
+  app\page.tsx:717:          const finalRate = Math.max(0, origRate - subsidy);
+  app\page.tsx:718:
+  app\page.tsx:719:          return {
+  app\page.tsx:720:            company: item.courier_name,
+  app\page.tsx:721:            name: item.courier_service_name,
+  app\page.tsx:722:            service_type: item.courier_service_code,
+  app\page.tsx:780:  };
+  app\page.tsx:781:
+  app\page.tsx:782:  // CART LOGIC
+> app\page.tsx:783:  const addToCart = (item: Product, qty: number) => {
+  app\page.tsx:784:    if (item.status !== "READY STOCK" || qty <= 0) return;
+  app\page.tsx:785:    const variantToSave = item.variants
+  app\page.tsx:786:      ? item.variants[selectedVariantIndex]
+> app\page.tsx:787:      : { size: "10 Tea Bags (Signature Edition)", priceValue: item.priceValue, promoPrice: item.promoPrice || "Rp72.800", regularPrice: item.regularPrice || "Rp97.000", discountPercentage: "25% OFF" };
+  app\page.tsx:788:
+  app\page.tsx:789:    setCart((prev) => {
+  app\page.tsx:790:      const existing = prev.find((ci) => ci.product.id === item.id && ci.selectedVariant.size === variantToSave.size);
+  app\page.tsx:791:      if (existing) {
+  app\page.tsx:792:        return prev.map((ci) => (ci.product.id === item.id && ci.selectedVariant.size === variantToSave.size ? { ...ci, quantity: ci.quantity + qty } : ci));
+  app\page.tsx:793:      }
+  app\page.tsx:794:      return [...prev, { product: item, selectedVariant: variantToSave, quantity: qty }];
+  app\page.tsx:795:    });
+  app\page.tsx:796:    setIsCartOpen(true);
+> app\page.tsx:797:    setCheckoutStep("cart");
+  app\page.tsx:798:  };
+  app\page.tsx:799:
+  app\page.tsx:800:  const updateCartQuantity = (id: string, variantSize: string, delta: number) => {
+  app\page.tsx:801:    setCart((prev) =>
+  app\page.tsx:802:      prev
+  app\page.tsx:803:        .map((ci) => {
+  app\page.tsx:812:  };
+  app\page.tsx:813:
+  app\page.tsx:814:  const totalItemsInCart = cart.reduce((sum, item) => sum + item.quantity, 0);
+> app\page.tsx:815:  const subtotalPrice = cart.reduce((sum, item) => sum + item.selectedVariant.priceValue * item.quantity, 0);
+  app\page.tsx:816:  const shippingCost = selectedShipping ? selectedShipping.rate : 0;
+> app\page.tsx:817:  const grandTotal = subtotalPrice + shippingCost;
+  app\page.tsx:818:
+  app\page.tsx:819:  // LACAK PESANAN BY SERIAL
+  app\page.tsx:820:  const handleTrackOrder = async () => {
+  app\page.tsx:821:    if (!searchSerial) return;
+  app\page.tsx:822:    setTrackingLoading(true);
+  app\page.tsx:823:    setTrackingResult(null);
+  app\page.tsx:935:          addressDetail: `${customer.addressDetail}, Kec. ${customer.districtName}, ${customer.cityName}, ${customer.provinceName}`,
+  app\page.tsx:936:          sku: skuList,
+  app\page.tsx:937:          itemsSummary,
+> app\page.tsx:938:          subtotalProducts: subtotalPrice,
+  app\page.tsx:939:          originalShipping: originalShippingFee,
+  app\page.tsx:940:          shippingSubsidy: shippingSubsidyAmount,
+  app\page.tsx:941:          customerShippingFee: finalShippingFee,
+  app\page.tsx:942:          grandTotal: grandTotal,
+  app\page.tsx:943:        }),
+  app\page.tsx:944:      });
+  app\page.tsx:945:
+> app\page.tsx:946:      setCheckoutStep("payment");
+  app\page.tsx:947:    } catch (err) {
+  app\page.tsx:948:      console.error("Gagal simpan data transaksi ke Sheet:", err);
+  app\page.tsx:949:    } finally {
+  app\page.tsx:950:      setIsSubmittingOrder(false); // RELEASE LOCK
+  app\page.tsx:951:    }
+  app\page.tsx:952:  };
+  app\page.tsx:976:      promoInfo = "Subsidi Pengiriman Rp20.000";
+  app\page.tsx:977:    }
+  app\page.tsx:978:
+> app\page.tsx:979:    const message = `Halo VARTANA, saya (Member ${memberId}) ingin konfirmasi pesanan:\n\n*No. Seri Pesanan:* ${currentOrderSerial || "VRT-NEW"}\n*Nama:* ${customer.name}\n*Email:* ${customer.email}\n*HP/WA:* 
+${customer.phone}\n*Tgl Lahir:* ${customer.birthDate || "-"}\n*Alamat:* ${customer.addressDetail}, Kec. ${customer.districtName}, ${customer.cityName}, ${customer.provinceName}\n\n*Detail Rincian 
+Pesanan:*\n${itemsList}${bonusText}\n\n*Subtotal:* ${formatRupiah(subtotalPrice)}\n*Layanan Kurir:* ${selectedShipping?.company.toUpperCase()} - ${selectedShipping?.name}\n*Biaya Pengiriman:* ${shippingCost === 0 ? "FREE ONGKIR" : 
+formatRupiah(shippingCost)} (${promoInfo})\n*Total Pembayaran:* ${formatRupiah(grandTotal)}\n\nSaya akan segera melampirkan bukti transfer ke BCA ${BANK_DETAILS.accountNumber} a.n ${BANK_DETAILS.accountHolder}. Terima kasih.`;
+  app\page.tsx:980:
+  app\page.tsx:981:    return `https://wa.me/${BANK_DETAILS.whatsappNumber}?text=${encodeURIComponent(message)}`;
+  app\page.tsx:982:  };
+  app\page.tsx:983:
+  app\page.tsx:984:  return (
+  app\page.tsx:985:    <main className="min-h-screen bg-[#F6F2E8] pb-20 text-[#16382A] selection:bg-[#B69245] selection:text-white md:pb-0">
+  app\page.tsx:1026:            <button
+  app\page.tsx:1027:              onClick={() => {
+  app\page.tsx:1028:                setIsCartOpen(true);
+> app\page.tsx:1029:                setCheckoutStep("cart");
+  app\page.tsx:1030:              }}
+  app\page.tsx:1031:              className="relative flex items-center gap-2 rounded-full border border-[#16382A]/15 bg-white/80 px-4 py-2 text-[11px] font-semibold transition hover:border-[#B69245] shadow-xs"
+  app\page.tsx:1032:            >
+  app\page.tsx:1033:              <span className="text-sm">🛒</span>
+  app\page.tsx:1034:              <span className="hidden tracking-wider sm:inline">{t.cart.title}</span>
+  app\page.tsx:1035:              {totalItemsInCart > 0 && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#16382A] text-[10px] font-bold text-[#F6F2E8]">{totalItemsInCart}</span>}
+  app\page.tsx:1086:          <button
+  app\page.tsx:1087:            onClick={() => {
+  app\page.tsx:1088:              setIsCartOpen(true);
+> app\page.tsx:1089:              setCheckoutStep("cart");
+  app\page.tsx:1090:            }}
+  app\page.tsx:1091:            className="relative flex flex-col items-center py-1 text-[#16382A]"
+  app\page.tsx:1092:          >
+  app\page.tsx:1093:            <span className="text-base">🛒</span>
+  app\page.tsx:1094:            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Cart</span>
+  app\page.tsx:1095:            {totalItemsInCart > 0 && <span className="absolute right-2 top-0 flex h-4 w-4 items-center justify-center rounded-full bg-[#B69245] text-[8px] font-bold text-[#0D261C]">{totalItemsInCart}</span>}
+  app\page.tsx:1213:          <div className="flex h-full w-full max-w-md flex-col bg-[#FBF9F4] p-6 shadow-2xl">
+  app\page.tsx:1214:            {/* Header Drawer */}
+  app\page.tsx:1215:            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[#16382A]/10 pb-4">
+> app\page.tsx:1216:              <h3 className="font-serif text-2xl tracking-tight text-[#16382A]">{checkoutStep === "cart" ? t.cart.title : checkoutStep === "form" ? t.cart.fillFormTitle : t.cart.transferTitle}</h3>
+  app\page.tsx:1217:              <button onClick={() => setIsCartOpen(false)} className="rounded-full bg-[#16382A]/5 px-3 py-1 text-sm font-bold text-[#16382A] hover:bg-[#16382A]/10 transition">
+  app\page.tsx:1218:                ×
+  app\page.tsx:1219:              </button>
+  app\page.tsx:1220:            </div>
+  app\page.tsx:1221:
+  app\page.tsx:1222:            {/* REFINED PROMO BANNERS */}
+  app\page.tsx:1267:                  <svg className="h-10 w-10 opacity-80 text-[#16382A]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M3 3h2l2.4 12.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 
+2-1.6L21 8H6"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg>
+  app\page.tsx:1268:                  <p className="mt-4 text-xs font-medium tracking-wide text-[#627067]">{t.cart.empty}</p>
+  app\page.tsx:1269:                </div>
+> app\page.tsx:1270:              ) : checkoutStep === "cart" ? (
+  app\page.tsx:1271:                /* STEP 1: KERANJANG */
+  app\page.tsx:1272:                <div className="space-y-4">
+  app\page.tsx:1273:                  {cart.map((item) => (
+  app\page.tsx:1274:                    <div key={`${item.product.id}-${item.selectedVariant.size}`} className="flex items-center justify-between rounded-2xl border border-[#16382A]/10 bg-white p-4 shadow-xs">
+  app\page.tsx:1275:                      <div className="pr-2">
+  app\page.tsx:1276:                        <h4 className="font-serif text-base font-bold text-[#16382A]">{item.product.name}</h4>
+  app\page.tsx:1277:                        <p className="text-[10px] font-semibold uppercase tracking-wider text-[#8E6E2E] mt-0.5">{item.selectedVariant.size}</p>
+  app\page.tsx:1278:                        <div className="flex items-center gap-2 mt-1.5">
+> app\page.tsx:1279:                          <span className="text-xs font-extrabold text-[#16382A]">{formatRupiah(item.selectedVariant.priceValue)}</span>
+> app\page.tsx:1280:                          <span className="text-[10px] text-gray-400 line-through">{item.selectedVariant.regularPrice}</span>
+  app\page.tsx:1281:                        </div>
+> app\page.tsx:1282:                        <p className="mt-2 text-[11px] font-bold text-[#16382A]">Subtotal: {formatRupiah(item.selectedVariant.priceValue * item.quantity)}</p>
+  app\page.tsx:1283:                      </div>
+  app\page.tsx:1284:
+  app\page.tsx:1285:                      <div className="flex items-center gap-2.5 rounded-full border border-[#16382A]/15 bg-[#F6F2E8] px-3 py-1">
+  app\page.tsx:1286:                        <button onClick={() => updateCartQuantity(item.product.id, item.selectedVariant.size, -1)} className="flex h-5 w-5 items-center justify-center text-xs font-bold text-[#16382A] hover:opacity-60 
+transition">
+  app\page.tsx:1287:                          -
+  app\page.tsx:1288:                        </button>
+  app\page.tsx:1304:                    </div>
+  app\page.tsx:1305:                  )}
+  app\page.tsx:1306:                </div>
+> app\page.tsx:1307:              ) : checkoutStep === "form" ? (
+  app\page.tsx:1308:                /* STEP 2: FORM DATA DIRI DENGAN AUTO-FILL BY NO HP */
+  app\page.tsx:1309:                <div className="space-y-4 text-xs">
+  app\page.tsx:1310:                  {formError && <p className="rounded-xl bg-red-50 p-3.5 text-red-700 font-medium border border-red-200">{formError}</p>}
+  app\page.tsx:1311:
+  app\page.tsx:1312:                  {/* FORM NO WA DITARUH DI ATAS AGAR MUDAH AUTO-FILL */}
+  app\page.tsx:1313:                  <div className="rounded-2xl border border-[#B69245]/30 bg-[#FFFDF9] p-4 shadow-xs">
+  app\page.tsx:1504:                    <p className="font-bold text-[#16382A] uppercase tracking-wider">Ringkasan Rincian Pesanan:</p>
+  app\page.tsx:1505:                    <p className="font-bold text-[#8E6E2E]">• No. Seri: {currentOrderSerial}</p>
+  app\page.tsx:1506:                    <p>
+> app\page.tsx:1507:                      • Subtotal ({totalQuantity} Pouch): {formatRupiah(subtotalPrice)}
+  app\page.tsx:1508:                    </p>
+  app\page.tsx:1509:                    {freePouchesCount > 0 && <p className="font-bold text-green-800">• Bonus Promo: +{freePouchesCount} Pouch (10s) Gratis</p>}
+  app\page.tsx:1510:                    <p>
+  app\page.tsx:1511:                      • Layanan Kurir: {selectedShipping?.company.toUpperCase()} ({shippingCost === 0 ? "FREE ONGKIR" : formatRupiah(shippingCost)})
+  app\page.tsx:1512:                    </p>
+  app\page.tsx:1513:                    <p>
+  app\page.tsx:1526:                  <span className="font-serif text-2xl font-bold text-[#16382A]">{formatRupiah(grandTotal)}</span>
+  app\page.tsx:1527:                </div>
+  app\page.tsx:1528:
+> app\page.tsx:1529:                {checkoutStep === "cart" ? (
+> app\page.tsx:1530:                  <button onClick={() => setCheckoutStep("form")} className="w-full rounded-full bg-[#16382A] py-3.5 text-xs font-semibold uppercase tracking-widest text-[#F6F2E8] transition hover:bg-[#214737]">
+> app\page.tsx:1531:                    {t.cart.checkoutBtn} →
+  app\page.tsx:1532:                  </button>
+> app\page.tsx:1533:                ) : checkoutStep === "form" ? (
+  app\page.tsx:1534:                  <div className="space-y-2">
+  app\page.tsx:1535:                    <button
+  app\page.tsx:1536:                      onClick={handleProceedToPayment}
+  app\page.tsx:1537:                      disabled={isSubmittingOrder}
+  app\page.tsx:1538:                      className={`w-full rounded-full py-3.5 text-xs font-semibold uppercase tracking-widest transition ${
+  app\page.tsx:1539:                        isSubmittingOrder ? "bg-gray-400 cursor-not-allowed text-gray-700" : "bg-[#B69245] text-[#0D261C] hover:bg-[#c9a352]"
+  app\page.tsx:1541:                    >
+  app\page.tsx:1542:                      {isSubmittingOrder ? "Ã¢ÂÂ³ Sedang Memproses Pesanan..." : `${t.cart.payNow} →`}
+  app\page.tsx:1543:                    </button>
+> app\page.tsx:1544:                    <button onClick={() => setCheckoutStep("cart")} className="w-full text-center text-xs text-[#627067] hover:underline">
+  app\page.tsx:1545:                      {t.cart.backToCart}
+  app\page.tsx:1546:                    </button>
+  app\page.tsx:1547:                  </div>
+  app\page.tsx:1548:                ) : (
+  app\page.tsx:1549:                  <div className="space-y-2">
+  app\page.tsx:1550:                    <a
+  app\page.tsx:1555:                    >
+  app\page.tsx:1556:                      💬 {t.cart.confirmWa}
+  app\page.tsx:1557:                    </a>
+> app\page.tsx:1558:                    <button onClick={() => setCheckoutStep("form")} className="w-full text-center text-xs text-[#627067] hover:underline">
+  app\page.tsx:1559:                      Ubah Data Alamat
+  app\page.tsx:1560:                    </button>
+  app\page.tsx:1561:                  </div>
+  app\page.tsx:1562:                )}
+  app\page.tsx:1563:              </div>
+  app\page.tsx:1564:            )}
+  app\page.tsx:1761:            <img src={v.image} alt={v.size} className="mx-auto mb-2 h-20 w-full object-contain" />
+  app\page.tsx:1762:          )}
+  app\page.tsx:1763:          <p className="text-xs">{v.size}</p>
+> app\page.tsx:1764:                                <p className="text-sm font-extrabold mt-1">{v.promoPrice}</p>
+  app\page.tsx:1765:                              </button>
+  app\page.tsx:1766:                            ))}
+  app\page.tsx:1767:                          </div>
+  app\page.tsx:1768:                        </div>
+  app\page.tsx:1769:                      )}
+  app\page.tsx:1770:
+  app\page.tsx:1771:                      <div className="mt-6 grid gap-4 sm:grid-cols-2 md:gap-5">
+  app\page.tsx:1772:                        <div>
+> app\page.tsx:1773:                          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/40">{t.product.regularPrice}</p>
+> app\page.tsx:1774:                          <p className="mt-1 font-serif text-lg text-white/35 line-through md:text-xl">{currentVariant.regularPrice}</p>
+  app\page.tsx:1775:                        </div>
+  app\page.tsx:1776:                        <div>
+  app\page.tsx:1777:                          <div className="flex items-center gap-2">
+> app\page.tsx:1778:                            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#D8C28B]">{t.product.promoPrice}</p>
+  app\page.tsx:1779:                            <span className="rounded-full bg-[#D8C28B] px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-[#0D261C]">{currentVariant.discountPercentage || "SPECIAL OFFER"}</span>
+  app\page.tsx:1780:                          </div>
+> app\page.tsx:1781:                          <p className="mt-1 font-serif text-3xl text-[#F6F2E8] md:text-4xl">{currentVariant.promoPrice}</p>
+  app\page.tsx:1782:                        </div>
+  app\page.tsx:1783:                      </div>
+  app\page.tsx:1784:
+  app\page.tsx:1785:                      <div className="mt-8 space-y-3.5">
+  app\page.tsx:1786:                        <div className="flex items-center justify-between rounded-xl border border-white/15 bg-white/[0.03] p-3.5">
+  app\page.tsx:1787:                          <span className="text-xs font-semibold uppercase tracking-wider text-[#D8C28B]">{t.product.selectQuantity}</span>
+  app\page.tsx:1797:                        </div>
+  app\page.tsx:1798:
+  app\page.tsx:1799:                        <button
+> app\page.tsx:1800:                          onClick={() => addToCart(product, productQuantity)}
+  app\page.tsx:1801:                          className="flex w-full items-center justify-center gap-2 rounded-full bg-[#B69245] px-8 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-[#0D261C] transition hover:bg-[#c9a352] 
+shadow-md"
+  app\page.tsx:1802:                        >
+> app\page.tsx:1803:                          🛒 {t.product.addToCart} ({productQuantity})
+  app\page.tsx:1804:                        </button>
+  app\page.tsx:1805:                      </div>
+  app\page.tsx:1806:                    </div>
+  app\page.tsx:1807:                  )}
+  app\page.tsx:1808:
+  app\page.tsx:1809:                  <div className="mt-8 flex items-center gap-4">
+
+
+

@@ -105,3 +105,16 @@ InventoryLedger menyimpan selisih stok opname. InventoryConfig mempertahankan ko
 Maksimum adalah batas pantauan (stok berlebih ditandai), bukan batas yang menghalangi pencatatan hasil hitung fisik.
 Penerimaan, pemakaian, dan produksi tersedia dalam form baris yang sama. Pada produksi barang jadi, jumlah pack ditambahkan dan bahan dikurangi sesuai resep.
 Jika stok berubah sejak form dibuka, tutup form, Refresh spreadsheet, lalu periksa ulang jumlah fisik sebelum menyimpan.
+
+BATCH / FEFO V3
+Deploy TXT lengkap sebagai New version pada deployment yang sama. Tidak perlu Setup Master dan tidak perlu menghapus stok lama.
+Buka Stok > Bahan baku & kemasan > tombol Batch / FEFO pada baris bahan.
+Penerimaan baru menambah stok. Bagi stok lama hanya memindahkan saldo yang sudah tercatat ke batch: total persediaan tetap, tidak bertambah dua kali.
+Contoh stok tercatat kunyit 6 kg: Bagi stok lama 2 kg dengan bulan masuk Juli, lalu 4 kg dengan bulan masuk Oktober. Pilih tahun yang benar.
+Tanggal masuk boleh hanya bulan. Jika hari pastinya diketahui, centang Tanggal pastinya diketahui. Usia bulan merupakan perkiraan; usia hari hanya ditampilkan jika tanggal pasti diketahui.
+Tanggal kedaluwarsa boleh kosong: sistem tidak mengarang tanggal kedaluwarsa atau umur simpan. Batch bertanggal kedaluwarsa yang paling dekat dipakai dulu (FEFO); batch tanpa tanggal menyusul berdasarkan tanggal masuk (FIFO).
+Status awal batch adalah Tahan / perlu diperiksa. Setelah pemeriksaan fisik, pilih Siap pakai (sudah diperiksa) dan isi catatan. Usia sejak masuk bukan hasil uji mutu atau jaminan kelayakan.
+Batch kedaluwarsa, ditahan, atau ditolak tidak ikut kapasitas produksi dan tidak dipakai otomatis. Bahan yang belum dibagi per batch juga belum masuk kapasitas produksi.
+Produksi dan pemakaian bahan otomatis mengurangi batch siap pakai sesuai FEFO/FIFO. Opname / keluar pada baris batch mencatat sisa fisik; gunakan untuk selisih, rusak, atau pembuangan batch tertentu dengan catatan.
+Periksa / edit tanggal pada batch dapat memperbarui tanggal masuk, kedaluwarsa, dan status kualitas. Riwayat batch tetap tersimpan di InventoryLedger; kolom G berisi Batch ID. Metadata berada di InventoryBatches pada workbook yang sama.
+Peringatan 30 hari adalah pengingat kedaluwarsa, bukan perkiraan mutu bahan. Nilai persediaan tetap memakai harga master saat ini, bukan biaya historis per batch.

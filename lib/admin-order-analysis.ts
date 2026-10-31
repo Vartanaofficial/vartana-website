@@ -1,6 +1,6 @@
 import { calculatePromoPrice } from './product-pricing';
 
-export type AnalysisProduct = { sku: string; productName: string; variantName?: string; sellingPrice?: number; hpp?: number; discountType?: string; discountValue?: number };
+export type AnalysisProduct = { teaBagCount?:number; teaBagWeightGram?:number; sku: string; productName: string; variantName?: string; sellingPrice?: number; hpp?: number; discountType?: string; discountValue?: number };
 export type AnalysisOrder = { sku?: string; itemsSummary?: string; grandTotal?: unknown; subtotalProducts?: unknown; customerShippingFee?: unknown; originalShipping?: unknown; shippingSubsidy?: unknown; recoveredLegacy?: boolean; totalCogs?: number | null };
 export function moneyValue(value: unknown): number | null {
   if (typeof value !== 'number' && typeof value !== 'string') return null;

@@ -36,6 +36,7 @@ export default function CheckoutPage() {
   const [retry, setRetry] = useState(0);
   const [orderKey, setOrderKey] = useState("");
   const [receipt, setReceipt] = useState<{ serial: string; total: number; paymentMethod?: string; waOpened?: boolean } | null>(null);
+  const [paymentView, setPaymentView] = useState("bank_transfer");
   const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
   const [copied, setCopied] = useState("");
 
@@ -49,7 +50,7 @@ export default function CheckoutPage() {
     }
     if (!key) { key = crypto.randomUUID(); sessionStorage.setItem("vartana_checkout_key", key); }
     setOrderKey(key);
-    try { const saved = JSON.parse(sessionStorage.getItem(`vartana_receipt_${key}`) || "null"); if (saved) setReceipt(saved); } catch { /* No completed order. */ }
+    try { const saved = JSON.parse(sessionStorage.getItem(`vartana_receipt_${key}`) || "null"); if (saved) { setReceipt(saved); setPaymentView(saved.paymentMethod || "bank_transfer"); } } catch { /* No completed order. */ }
     setReady(true);
   }, []);
 
@@ -135,7 +136,7 @@ export default function CheckoutPage() {
       }) });
       const data = await r.json(); if (!r.ok) throw new Error(data.message);
       sessionStorage.setItem(`vartana_receipt_${orderKey}`, JSON.stringify(data));
-      writeCart([]); setReceipt(data);
+      writeCart([]); setReceipt(data); setPaymentView(data.paymentMethod || "bank_transfer");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) { setOrderError(error instanceof Error ? error.message : "Pesanan belum tersimpan."); setRetry(value => value + 1); }
     finally { setSaving(false); }
@@ -145,7 +146,7 @@ export default function CheckoutPage() {
     try { await navigator.clipboard.writeText(value); setCopied(label); } catch { setCopied("Pilih dan salin teks secara manual."); }
   }
 
-  const wa = receipt ? `https://wa.me/${PAYMENT_DETAILS.whatsapp}?text=${encodeURIComponent(`Halo VARTANA, saya ingin konfirmasi pembayaran pesanan ${receipt.serial} atas nama ${customer.name}, total ${money(receipt.total)}. Metode ${receipt.paymentMethod === "qris" ? "QRIS" : "transfer BCA"}. Saya akan melampirkan bukti pembayaran.`)}` : "";
+  const wa = receipt ? `https://wa.me/${PAYMENT_DETAILS.whatsapp}?text=${encodeURIComponent(`Halo VARTANA, saya ingin konfirmasi pembayaran pesanan ${receipt.serial} atas nama ${customer.name}, total ${money(receipt.total)}. Metode ${paymentView === "qris" ? "QRIS" : "transfer BCA"}. Saya akan melampirkan bukti pembayaran.`)}` : "";
 
   return <main className="premium-checkout min-h-screen text-[#183d2c]">
     <header className="checkout-topbar border-b border-[#dce0d4] bg-[#FCFAF5] px-5 py-5 sm:px-10">
@@ -162,7 +163,7 @@ export default function CheckoutPage() {
       <CheckoutProgress step={receipt ? 2 : customer.name || customer.provinceId || customer.email ? 1 : 0} />
 
       {!ready ? <p className="py-16">Menyiapkan checkout…</p> : receipt ? <section className="checkout-payment-stage mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
-        <div className="rounded-3xl border border-[#dedfd2] bg-white p-7 sm:p-9"><p className="text-xs text-[#7d886f]">NOMOR PESANAN</p><p className="mt-3 break-all font-mono text-sm">{receipt.serial}</p>{receipt.paymentMethod === "qris" ? <div><h2 className="mt-8 font-serif text-2xl">Bayar dengan QRIS</h2><img src="/vartana-qris.jpeg" alt="Kode QRIS pembayaran VARTANA" width="600" height="605" className="mt-5 h-auto w-full rounded-2xl"/><a href="/vartana-qris.jpeg" download className="mt-3 inline-block text-xs underline">Unduh QRIS</a><p className="mt-3 text-xs leading-6">Pindai atau unggah QRIS di aplikasi pembayaran. Masukkan nominal sesuai total pesanan.</p></div> : <div><h2 className="mt-8 font-serif text-2xl">Transfer ke {PAYMENT_DETAILS.bank}</h2><p className="mt-5 text-sm text-[#68745f]">Nomor rekening</p><p className="mt-1 font-mono text-2xl">{PAYMENT_DETAILS.account}</p><button type="button" onClick={() => copy(PAYMENT_DETAILS.account, "Rekening tersalin")} className="mt-2 text-xs underline">Salin rekening</button><p className="mt-4 text-sm">a.n. {PAYMENT_DETAILS.holder}</p></div>}<div className="mt-7 rounded-2xl bg-[#f6f3ec] p-5"><p className="text-xs text-[#6c7865]">Total pembayaran</p><p className="mt-2 font-serif text-3xl">{money(receipt.total)}</p><button type="button" onClick={() => copy(String(receipt.total), "Nominal tersalin")} className="mt-2 text-xs underline">Salin nominal</button></div>{copied && <p role="status" className="mt-3 text-xs">{copied}</p>}</div>
+        <div className="rounded-3xl border border-[#dedfd2] bg-white p-7 sm:p-9"><p className="text-xs text-[#7d886f]">NOMOR PESANAN</p><p className="mt-3 break-all font-mono text-sm">{receipt.serial}</p><div className="mt-5 flex gap-2">{[["bank_transfer","Transfer BCA"],["qris","Lihat QRIS"]].map(([value,label])=><button key={value} type="button" onClick={()=>setPaymentView(value)} aria-pressed={paymentView===value} className={`rounded-full border px-4 py-2 text-sm ${paymentView===value?"bg-[#173b2b] text-white":"bg-white"}`}>{label}</button>)}</div>{paymentView === "qris" ? <div><h2 className="mt-8 font-serif text-2xl">Bayar dengan QRIS</h2><img src="/vartana-qris.jpeg" alt="Kode QRIS pembayaran VARTANA" width="600" height="605" className="mt-5 h-auto w-full rounded-2xl"/><a href="/vartana-qris.jpeg" download className="mt-3 inline-block text-xs underline">Unduh QRIS</a><p className="mt-3 text-xs leading-6">Pindai atau unggah QRIS di aplikasi pembayaran. Masukkan nominal sesuai total pesanan.</p></div> : <div><h2 className="mt-8 font-serif text-2xl">Transfer ke {PAYMENT_DETAILS.bank}</h2><p className="mt-5 text-sm text-[#68745f]">Nomor rekening</p><p className="mt-1 font-mono text-2xl">{PAYMENT_DETAILS.account}</p><button type="button" onClick={() => copy(PAYMENT_DETAILS.account, "Rekening tersalin")} className="mt-2 text-xs underline">Salin rekening</button><p className="mt-4 text-sm">a.n. {PAYMENT_DETAILS.holder}</p></div>}<div className="mt-7 rounded-2xl bg-[#f6f3ec] p-5"><p className="text-xs text-[#6c7865]">Total pembayaran</p><p className="mt-2 font-serif text-3xl">{money(receipt.total)}</p><button type="button" onClick={() => copy(String(receipt.total), "Nominal tersalin")} className="mt-2 text-xs underline">Salin nominal</button></div>{copied && <p role="status" className="mt-3 text-xs">{copied}</p>}</div>
         <div className="flex flex-col justify-center rounded-3xl bg-[#143b2b] p-8 text-[#faf7ee]"><span className="text-xs uppercase tracking-[0.2em] text-[#d8c28b]">{receipt.waOpened ? "Menunggu verifikasi admin" : "Menunggu pembayaran"}</span><h2 className="mt-4 font-serif text-3xl">Terima kasih sudah memilih VARTANA.</h2><p className="mt-4 text-sm leading-7 text-white/70">{receipt.waOpened ? "Pesanan tercatat, mohon ditunggu. Pastikan pesan dan bukti pembayaran sudah kamu kirim di WhatsApp. Admin akan memverifikasi pembayaran sebelum menyiapkan pesanan." : "Simpan nomor pesananmu. Setelah membayar, kirim bukti pembayaran melalui WhatsApp agar tim kami bisa memproses pesanan."}</p><a href={wa} onClick={() => { const updated = {...receipt, waOpened: true}; setReceipt(updated); sessionStorage.setItem(`vartana_receipt_${orderKey}`, JSON.stringify(updated)); }} target="_blank" rel="noreferrer" className="mt-8 rounded-full bg-[#dcc58c] px-6 py-4 text-center text-sm font-semibold text-[#173b2b]">Konfirmasi pembayaran →</a><Link href="/#collection" onClick={() => { sessionStorage.removeItem("vartana_checkout_key"); sessionStorage.removeItem("vartana_checkout_draft"); }} className="mt-5 text-center text-xs underline">Kembali berbelanja</Link></div>
       </section> : !cart.length ? <section className="checkout-empty rounded-3xl border border-[#dce0d4] bg-white py-16 text-center"><h2 className="font-serif text-2xl">Keranjangmu masih kosong.</h2><Link href="/#collection" className="mt-6 inline-block rounded-full bg-[#173b2b] px-8 py-3 text-sm text-white">Jelajahi koleksi</Link></section> : <form onSubmit={submit} className="checkout-form grid items-start gap-8 lg:grid-cols-[1.15fr_0.85fr]">
         <div className="checkout-main-column space-y-6">

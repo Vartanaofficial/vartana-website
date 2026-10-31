@@ -18,7 +18,7 @@ export function downloadCustomerInvoice(order: InvoiceOrder) {
   autoTable(doc, { startY: 40, theme: "plain", styles: {fontSize: 10, cellPadding: 3},
     body: [["Nomor pesanan", order.orderSerial], ["Tanggal pesanan", order.createdAt || "-"],
       ["Customer", order.customerName], ["WhatsApp", order.phone], ["Alamat", order.addressDetail],
-      ["Metode pembayaran", order.paymentMethod === "qris" ? "QRIS" : order.paymentMethod === "bank_transfer" ? "Transfer BCA" : "Tidak tercatat"],
+      ["Metode saat checkout", order.paymentMethod === "qris" ? "QRIS" : order.paymentMethod === "bank_transfer" ? "Transfer BCA" : "Tidak tercatat"],
       ["Rincian produk", order.itemsSummary],
       ["Subtotal produk setelah promo", typeof order.subtotalProducts === "number" ? money(order.subtotalProducts) : "Belum terverifikasi"],
       ["Ongkir customer", typeof order.customerShippingFee === "number" ? money(order.customerShippingFee) : "Belum terverifikasi"],

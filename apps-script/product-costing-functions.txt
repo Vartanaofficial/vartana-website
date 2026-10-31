@@ -18,7 +18,7 @@ function saveProductCosting_(data) {
     var total=0;
     for(var c=0;c<r.components.length;c++){
       var x=r.components[c];
-      if(!x||typeof x.name!=='string'||!x.name.trim()||x.name.length>100||['Bahan baku','Kemasan','Produksi'].indexOf(x.category)<0||['gram','ml','pcs','batch'].indexOf(x.unit)<0||!valid(x.purchaseCost)||!valid(x.purchaseQty)||x.purchaseQty<=0||!valid(x.usageQty)||x.usageQty<=0)return responseJSON({success:false,message:'Lengkapi komponen biaya.'});
+      if(!x||typeof x.name!=='string'||!x.name.trim()||x.name.length>100||['Bahan baku','Kemasan','Produksi'].indexOf(x.category)<0||['gram','ml','pcs','batch'].indexOf(x.unit)<0||!valid(x.purchaseCost)||x.purchaseCost<=0||!valid(x.purchaseQty)||x.purchaseQty<=0||!valid(x.usageQty)||x.usageQty<=0)return responseJSON({success:false,message:'Lengkapi komponen biaya.'});
       total+=x.purchaseCost/x.purchaseQty*x.usageQty;
     }
     if(!valid(total)||total<=0)return responseJSON({success:false,message:'Total biaya tidak valid.'});

@@ -1,0 +1,33 @@
+// MASTER HARGA BAHAN — disimpan terpisah dari Products dan Orders.
+function getRawMaterials_(){
+  var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('RawMaterials'),materials=[];
+  if(sh&&sh.getLastRow()>1){var rows=sh.getDataRange().getValues();for(var i=1;i<rows.length;i++){if(!rows[i][0])continue;try{var m=JSON.parse(String(rows[i][2]));m.id=String(rows[i][0]);m.name=String(rows[i][1]);if(rows[i].length>=11){m.category=String(rows[i][4]);m.purchaseCost=Number(rows[i][5]);m.purchaseQty=Number(rows[i][6]);m.unit=String(rows[i][7]);m.supplier=String(rows[i][8]||" ").trim();m.source=String(rows[i][9]||" ").trim();m.confirmed=m.confirmed===true&&isFinite(m.purchaseCost)&&m.purchaseCost>0&&isFinite(m.purchaseQty)&&m.purchaseQty>0;}materials.push(m);}catch(e){return responseJSON({success:false,message:'Data bahan baris '+(i+1)+' tidak terbaca. Periksa RawMaterials.'});}}}
+  return responseJSON({success:true,materials:materials});
+}
+function saveRawMaterials_(data){
+  var list=data.materials;
+  if(!Array.isArray(list)||!list.length||list.length>150)return responseJSON({success:false,message:'Daftar bahan tidak valid.'});
+  var seen={};
+  for(var i=0;i<list.length;i++){
+    var m=list[i];
+    if(!m||typeof m.name!=='string'||!m.name.trim()||m.name.length>100||!/^MAT-[a-z0-9-]+$/i.test(m.id)||seen[m.id]||['Bahan baku','Kemasan','Produksi'].indexOf(m.category)<0||['gram','ml','pcs','batch'].indexOf(m.unit)<0||typeof m.confirmed!=='boolean'||[m.purchaseCost,m.purchaseQty].some(function(n){return typeof n!=='number'||!isFinite(n)||n<0||n>1e12;})||(m.confirmed&&(m.purchaseQty<=0||m.purchaseCost<=0))||[m.supplier,m.source].some(function(s){return typeof s!=='string'||s.length>200;}))return responseJSON({success:false,message:'Harga atau satuan bahan tidak valid.'});
+    seen[m.id]=true;
+  }
+  var lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName('RawMaterials');
+    if(!sh){sh=ss.insertSheet('RawMaterials');sh.getRange(1,1,1,11).setValues([['Material ID','Nama Bahan','Material JSON','Updated At','Kelompok','Harga Beli','Jumlah Beli','Satuan','Supplier','Sumber Harga','Harga Per Satuan']]);sh.setFrozenRows(1);}
+    var rows=sh.getDataRange().getValues(),ids={},names={},saved=0;
+    if(rows[0][0]!=='Material ID'||rows[0][2]!=='Material JSON')return responseJSON({success:false,message:'Struktur RawMaterials berbeda. Data tidak diubah.'});
+    for(var j=1;j<rows.length;j++){ids[String(rows[j][0])]=j+1;names[String(rows[j][1]).trim().toLowerCase()]=String(rows[j][0]);}
+    for(var c=0;c<list.length;c++){var item=list[c],name=item.name.trim().toLowerCase();if(names[name]&&names[name]!==item.id&&!data.skipExisting)return responseJSON({success:false,message:'Nama bahan sudah tersedia. Edit bahan yang ada.'});}
+    for(var n=0;n<list.length;n++){
+      var x=list[n],key=x.name.trim().toLowerCase(),row=ids[x.id];
+      if(data.skipExisting&&(row||names[key]))continue;
+      var values=[x.id,x.name,JSON.stringify(x),new Date(),x.category,x.purchaseCost,x.purchaseQty,x.unit,x.supplier,x.source,x.purchaseQty>0?x.purchaseCost/x.purchaseQty:0];
+      if(row)sh.getRange(row,1,1,11).setValues([values]);else{sh.appendRow(values);ids[x.id]=sh.getLastRow();}
+      names[key]=x.id;saved++;
+    }
+    return responseJSON({success:true,saved:saved});
+  }finally{lock.releaseLock();}
+}

@@ -53,3 +53,12 @@ HPP PER SKU / KOMPONEN BIAYA
 4. Pada mode komponen: isi jumlah kemasan hasil satu batch. Tambahkan bahan baku, kemasan, tenaga kerja/biaya produksi. Harga beli total dibagi jumlah beli, lalu dikalikan pemakaian batch. Gunakan satuan yang sama. Contoh pembelian 1 kg ditulis 1000 gram jika pemakaian dihitung dalam gram.
 5. Simpan HPP ke Master Product. Tab ProductCosting dibuat otomatis saat simpan pertama untuk menyimpan rincian; kolom HPP pada Products diperbarui hanya untuk SKU terpilih.
 6. HPP master saat ini dipakai untuk estimasi modal transaksi historis. Ini belum merupakan snapshot HPP pada tanggal transaksi. Angka contoh tidak disimpan otomatis.
+
+MASTER BAHAN BAKU DAN BOM
+- Master bahan baku dapat dibuka di Profit & P&L, bagian Hitung HPP per SKU. Harga supplier Sep-26 berbasis per kilogram, sesuai konfirmasi pemilik. Jumlah beli disimpan 1000 gram agar harga per gram dihitung tepat.
+- Tab RawMaterials menyimpan harga acuan. Nama supplier dan harga bisa diedit melalui menu master bahan. Kolom JSON adalah data aplikasi; gunakan kolom yang terlihat atau form web untuk mengedit harga.
+- Pilih SKU lalu Gunakan contoh BOM dari gambar untuk empat blend. Gram tiap bahan disesuaikan jumlah tea bag dan gram per tea bag pada Master Product. Pilih jenis bahan supplier pada setiap baris; jangan mengganti pala biji dengan kulit pala. Tambahkan biaya kemasan dan produksi sebelum simpan HPP.
+- Semua komponen BOM wajib berharga positif. Harga yang tidak ada pada lampiran harus diisi dari supplier. Tidak ada HPP contoh yang disimpan otomatis.
+- Perubahan harga master tidak otomatis mengubah BOM tersimpan. Pilih ulang bahan pada baris BOM untuk mengambil harga terbaru, kemudian Simpan HPP.
+- Deploy versi lengkap terbaru dengan New version agar getRawMaterials/saveRawMaterials aktif. Tidak perlu menjalankan setup master.
+- Halaman pembayaran kini menyediakan tombol Transfer BCA dan Lihat QRIS juga untuk pesanan tersimpan. Jika tampilan localhost lama, refresh Ctrl+Shift+R.

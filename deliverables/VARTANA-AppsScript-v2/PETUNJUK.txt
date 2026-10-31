@@ -45,3 +45,11 @@ PEMBARUAN QRIS DAN NOTA CUSTOMER
 - Checkout mendukung transfer BCA dan QRIS. Bukti pembayaran diperiksa admin.
 - Admin: Edit order > pilih PEMBAYARAN DITERIMA setelah memeriksa bukti > Simpan. Tombol Unduh nota PDF muncul. Buka WA customer lalu lampirkan PDF secara manual.
 - Membuka WhatsApp tidak otomatis mengubah order menjadi lunas.
+
+HPP PER SKU / KOMPONEN BIAYA
+1. Salin seluruh file VARTANA-AppsScript-v2.txt ke project Apps Script, Save, lalu Deploy > Manage deployments > Edit > New version > Deploy. Tetap gunakan deployment yang sama. Tidak perlu menjalankan setup master.
+2. Buka admin dashboard > Profit & P&L > login sesi keuangan > Hitung HPP per SKU.
+3. Pilih SKU. Isi HPP langsung, atau pilih Hitung dari komponen.
+4. Pada mode komponen: isi jumlah kemasan hasil satu batch. Tambahkan bahan baku, kemasan, tenaga kerja/biaya produksi. Harga beli total dibagi jumlah beli, lalu dikalikan pemakaian batch. Gunakan satuan yang sama. Contoh pembelian 1 kg ditulis 1000 gram jika pemakaian dihitung dalam gram.
+5. Simpan HPP ke Master Product. Tab ProductCosting dibuat otomatis saat simpan pertama untuk menyimpan rincian; kolom HPP pada Products diperbarui hanya untuk SKU terpilih.
+6. HPP master saat ini dipakai untuk estimasi modal transaksi historis. Ini belum merupakan snapshot HPP pada tanggal transaksi. Angka contoh tidak disimpan otomatis.

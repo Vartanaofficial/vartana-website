@@ -27,14 +27,14 @@ export function recoverLegacyOrder<T extends AnalysisOrder>(order: T): T {
 const norm = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 export function analyzeOrderItems(order: AnalysisOrder, products: AnalysisProduct[]) {
   const summary = order.itemsSummary || '';
-  const parts = summary.split(/\s*(?:\n|;|\|)\s*|,\s*(?=[^,]+\[)/).filter(Boolean);
+  const parts = summary.split(/\s*(?:\n|;|\|)\s*|,\s*(?=[^,]+\[)/).filter(part => Boolean(part) && !/^(Promo\s|Kurir\s|Catatan:|Pembayaran\s)/i.test(part));
   const items: { product: AnalysisProduct; qty: number; regular: number; net: number; cost: number | null }[] = [];
   let unmatched = 0;
   for (const part of parts.length ? parts : ['']) {
-    const match = part.match(/\((\d+)\s*x\)/i) || part.match(/(?:^|\s)(\d+)\s*x\s/i);
+    const match = part.match(/\((\d+)\s*x(?:\s*@Rp[\d.,]+)?\)/i) || part.match(/(?:^|\s)(\d+)\s*x\s/i);
     const qty = match ? Number(match[1]) : 1;
     const exactSku = products.find(p => p.sku === order.sku && parts.length <= 1);
-    const label = norm(part.replace(/\(\d+\s*x\)/ig, ''));
+    const label = norm(part.split(/\(\d+\s*x/i)[0].replace(/^(GRATIS|TEBUS MURAH)\s+/i, ''));
     const candidates = products.filter(p => label === norm(`${p.productName} ${p.variantName || ''}`));
     const product = exactSku || (candidates.length === 1 ? candidates[0] : undefined);
     if (!product || !Number.isSafeInteger(qty) || qty <= 0) { unmatched++; continue; }

@@ -1,4 +1,5 @@
 "use client";
+import ProductCosting from "./ProductCosting";
 import { analyzeOrderItems, type AnalysisProduct } from "@/lib/admin-order-analysis";
 import { orderFinancialIssues } from "@/lib/order-financials";
 import { downloadCustomerInvoice, invoiceAvailable } from "./customer-invoice";
@@ -497,7 +498,7 @@ export default function AdminDashboard() {
       {unknownNetCount > 0 && <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">Total transfer mencakup seluruh pesanan berstatus pembayaran diterima sampai selesai. Net Sales baru mencakup nominal yang terverifikasi; {unknownNetCount} pesanan masih perlu rincian ongkir. Pesanan menunggu pembayaran tidak masuk omzet diterima.</div>}
       {validFinancialOrders.some(order => order.reconciliationStatus === "ESTIMASI_ONGKIR" || order.originalShipping == null) && <div className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">Sebagian rincian ongkir historis belum terverifikasi. Net Sales mencakup estimasi ongkir Rp14.000 sesuai arahan pemilik; periksa Laporan_Omzet_20261031 untuk rinciannya.</div>}
       {recoveredCount > 0 && <div className="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-blue-950">{recoveredCount} pesanan lama dipulihkan dari susunan kolom lama. Total transfer tersimpan digunakan kembali; rincian ongkir/subsidi yang belum pasti perlu diverifikasi.</div>}
-      {missingCostCount > 0 && <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">HPP belum tersedia untuk {missingCostCount} pesanan. Isi modal per SKU di master Products. Laba dan margin belum dapat dipastikan; perhitungan modal memakai HPP master saat ini.</div>}
+      {missingCostCount > 0 && <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">HPP belum tersedia untuk {missingCostCount} pesanan. Isi modal per SKU melalui kalkulator HPP di menu Profit & P&L. Laba dan margin belum dapat dipastikan; perhitungan modal memakai HPP master saat ini.</div>}
       {dataError && <div role="alert" className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">{dataError} Gunakan tombol refresh untuk mencoba lagi.</div>}
       {financialIssues.length > 0 && <div role="alert" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
         <strong>{financialIssues.length} pesanan memiliki nominal kosong atau tidak konsisten.</strong> Pesanan tetap ada di tabel. Nominal yang belum valid tidak dijumlahkan; Net Sales yang terbaca tetap dihitung. Periksa subtotal, ongkir, subsidi, dan grand total di sheet Orders. Rp0 pada ringkasan tidak berarti tidak ada transaksi.
@@ -944,6 +945,8 @@ export default function AdminDashboard() {
                   Lock Sesi Keuangan
                 </button>
               </div>
+
+              <ProductCosting products={products} onSaved={(sku,hpp)=>setProducts(previous=>previous.map(p=>p.sku===sku?{...p,hpp}:p))}/>
 
               {/* CARDS UTAMA P&L */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

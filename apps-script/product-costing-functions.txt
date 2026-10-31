@@ -1,0 +1,46 @@
+// HPP PER SKU — hanya memperbarui HPP dan Updated At pada Products.
+// Rincian perhitungan disimpan terpisah; sheet/order lama tidak dimigrasi.
+function getProductCosting_() {
+  var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ProductCosting'), costs=[];
+  if(sh&&sh.getLastRow()>1){var rows=sh.getDataRange().getValues();for(var i=1;i<rows.length;i++){try{costs.push({sku:String(rows[i][0]),recipe:JSON.parse(String(rows[i][1])),hpp:Number(rows[i][2])});}catch(e){}}}
+  return responseJSON({success:true,costs:costs});
+}
+function saveProductCosting_(data) {
+  var sku=String(data.sku||'').trim(),r=data.recipe;
+  function valid(n){return typeof n==='number'&&isFinite(n)&&n>=0&&n<=1e12;}
+  if(!sku||!r||['manual','recipe'].indexOf(r.mode)<0)return responseJSON({success:false,message:'Pilih SKU dan metode HPP.'});
+  var hpp=0;
+  if(r.mode==='manual'){
+    if(!valid(r.manualCost)||r.manualCost<=0)return responseJSON({success:false,message:'HPP satuan harus lebih dari nol.'});
+    hpp=Math.ceil(r.manualCost);
+  }else{
+    if(!Number.isSafeInteger(r.batchYield)||r.batchYield<1||r.batchYield>1000000||!Array.isArray(r.components)||!r.components.length||r.components.length>100)return responseJSON({success:false,message:'Hasil batch atau komponen tidak valid.'});
+    var total=0;
+    for(var c=0;c<r.components.length;c++){
+      var x=r.components[c];
+      if(!x||typeof x.name!=='string'||!x.name.trim()||x.name.length>100||['Bahan baku','Kemasan','Produksi'].indexOf(x.category)<0||['gram','ml','pcs','batch'].indexOf(x.unit)<0||!valid(x.purchaseCost)||!valid(x.purchaseQty)||x.purchaseQty<=0||!valid(x.usageQty)||x.usageQty<=0)return responseJSON({success:false,message:'Lengkapi komponen biaya.'});
+      total+=x.purchaseCost/x.purchaseQty*x.usageQty;
+    }
+    if(!valid(total)||total<=0)return responseJSON({success:false,message:'Total biaya tidak valid.'});
+    hpp=Math.ceil(total/r.batchYield);
+  }
+  var lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    var ss=SpreadsheetApp.getActiveSpreadsheet(),products=ss.getSheetByName(SHEET_PRODUCTS);
+    if(!products)return responseJSON({success:false,message:'Products tidak ditemukan.'});
+    var rows=products.getDataRange().getValues(),headers=rows[0]||[],skuCol=headers.indexOf('SKU'),hppCol=headers.indexOf('HPP'),updatedCol=headers.indexOf('Updated At'),row=-1;
+    if(skuCol<0||hppCol<0)return responseJSON({success:false,message:'Header SKU / HPP tidak ditemukan. Data tidak diubah.'});
+    for(var i=1;i<rows.length;i++)if(String(rows[i][skuCol]).trim()===sku){row=i+1;break;}
+    if(row<0)return responseJSON({success:false,message:'SKU tidak ditemukan di Master Product.'});
+    var sh=ss.getSheetByName('ProductCosting');
+    if(!sh){sh=ss.insertSheet('ProductCosting');sh.getRange(1,1,1,4).setValues([['SKU','Recipe JSON','HPP Per Kemasan','Updated At']]);sh.setFrozenRows(1);}
+    var costRows=sh.getDataRange().getValues(),costRow=-1;
+    if(String(costRows[0][0])!=='SKU'||String(costRows[0][1])!=='Recipe JSON')return responseJSON({success:false,message:'Struktur ProductCosting berbeda. Data tidak diubah.'});
+    for(var j=1;j<costRows.length;j++)if(String(costRows[j][0]).trim()===sku){costRow=j+1;break;}
+    var now=new Date(),values=[sku,JSON.stringify(r),hpp,now];
+    if(costRow>0)sh.getRange(costRow,1,1,4).setValues([values]);else sh.appendRow(values);
+    products.getRange(row,hppCol+1).setValue(hpp);
+    if(updatedCol>=0)products.getRange(row,updatedCol+1).setValue(now);
+    return responseJSON({success:true,sku:sku,hpp:hpp});
+  }finally{lock.releaseLock();}
+}

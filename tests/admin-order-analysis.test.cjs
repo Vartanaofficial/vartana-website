@@ -3,6 +3,10 @@ const assert = require('node:assert/strict'), { test } = require('node:test');
 require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText, filename);
 const { recoverLegacyOrder, analyzeOrderItems } = require('../lib/admin-order-analysis.ts');
 const products = [{ sku: 'SIG', productName: 'Signature Blend', variantName: '10 Tea Bags (Signature Edition)', sellingPrice: 97000, discountType: 'nominal', discountValue: 24200, hpp: 26400 }, { sku: 'MIX', productName: 'Mix Edition', variantName: '10 Tea Bags (Mixed Blend)', sellingPrice: 100000, hpp: 30000 }];
+test('checkout notes and courier do not hide COGS, while free and redeemed items still consume stock',()=>{
+ const result=analyzeOrderItems({sku:'SIG',itemsSummary:'Signature Blend [10 Tea Bags (Signature Edition)] (2x) | GRATIS Mix Edition [10 Tea Bags (Mixed Blend)] (1x @Rp0) [GIFT] | Promo GIFT: diskon produk Rp0 | Kurir JNT | Catatan: dikemas rapi'},products);
+ assert.equal(result.unmatched,0);assert.equal(result.units,3);assert.equal(result.cogs,82800);
+});
 test('legacy shifted columns recover stored transfer and net without using current prices', () => {
   const order = recoverLegacyOrder({ sku: 'Signature Blend [10 Tea Bags (Signature Edition)] (12x)', itemsSummary: '873600', grandTotal: 0, subtotalProducts: 0, customerShippingFee: 0, originalShipping: 1959015918922379500 });
   assert.equal(order.grandTotal, 873600);

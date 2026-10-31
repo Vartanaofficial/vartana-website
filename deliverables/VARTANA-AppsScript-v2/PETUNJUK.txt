@@ -95,3 +95,13 @@ Execution log menampilkan jumlah teks siap dan tertunda. Jika tertunda karena ba
 Deploy > Manage deployments > pilih deployment yang dipakai website > Edit > New version > Deploy. URL deployment tetap sama.
 Kamus rempah memperbaiki Kayu Manis=Cinnamon, Lada Putih=White Pepper, Pala Biji=Nutmeg, dan lainnya. Teks panjang diproses per bagian. Hasil kalimat bebas tetap terjemahan mesin; koreksi editorial dapat diisi pada kolom English di CatalogTranslations.
 Refresh website dan pilih EN. Perubahan lokal juga memerlukan refresh; screenshot lama menampilkan player versi sebelumnya.
+
+STOK OPNAME V2
+Perbarui deployment dengan TXT lengkap seperti biasa. Tidak perlu menjalankan Setup Master.
+Buka Admin Dashboard > Stok. Cari item, lalu klik Edit / opname pada baris bahan atau barang jadi.
+Bahan yang satuan masternya gram ditampilkan dalam kg; harga ditampilkan per kg. Contoh stok 5 kg dan harga Rp40.000/kg menghasilkan nilai stok Rp200.000.
+Masukkan stok fisik aktual, minimum, maksimum opsional, dan catatan selisih. Harga bahan ikut disimpan ke RawMaterials. HPP resep yang sudah disimpan tetap merupakan snapshot dan tidak ditulis ulang secara otomatis.
+InventoryLedger menyimpan selisih stok opname. InventoryConfig mempertahankan kolom lama A:C dan menambah Maximum Stock di D. Stok lama tidak dihapus/reset.
+Maksimum adalah batas pantauan (stok berlebih ditandai), bukan batas yang menghalangi pencatatan hasil hitung fisik.
+Penerimaan, pemakaian, dan produksi tersedia dalam form baris yang sama. Pada produksi barang jadi, jumlah pack ditambahkan dan bahan dikurangi sesuai resep.
+Jika stok berubah sejak form dibuka, tutup form, Refresh spreadsheet, lalu periksa ulang jumlah fisik sebelum menyimpan.

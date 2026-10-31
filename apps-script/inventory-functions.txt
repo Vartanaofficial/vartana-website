@@ -2,13 +2,15 @@
 function inventorySheets_(){
  var ss=SpreadsheetApp.getActiveSpreadsheet();
  function get(name,headers){var sh=ss.getSheetByName(name);if(!sh){sh=ss.insertSheet(name);sh.getRange(1,1,1,headers.length).setValues([headers]);sh.setFrozenRows(1);}var found=sh.getRange(1,1,1,headers.length).getValues()[0];if(found.join('|')!==headers.join('|'))throw new Error('Struktur '+name+' berbeda. Data tidak diubah.');return sh;}
- return {ledger:get('InventoryLedger',['Timestamp','Event ID','Kind','Item ID','Quantity Change','Note']),config:get('InventoryConfig',['Item Key','Minimum Stock','Updated At'])};
+ var ledger=get('InventoryLedger',['Timestamp','Event ID','Kind','Item ID','Quantity Change','Note']),config=get('InventoryConfig',['Item Key','Minimum Stock','Updated At']);
+ var maxHeader=config.getRange(1,4).getValue();if(!maxHeader)config.getRange(1,4).setValue('Maximum Stock');else if(maxHeader!=='Maximum Stock')throw new Error('Header maksimum stok berbeda.');
+ return {ledger:ledger,config:config};
 }
 function inventoryState_(sheets){
- var balances={},minimum={},rows=sheets.ledger.getDataRange().getValues(),settings=sheets.config.getDataRange().getValues();
+ var balances={},minimum={},maximum={},rows=sheets.ledger.getDataRange().getValues(),settings=sheets.config.getDataRange().getValues();
  for(var i=1;i<rows.length;i++){var key=String(rows[i][2])+':'+String(rows[i][3]);balances[key]=(balances[key]||0)+Number(rows[i][4]||0);}
- for(var j=1;j<settings.length;j++)minimum[String(settings[j][0])]=Number(settings[j][1])||0;
- return {balances:balances,minimum:minimum,rows:rows};
+ for(var j=1;j<settings.length;j++){minimum[String(settings[j][0])]=Number(settings[j][1])||0;maximum[String(settings[j][0])]=settings[j][3]===undefined||settings[j][3]===''?null:Number(settings[j][3]);}
+ return {balances:balances,minimum:minimum,maximum:maximum,rows:rows};
 }
 function inventoryRecipes_(){
  var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ProductCosting'),map={};
@@ -22,10 +24,10 @@ function inventoryUsage_(recipe){
 }
 function inventoryReport_(){
  var sheets=inventorySheets_(),state=inventoryState_(sheets),materials=JSON.parse(getRawMaterials_().getContent()).materials||[],products=getProducts(),recipes=inventoryRecipes_();
- function item(kind,id,name,unit,cost){var key=kind+':'+id,known=Object.prototype.hasOwnProperty.call(state.balances,key),qty=known?Math.max(0,state.balances[key]):null,min=state.minimum[key]||0;return {kind:kind,id:id,name:name,unit:unit,qty:qty,minimum:min,unitCost:cost,value:qty===null?null:qty*cost,low:known&&qty<=min};}
- var raw=materials.map(function(m){return item('material',m.id,m.name,m.unit,Number(m.purchaseQty)>0?Number(m.purchaseCost)/Number(m.purchaseQty):0);});
+ function item(kind,id,name,unit,cost){var key=kind+':'+id,known=Object.prototype.hasOwnProperty.call(state.balances,key),qty=known?Math.max(0,state.balances[key]):null,min=state.minimum[key]||0;return {kind:kind,id:id,name:name,unit:unit,qty:qty,minimum:min,maximum:state.maximum[key]===undefined?null:state.maximum[key],unitCost:cost,value:qty===null?null:qty*cost,low:known&&qty<=min};}
+ var raw=materials.map(function(m){var x=item('material',m.id,m.name,m.unit,Number(m.purchaseQty)>0?Number(m.purchaseCost)/Number(m.purchaseQty):0);x.category=m.category;return x;});
  var finished=products.map(function(p){var x=item('finished',p.sku,p.productName+' '+p.variantName,'pack',Number(p.hpp)||0);x.sellingPrice=Number(p.sellingPrice)||0;try{var usage=inventoryUsage_(recipes[p.sku]),ids=Object.keys(usage),unknown=ids.some(function(id){return state.balances['material:'+id]===undefined;});x.capacity=unknown?null:Math.max(0,Math.min.apply(null,ids.map(function(id){return Math.floor((state.balances['material:'+id]+1e-8)/usage[id]);})));}catch(e){x.capacity=null;x.capacityReason=e.message;}return x;});
- return responseJSON({success:true,inventoryVersion:1,materials:raw,finished:finished,history:state.rows.slice(-30).reverse().filter(function(r){return r[1]!=='Event ID';}).map(function(r){return {date:formatKonsinyasiDateTime_(r[0]),eventId:r[1],kind:r[2],id:r[3],qty:r[4],note:r[5]};}),valuation:'Harga acuan master saat ini; belum FIFO atau nilai historis pembelian.'});
+ return responseJSON({success:true,inventoryVersion:2,spreadsheetUrl:typeof SpreadsheetApp.getActiveSpreadsheet().getUrl==='function'?SpreadsheetApp.getActiveSpreadsheet().getUrl():'',materials:raw,finished:finished,history:state.rows.slice(-30).reverse().filter(function(r){return r[1]!=='Event ID';}).map(function(r){return {date:formatKonsinyasiDateTime_(r[0]),eventId:r[1],kind:r[2],id:r[3],qty:r[4],note:r[5]};}),valuation:'Harga acuan master saat ini; belum FIFO atau nilai historis pembelian.'});
 }
 function inventoryCommit_(sheets,state,eventId,changes,note){
  if(state.rows.some(function(r){return String(r[1])===eventId;}))return {duplicate:true};
@@ -38,6 +40,7 @@ function inventoryCommit_(sheets,state,eventId,changes,note){
  return {duplicate:false};
 }
 function saveInventory_(data){
+ if(data.operation==='opname')return saveInventoryItem_(data);
  var operation=String(data.operation||''),kind=String(data.kind||''),id=String(data.id||''),qty=Number(data.qty),requestId=String(data.requestId||''),note=String(data.note||'').trim().slice(0,300);
  if(!/^[a-f0-9-]{36}$/.test(requestId)||['opening','receive','consume','produce','minimum'].indexOf(operation)<0||['material','finished'].indexOf(kind)<0||!isFinite(qty)||qty<0||qty>1e9)return responseJSON({success:false,message:'Mutasi stok tidak valid.'});
  if(kind==='finished'&&!Number.isSafeInteger(qty))return responseJSON({success:false,message:'Jumlah pack harus bilangan bulat.'});
@@ -112,4 +115,35 @@ function prepareCatalogTranslations(){
  if(!result.success)throw new Error(result.message);
  var message='Terjemahan siap: '+Object.keys(result.translations).length+' teks. Tertunda: '+result.pending+'.'+(result.lastError?' Info: '+result.lastError:'');
  console.log(message);return message;
+}
+
+// Stok opname uses a signed adjustment; never overwrites the movement history.
+function saveInventoryItem_(data){
+ function valid(n){return typeof n==='number'&&isFinite(n)&&n>=0&&n<=1e12;}
+ var kind=data.kind,id=String(data.id||''),qty=data.qty,min=data.minimum,max=data.maximum,note=String(data.note||'').trim().slice(0,300);
+ if(['material','finished'].indexOf(kind)<0||!id||!valid(qty)||!valid(min)||(max!==null&&(!valid(max)||max<min))||(kind==='finished'&&(!Number.isSafeInteger(qty)||!Number.isSafeInteger(min)||(max!==null&&!Number.isSafeInteger(max))))||!(/^[a-f0-9-]{36}$/i.test(String(data.requestId||''))))return responseJSON({success:false,message:'Stok, minimum, atau maksimum tidak valid. Maksimum harus minimal sama dengan minimum.'});
+ if(data.expectedQty!==null&&!valid(data.expectedQty))return responseJSON({success:false,message:'Saldo pembanding tidak valid.'});
+ if(kind==='material'&&!valid(data.unitCost))return responseJSON({success:false,message:'Harga bahan tidak valid.'});
+ var lock=LockService.getScriptLock();lock.waitLock(20000);
+ try{
+  var ss=SpreadsheetApp.getActiveSpreadsheet(),sheets=inventorySheets_(),state=inventoryState_(sheets),key=kind+':'+id,current=state.balances[key]===undefined?null:state.balances[key],event='INV:'+data.requestId;
+  if(state.rows.some(function(r){return String(r[1])===event;}))return responseJSON({success:true,duplicate:true});
+  if((current===null)!==(data.expectedQty===null)||(current!==null&&Math.abs(current-data.expectedQty)>1e-7))throw new Error('Stok berubah sejak form dibuka. Refresh dan periksa saldo terbaru sebelum menyimpan.');
+  if(current!==null&&Math.abs(current-qty)>1e-8&&!note)throw new Error('Isi alasan selisih stok opname.');
+  var materialSheet=null,materialRow=-1,material=null;
+  if(kind==='material'){
+   materialSheet=ss.getSheetByName('RawMaterials');if(!materialSheet)throw new Error('Master bahan belum tersedia.');
+   var rows=materialSheet.getDataRange().getValues();if(rows[0][0]!=='Material ID'||rows[0][2]!=='Material JSON')throw new Error('Header master bahan berbeda.');
+   for(var i=1;i<rows.length;i++)if(String(rows[i][0])===id){materialRow=i+1;material=JSON.parse(String(rows[i][2]));material.purchaseQty=Number(rows[i][6])||((String(rows[i][7])==='gram')?1000:1);material.purchaseCost=data.unitCost*material.purchaseQty;material.unit=String(rows[i][7]);material.confirmed=material.purchaseCost>0;break;}
+   if(materialRow<0)throw new Error('Bahan tidak ditemukan.');
+   if(!valid(material.purchaseCost))throw new Error('Total harga beli bahan terlalu besar atau tidak valid.');
+  }else if(!getProducts().some(function(p){return p.sku===id;}))throw new Error('SKU tidak ditemukan.');
+  // Validate before changing any sheet; settings and price are saved before the ledger event.
+  var configs=sheets.config.getDataRange().getValues(),configRow=-1;for(var j=1;j<configs.length;j++)if(String(configs[j][0])===key)configRow=j+1;
+  sheets.config.getRange(configRow>0?configRow:sheets.config.getLastRow()+1,1,1,4).setValues([[key,min,new Date(),max===null?'':max]]);
+  if(material){materialSheet.getRange(materialRow,3).setValue(JSON.stringify(material));materialSheet.getRange(materialRow,4).setValue(new Date());materialSheet.getRange(materialRow,6,1,2).setValues([[material.purchaseCost,material.purchaseQty]]);}
+  state.minimum[key]=min;
+  inventoryCommit_(sheets,state,event,[{kind:kind,id:id,qty:qty-(current||0)}],'STOK OPNAME'+(note?' | '+note:''));
+  return responseJSON({success:true});
+ }catch(e){return responseJSON({success:false,message:e.message});}finally{lock.releaseLock();}
 }

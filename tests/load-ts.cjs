@@ -1,0 +1,3 @@
+﻿const fs=require('fs'),path=require('path'),ts=require('typescript');
+const cache=new Map();
+module.exports=function load(file){const absolute=path.resolve(file);if(cache.has(absolute))return cache.get(absolute);const module={exports:{}};cache.set(absolute,module.exports);const output=ts.transpileModule(fs.readFileSync(absolute,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,esModuleInterop:true}}).outputText;const local=n=>n.startsWith('.')?load(path.resolve(path.dirname(absolute),n)+'.ts'):require(n);new Function('require','exports','module',output)(local,module.exports,module);cache.set(absolute,module.exports);return module.exports;};

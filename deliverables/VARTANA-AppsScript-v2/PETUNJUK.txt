@@ -118,3 +118,12 @@ Batch kedaluwarsa, ditahan, atau ditolak tidak ikut kapasitas produksi dan tidak
 Produksi dan pemakaian bahan otomatis mengurangi batch siap pakai sesuai FEFO/FIFO. Opname / keluar pada baris batch mencatat sisa fisik; gunakan untuk selisih, rusak, atau pembuangan batch tertentu dengan catatan.
 Periksa / edit tanggal pada batch dapat memperbarui tanggal masuk, kedaluwarsa, dan status kualitas. Riwayat batch tetap tersimpan di InventoryLedger; kolom G berisi Batch ID. Metadata berada di InventoryBatches pada workbook yang sama.
 Peringatan 30 hari adalah pengingat kedaluwarsa, bukan perkiraan mutu bahan. Nilai persediaan tetap memakai harga master saat ini, bukan biaya historis per batch.
+
+PEMBARUAN PERSEDIAAN DAN PRODUKSI V4
+- Pasang seluruh TXT terbaru lalu Deploy > Manage deployments > Edit > New version, deployment yang sama. Tidak perlu Setup Master.
+- Gram/kg, pcs, roll, meter, ml; bahan baku terpisah dari packaging/perlengkapan.
+- Menu Produksi / PPIC: BOM per SKU, rencana, hasil pack aktual, bahan aktual dan FEFO.
+- Menu Stok Opname Tim mengikuti SKU Master Product; menggunakan akses admin yang sudah tersedia.
+- Laporan Direksi memilih PDF/PPT, dengan penjualan, persediaan, batch/usia, produksi dan P&L tercatat. Isi biaya operasional sebelum menyimpulkan hasil operasional.
+- Tab baru ProductionOrders dan OperatingExpenses dibuat otomatis. Saldo/histori tidak dihapus.
+- Panduan lengkap: deliverables/PANDUAN-PPIC-DAN-LAPORAN.md di repository.

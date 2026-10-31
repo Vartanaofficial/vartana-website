@@ -5,7 +5,6 @@ import { analyzeOrderItems, type AnalysisProduct } from "@/lib/admin-order-analy
 import { orderFinancialIssues } from "@/lib/order-financials";
 import { downloadCustomerInvoice, invoiceAvailable } from "./customer-invoice";
 import { normalizeWhatsApp } from "@/lib/checkout-contact";
-import { generateSalesReportPdf } from "./pdf-report";
 
 import { useState, useEffect, useMemo } from "react";
 
@@ -452,7 +451,7 @@ export default function AdminDashboard() {
           <p className="text-[11px] md:text-xs text-[#526158] mt-0.5">VARTANA Botanical Wellness — Financial Intelligence</p>
         </div>
 
-        <div className="flex bg-[#FFFDF9] p-1 rounded-2xl border border-[#16382A]/15 shadow-xs">
+        <div className="flex flex-wrap gap-1 bg-[#FFFDF9] p-1 rounded-2xl border border-[#16382A]/15 shadow-xs">
           <button
             onClick={() => setActiveMenuTab("omset")}
             className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition ${activeMenuTab === "omset" ? "bg-[#16382A] text-white shadow-xs" : "text-[#526158] hover:text-[#16382A]"}`}
@@ -485,12 +484,8 @@ export default function AdminDashboard() {
               </button>
             </>
           )}
-                    <button onClick={() => { const valid = orders.filter((o) => o.subtotalProducts != null && o.createdAt && /^\d{4}-\d{2}/.test(o.createdAt)); if (!valid.length) { alert("Tidak ada transaksi yang tersedia untuk dibuat menjadi PDF."); return; } try { generateSalesReportPdf(valid.map(order => ({ ...order, totalCogs: analyzeOrderItems(order, products).cogs, totalUnits: analyzeOrderItems(order, products).units })), "all"); } catch (e) { alert(e instanceof Error ? e.message : "PDF gagal dibuat."); } }} className="rounded-full border border-[#16382A]/20 bg-white px-3 py-2 text-xs font-bold text-[#16382A] hover:bg-[#16382A] hover:text-white transition">
-            📄 Download PDF Semua Periode
-          </button>
-          <button onClick={() => { const month = new Date().toISOString().slice(0, 7); const valid = orders.filter((o) => o.subtotalProducts != null && o.createdAt && o.createdAt.slice(0, 7) === month); if (!valid.length) { alert("Tidak ada transaksi untuk bulan ini."); return; } try { generateSalesReportPdf(valid.map(order => ({ ...order, totalCogs: analyzeOrderItems(order, products).cogs, totalUnits: analyzeOrderItems(order, products).units })), "monthly", month); } catch (e) { alert(e instanceof Error ? e.message : "PDF gagal dibuat."); } }} className="rounded-full border border-[#B69245] bg-[#FFFDF9] px-3 py-2 text-xs font-bold text-[#8E6E2E] hover:bg-[#B69245] hover:text-white transition">
-            📄 Download PDF Bulan Ini
-          </button>
+          <a href="/admin/reports" className="rounded-full border border-[#B69245] bg-white px-4 py-2 text-xs font-bold">Laporan Direksi / PDF & PPT</a>
+          <a href="/admin/production" className="rounded-full border bg-white px-4 py-2 text-xs font-bold">Produksi / PPIC</a>
           <button onClick={fetchDashboardData} className="rounded-full border border-[#16382A]/20 bg-white px-3 py-2 text-xs font-bold text-[#16382A] hover:bg-[#16382A] hover:text-white transition">
             🔄 Refresh
           </button>
@@ -963,10 +958,10 @@ export default function AdminDashboard() {
                   <span className="text-[10px] text-emerald-600 font-semibold mt-1 block">Margin: {missingCostCount || unknownNetCount ? "?" : `${metrics.grossMargin}%`} dari Net Sales</span>
                 </div>
                 <div className="rounded-3xl border border-[#B69245]/30 bg-gradient-to-br from-[#16382A] to-[#0D261C] p-5 text-white shadow-md">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Net Profit & Margin</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Kontribusi setelah subsidi & Margin</p>
                   <h3 className="text-2xl font-serif font-bold text-white mt-2">{missingCostCount || unknownNetCount ? "Data belum lengkap" : formatRupiah(metrics.netProfit)}</h3>
                   <span className="text-[10px] text-emerald-300 font-semibold mt-1 block">
-                    Margin Bersih: {missingCostCount || unknownNetCount ? "?" : `${metrics.netMargin}%`} (AOV: {formatRupiah(metrics.aov)})
+                    Margin kontribusi (belum OPEX): {missingCostCount || unknownNetCount ? "?" : `${metrics.netMargin}%`} (AOV: {formatRupiah(metrics.aov)})
                   </span>
                 </div>
               </div>
@@ -1094,7 +1089,7 @@ export default function AdminDashboard() {
                         <td className="py-3.5 px-4 text-gray-500">{metrics.netSalesTotal > 0 ? Math.round((metrics.shippingSubsidyTotal / metrics.netSalesTotal) * 100) : 0}%</td>
                       </tr>
                       <tr className="bg-emerald-50/80 border-t-2 border-emerald-200">
-                        <td className="py-4 px-4 font-serif text-sm font-bold text-emerald-900">NET PROFIT (Laba Bersih Akhir)</td>
+                        <td className="py-4 px-4 font-serif text-sm font-bold text-emerald-900">Kontribusi setelah subsidi (belum biaya operasional)</td>
                         <td className="py-4 px-4 font-serif text-sm font-bold text-emerald-900">{missingCostCount || unknownNetCount ? "Data belum lengkap" : formatRupiah(metrics.netProfit)}</td>
                         <td className="py-4 px-4 font-serif text-sm font-bold text-emerald-900">{missingCostCount || unknownNetCount ? "?" : `${metrics.netMargin}%`}</td>
                       </tr>

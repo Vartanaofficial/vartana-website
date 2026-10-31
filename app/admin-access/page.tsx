@@ -5,6 +5,9 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 
 const menus = [
+ {title:'Produksi / PPIC',description:'Resep, rencana produksi, pemakaian aktual dan hasil kemasan jual.',href:'/admin/production',number:'07',symbol:''},
+ {title:'Stok Opname Tim',description:'Daftar SKU Master Product dan stok fisik barang jual.',href:'/admin/stocktake',number:'08',symbol:''},
+ {title:'Laporan Direksi',description:'Penjualan, P&L, persediaan dan produksi dalam PDF / PowerPoint.',href:'/admin/reports',number:'09',symbol:''},
   { title: "Stok Bahan & Barang Jadi", description: "Stok tersedia, nilai persediaan, produksi, dan pengingat stok menipis.", href: "/admin/dashboard?view=stock", number: "06", symbol: "" },
   {
     title: "Setting Promo",

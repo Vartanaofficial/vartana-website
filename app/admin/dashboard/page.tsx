@@ -327,6 +327,8 @@ export default function AdminDashboard() {
   }, [validFinancialOrders, products]);
   const missingCostCount = validFinancialOrders.filter(order => analyzeOrderItems(order, products).cogs === null).length;
   const recoveredCount = orders.filter(order => (order as OrderItem & { recoveredLegacy?: boolean }).recoveredLegacy).length;
+  const hasShippingEstimates = validFinancialOrders.some(order => order.reconciliationStatus === "ESTIMASI_ONGKIR" || order.originalShipping == null);
+  const hasDataWarnings = unknownNetCount > 0 || hasShippingEstimates || missingCostCount > 0 || !!dataError || financialIssues.length > 0;
 
   const finalFilteredOrders = useMemo(() => {
     return filteredOrdersByPeriod.filter((ord) => {
@@ -495,14 +497,6 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {unknownNetCount > 0 && <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">Total transfer mencakup seluruh pesanan berstatus pembayaran diterima sampai selesai. Net Sales baru mencakup nominal yang terverifikasi; {unknownNetCount} pesanan masih perlu rincian ongkir. Pesanan menunggu pembayaran tidak masuk omzet diterima.</div>}
-      {validFinancialOrders.some(order => order.reconciliationStatus === "ESTIMASI_ONGKIR" || order.originalShipping == null) && <div className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">Sebagian rincian ongkir historis belum terverifikasi. Net Sales mencakup estimasi ongkir Rp14.000 sesuai arahan pemilik; periksa Laporan_Omzet_20261031 untuk rinciannya.</div>}
-      {recoveredCount > 0 && <div className="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-blue-950">{recoveredCount} pesanan lama dipulihkan dari susunan kolom lama. Total transfer tersimpan digunakan kembali; rincian ongkir/subsidi yang belum pasti perlu diverifikasi.</div>}
-      {missingCostCount > 0 && <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">HPP belum tersedia untuk {missingCostCount} pesanan. Isi modal per SKU melalui kalkulator HPP di menu Profit & P&L. Laba dan margin belum dapat dipastikan; perhitungan modal memakai HPP master saat ini.</div>}
-      {dataError && <div role="alert" className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">{dataError} Gunakan tombol refresh untuk mencoba lagi.</div>}
-      {financialIssues.length > 0 && <div role="alert" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
-        <strong>{financialIssues.length} pesanan memiliki nominal kosong atau tidak konsisten.</strong> Pesanan tetap ada di tabel. Nominal yang belum valid tidak dijumlahkan; Net Sales yang terbaca tetap dihitung. Periksa subtotal, ongkir, subsidi, dan grand total di sheet Orders. Rp0 pada ringkasan tidak berarti tidak ada transaksi.
-      </div>}
       {activeMenuTab === "omset" ? (
         <>
           <div className="mt-4 md:mt-6 rounded-2xl md:rounded-3xl border border-[#B69245]/30 bg-white p-3.5 md:p-5 shadow-xs space-y-3">
@@ -1109,6 +1103,17 @@ export default function AdminDashboard() {
           )}
         </div>
       )}
+      {hasDataWarnings && <section aria-label="Catatan kualitas data" className="mt-10 border-t border-[#ded8ca] pt-5">
+      <h2 className="font-serif text-lg text-[#16382a]">Catatan & pemeriksaan data</h2>
+      {unknownNetCount > 0 && <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">Total transfer mencakup seluruh pesanan berstatus pembayaran diterima sampai selesai. Net Sales baru mencakup nominal yang terverifikasi; {unknownNetCount} pesanan masih perlu rincian ongkir. Pesanan menunggu pembayaran tidak masuk omzet diterima.</div>}
+      {hasShippingEstimates && <div className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">Sebagian rincian ongkir historis belum terverifikasi. Net Sales mencakup estimasi ongkir Rp14.000 sesuai arahan pemilik; periksa Laporan_Omzet_20261031 untuk rinciannya.</div>}
+      {recoveredCount > 0 && financialIssues.length > 0 && <div className="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-blue-950">{recoveredCount} pesanan lama dipulihkan dari susunan kolom lama. Total transfer tersimpan digunakan kembali; rincian ongkir/subsidi yang belum pasti perlu diverifikasi.</div>}
+      {missingCostCount > 0 && <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">HPP belum tersedia untuk {missingCostCount} pesanan. Isi modal per SKU melalui kalkulator HPP di menu Profit & P&L. Laba dan margin belum dapat dipastikan; perhitungan modal memakai HPP master saat ini.</div>}
+      {dataError && <div role="alert" className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">{dataError} Gunakan tombol refresh untuk mencoba lagi.</div>}
+      {financialIssues.length > 0 && <div role="alert" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+        <strong>{financialIssues.length} pesanan memiliki nominal kosong atau tidak konsisten.</strong> Pesanan tetap ada di tabel. Nominal yang belum valid tidak dijumlahkan; Net Sales yang terbaca tetap dihitung. Periksa subtotal, ongkir, subsidi, dan grand total di sheet Orders. Rp0 pada ringkasan tidak berarti tidak ada transaksi.
+      </div>}
+      </section>}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import ProductImage from "@/app/components/ProductImage";
 import { readCart, writeCart, type StoredCartItem } from "@/lib/cart-storage";
 import type { CheckoutQuote } from "@/lib/checkout";
 import { normalizeWhatsApp } from "@/lib/checkout-contact";
+import { orderConfirmationMessage, type CheckoutReceipt } from "@/lib/order-confirmation";
 import { PAYMENT_DETAILS } from "@/lib/payment-details";
 import type { PostalOption } from "@/lib/postal-codes";
 
@@ -35,7 +36,7 @@ export default function CheckoutPage() {
   const [shippingService, setShippingService] = useState("");
   const [retry, setRetry] = useState(0);
   const [orderKey, setOrderKey] = useState("");
-  const [receipt, setReceipt] = useState<{ serial: string; total: number; paymentMethod?: string; waOpened?: boolean } | null>(null);
+  const [receipt, setReceipt] = useState<CheckoutReceipt | null>(null);
   const [paymentView, setPaymentView] = useState("bank_transfer");
   const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
   const [copied, setCopied] = useState("");
@@ -146,7 +147,7 @@ export default function CheckoutPage() {
     try { await navigator.clipboard.writeText(value); setCopied(label); } catch { setCopied("Pilih dan salin teks secara manual."); }
   }
 
-  const wa = receipt ? `https://wa.me/${PAYMENT_DETAILS.whatsapp}?text=${encodeURIComponent(`Halo VARTANA, saya ingin konfirmasi pembayaran pesanan ${receipt.serial} atas nama ${customer.name}, total ${money(receipt.total)}. Metode ${paymentView === "qris" ? "QRIS" : "transfer BCA"}. Saya akan melampirkan bukti pembayaran.`)}` : "";
+  const wa = receipt ? `https://wa.me/${PAYMENT_DETAILS.whatsapp}?text=${encodeURIComponent(orderConfirmationMessage(receipt,customer,paymentView))}` : "";
 
   return <main className="premium-checkout min-h-screen text-[#183d2c]">
     <header className="checkout-topbar border-b border-[#dce0d4] bg-[#FCFAF5] px-5 py-5 sm:px-10">

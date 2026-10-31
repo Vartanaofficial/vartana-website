@@ -1058,6 +1058,8 @@ function doGet(e) {
 
       return responseJSON({
 
+        retailOrderVersion: 2,
+
         orders: orders,
 
         members: members,
@@ -3070,7 +3072,8 @@ function recordCheckoutPromoOnOrder_(sheet,row,data) {
 function saveRetailOrderWithPromo_(data) {
   var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS);
   if(!sheet)return responseJSON({status:'error',message:'Sheet Orders belum tersedia.'});
-  var serial=String(data.orderSerial||'').trim();
+  var serial=String(data.orderSerial||'').trim(),orderKey=String(data.orderKey||'');
+  if(orderKey&&!/^[a-f0-9-]{36}$/.test(orderKey))return responseJSON({status:'error',message:'Kunci order tidak valid.'});
   if(!serial||!data.phone)return responseJSON({status:'error',message:'Order serial dan nomor WhatsApp wajib diisi.'});
   var subtotal=data.subtotalProducts===undefined?calculateOrderSubtotalFromSKU(data.sku,data.quantity||1):Number(data.subtotalProducts);
   if(data.subtotalProducts===undefined&&!subtotal)subtotal=getLegacySubtotalFallback(data.itemsSummary||'');
@@ -3078,8 +3081,16 @@ function saveRetailOrderWithPromo_(data) {
   if(![subtotal,total,shipping,subsidy,original].every(function(v){return isFinite(v)&&v>=0;})||Math.abs(total-subtotal-shipping)>0.01)return responseJSON({status:'error',message:'Total pesanan tidak konsisten.'});
   var lock=LockService.getScriptLock();lock.waitLock(20000);
   try{
-    var values=sheet.getDataRange().getValues();
-    for(var i=1;i<values.length;i++)if(String(values[i][1]).trim().toUpperCase()===serial.toUpperCase()){
+    var values=sheet.getDataRange().getValues(),keyCol=(values[0]||[]).indexOf('Order Key');
+    if(orderKey&&keyCol>=0){
+      for(var k=1;k<values.length;k++)if(String(values[k][keyCol])===orderKey){
+        if(String(values[k][4])!==String(data.phone)||Number(values[k][13])!==total)return responseJSON({status:'error',message:'Kunci order sudah digunakan dengan rincian berbeda.'});
+        return responseJSON({status:'success',success:true,duplicate:true,orderSerial:String(values[k][1])});
+      }
+    }
+    var now=new Date(),timeZone=SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+    if(orderKey)serial=vartanaNextRetailSerial_(values,data.memberId,now,timeZone);
+    for(var i=1;i<values.length;i++)if(String(values[i][1]).trim().toUpperCase()===serial.toUpperCase()) {
       if(String(values[i][4])!==String(data.phone)||Number(values[i][13])!==total)return responseJSON({status:'error',message:'Nomor pesanan sudah digunakan dengan rincian berbeda.'});
       return responseJSON({status:'success',success:true,duplicate:true,orderSerial:serial});
     }
@@ -3088,6 +3099,10 @@ function saveRetailOrderWithPromo_(data) {
     vartanaOrderStatusRule_(sheet,row,1);
     sheet.appendRow([new Date(),serial,data.memberId||'-',data.customerName||'-',String(data.phone),data.email||'-',data.addressDetail||'-',data.sku||'-',data.itemsSummary||'-',subtotal,original,subsidy,shipping,total,'MENUNGGU PEMBAYARAN','-']);
     recordCheckoutPromoOnOrder_(sheet,row,data);
+    var extraCols=checkoutColumns_(sheet,['Order Key','Notification Email Status']);
+    if(orderKey)sheet.getRange(row,extraCols['Order Key']).setValue(orderKey);
+    var notification=vartanaNotifyNewOrder_(data,serial,now,timeZone);
+    sheet.getRange(row,extraCols['Notification Email Status']).setValue(notification);
     return responseJSON({status:'success',success:true,orderSerial:serial,subtotalProducts:subtotal});
   }finally{lock.releaseLock();}
 }
@@ -3145,6 +3160,7 @@ function vartanaReadOrders_(sheet) {
       status: text(row, ['Status']),
       resiJNT: text(row, ['No. Resi J&T', 'Resi JNT']),
       paymentMethod: text(row, ['Payment Method']),
+      orderKey: text(row, ['Order Key']),
       reconciliationStatus: text(row, ['Status Rekonsiliasi']),
       grossSubtotalProducts: money(row, ['Gross Subtotal Products']),
       productDiscount: money(row, ['Product Discount'])
@@ -3246,4 +3262,23 @@ function saveRawMaterials_(data){
     }
     return responseJSON({success:true,saved:saved});
   }finally{lock.releaseLock();}
+}
+
+function vartanaNextRetailSerial_(rows,memberId,now,timeZone){
+  var date=Utilities.formatDate(now,timeZone,'yyyyMMdd'),month=date.slice(0,6),max=0;
+  rows.slice(1).forEach(function(row){var match=String(row[1]||'').match(/^VRT-(\d{8})-[A-Z0-9]+-(\d+)$/);if(match&&match[1].slice(0,6)===month)max=Math.max(max,Number(match[2]));});
+  var member=String(memberId||'TAMU').replace(/^VRT-/i,'').toUpperCase().replace(/[^A-Z0-9]/g,'')||'TAMU';
+  return 'VRT-'+date+'-'+member+'-'+String(max+1).padStart(4,'0');
+}
+function vartanaNotifyNewOrder_(data,serial,now,timeZone){
+  try{
+    var body='Pesanan baru VARTANA\n\nNomor: '+serial+'\nWaktu: '+Utilities.formatDate(now,timeZone,'dd/MM/yyyy HH:mm:ss')+'\nMember: '+(data.memberId||'-')+'\nCustomer: '+(data.customerName||'-')+'\nWhatsApp: '+(data.phone||'-')+'\nEmail: '+(data.email||'-')+'\nAlamat: '+(data.addressDetail||'-')+'\n\nProduk: '+(data.itemsSummary||'-')+'\nTotal: Rp'+Number(data.grandTotal||0).toLocaleString('id-ID')+'\nMetode: '+(data.paymentMethod||'-')+'\nStatus: MENUNGGU PEMBAYARAN\n\nPeriksa pesanan: https://www.vartana.id/admin/operations';
+    MailApp.sendEmail('vartana@vartanaglobal.com','[Order Baru VARTANA] '+serial,body);
+    return 'SENT';
+  }catch(error){console.warn('Email order '+serial+' belum terkirim: '+String(error));return 'FAILED';}
+}
+
+function setupOrderEmailNotifications(){
+  var quota=MailApp.getRemainingDailyQuota();
+  return 'Notifikasi order baru: vartana@vartanaglobal.com. Sisa kuota email hari ini: '+quota;
 }

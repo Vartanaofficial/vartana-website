@@ -14,7 +14,7 @@ function fixture(){
  const legacy=['LEGACY','VRT-01','Old product promo',72800,.25,'25% OFF','','',true,'created','updated'];
  const sheets={Promotions:new Sheet([promoHeaders.slice(),legacy.slice(),['NEW','CHECKOUT','Beli 2 bonus',0,0,JSON.stringify(config),'','',true,'created','updated']]),Orders:new Sheet([orderHeaders.slice()])};
  let locks=0;
- const context=vm.createContext({console,SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:name=>sheets[name]}),newDataValidation:()=>({requireValueInList(){return this;},setAllowInvalid(){return this;},build(){return {valid:true};}})},LockService:{getScriptLock:()=>({waitLock(){locks++;},releaseLock(){locks--;}})},Utilities:{getUuid:()=> 'new-id'},ContentService:{MimeType:{JSON:'application/json'},createTextOutput:content=>({getContent:()=>content,setMimeType(){return this;}})}});
+ const context=vm.createContext({console,SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:name=>sheets[name],getSpreadsheetTimeZone:()=>"Asia/Jakarta"}),newDataValidation:()=>({requireValueInList(){return this;},setAllowInvalid(){return this;},build(){return {valid:true};}})},LockService:{getScriptLock:()=>({waitLock(){locks++;},releaseLock(){locks--;}})},MailApp:{sendEmail(){}},Utilities:{formatDate:(date,tz,format)=>format==="yyyyMMdd"?"20261031":"31/10/2026",getUuid:()=> 'new-id'},ContentService:{MimeType:{JSON:'application/json'},createTextOutput:content=>({getContent:()=>content,setMimeType(){return this;}})}});
  vm.runInContext(source,context);return {context,sheets,config,legacy,locks:()=>locks};
 }
 test('setup migrates legacy JSON into readable columns and is safe to rerun',()=>{
@@ -34,3 +34,14 @@ test('legitimate zero-subtotal orders never use fallback pricing',()=>{
 });
 
 test("payment method appends beyond reconciliation columns without overwriting them",()=>{const {context:c,sheets}=fixture();sheets.Orders.rows[0].push(...c.vartanaOrderColumnNames_().filter(x=>x!=="Payment Method"),"Status Rekonsiliasi","Catatan Rekonsiliasi");const cols=c.checkoutColumns_(sheets.Orders,c.vartanaOrderColumnNames_());assert.equal(cols["Payment Method"],27);assert.equal(sheets.Orders.getMaxColumns(),27);assert.equal(sheets.Orders.rows[0][24],"Status Rekonsiliasi");});
+
+test('new retail serial uses date/member with monthly reset and dedupes order key before emailing',()=>{
+ const {context:c,sheets}=fixture();let emails=0;c.MailApp.sendEmail=(recipient)=>{assert.equal(recipient,'vartana@vartanaglobal.com');emails++;};
+ const body={orderKey:'12345678-1234-1234-1234-123456789abc',orderSerial:'VRT-OLDKEY',memberId:'VRT-511997',phone:'081234567890',subtotalProducts:100,customerShippingFee:0,grandTotal:100};
+ const first=JSON.parse(c.saveRetailOrderWithPromo_(body).getContent());assert.equal(first.orderSerial,'VRT-20261031-511997-0001');
+ const again=JSON.parse(c.saveRetailOrderWithPromo_(body).getContent());assert.equal(again.orderSerial,first.orderSerial);assert.equal(again.duplicate,true);assert.equal(emails,1);
+ const next=JSON.parse(c.saveRetailOrderWithPromo_({...body,orderKey:'22345678-1234-1234-1234-123456789abc'}).getContent());assert.equal(next.orderSerial,'VRT-20261031-511997-0002');
+ c.Utilities.formatDate=()=> '20261101';assert.equal(c.vartanaNextRetailSerial_(sheets.Orders.rows,'VRT-511997',new Date(),'Asia/Jakarta'),'VRT-20261101-511997-0001');
+ c.Utilities.formatDate=()=> '20271031';assert.equal(c.vartanaNextRetailSerial_(sheets.Orders.rows,'VRT-511997',new Date(),'Asia/Jakarta'),'VRT-20271031-511997-0001');
+ c.MailApp.sendEmail=()=>{throw Error('quota');};const failed=JSON.parse(c.saveRetailOrderWithPromo_({...body,orderKey:'32345678-1234-1234-1234-123456789abc'}).getContent());assert.equal(failed.success,true);const h=sheets.Orders.rows[0];assert.equal(sheets.Orders.rows.at(-1)[h.indexOf('Notification Email Status')],'FAILED');
+});

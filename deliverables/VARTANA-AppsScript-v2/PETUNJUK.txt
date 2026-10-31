@@ -70,3 +70,10 @@ PROMO KONSINYASI MITRA DAN PRODUK
 - Promo disimpan pada KON_PROMO dan sasaran pada KON_PROMO_DETAIL di spreadsheet existing. Mengedit promo mengganti hanya sasaran promo itu; histori SO lama tidak dihitung ulang.
 - Sales Order menampilkan promo yang sesuai keranjang dan mitra. Backend memvalidasi periode aktif pada hari penyimpanan (Asia/Jakarta sesuai timezone spreadsheet), menghitung ulang diskon hanya dari baris yang memenuhi sasaran, lalu menyimpan diskon per SKU dan total SO.
 - Potongan nominal dibatasi subtotal produk sasaran. Harga khusus tidak pernah menaikkan harga normal. BONUS lama tetap tersimpan tetapi tidak tersedia untuk dipilih karena perhitungan bonus barang belum diterapkan.
+
+NOMOR ORDER RETAIL DAN EMAIL ORDER BARU
+- Format VRT-YYYYMMDD-MEMBER-0001. Urutan seluruh order retail mulai lagi dari 0001 tiap bulan/tahun. Nomor lama dipertahankan.
+- ID member existing dipakai jika WhatsApp cocok; pelanggan baru memakai ID berbasis WhatsApp yang dinormalisasi.
+- Order Key mencegah order ganda saat checkout diulang. Penomoran dan pemeriksaan duplikat menggunakan Script Lock.
+- Email order baru ke vartana@vartanaglobal.com setelah tersimpan. Notification Email Status mencatat SENT atau FAILED. Duplikat tidak mengirim email ulang; kegagalan email tidak menggagalkan order.
+- Save kode lengkap, jalankan setupOrderEmailNotifications sekali untuk memberikan izin email (tidak mengirim pesan), lalu Deploy New version pada deployment retail yang sama. Checkout versi baru membutuhkan deployment ini.

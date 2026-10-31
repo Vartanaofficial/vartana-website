@@ -1,0 +1,17 @@
+﻿function vartanaNextRetailSerial_(rows,memberId,now,timeZone){
+  var date=Utilities.formatDate(now,timeZone,'yyyyMMdd'),month=date.slice(0,6),max=0;
+  rows.slice(1).forEach(function(row){var match=String(row[1]||'').match(/^VRT-(\d{8})-[A-Z0-9]+-(\d+)$/);if(match&&match[1].slice(0,6)===month)max=Math.max(max,Number(match[2]));});
+  var member=String(memberId||'TAMU').replace(/^VRT-/i,'').toUpperCase().replace(/[^A-Z0-9]/g,'')||'TAMU';
+  return 'VRT-'+date+'-'+member+'-'+String(max+1).padStart(4,'0');
+}
+function vartanaNotifyNewOrder_(data,serial,now,timeZone){
+  try{
+    var body='Pesanan baru VARTANA\n\nNomor: '+serial+'\nWaktu: '+Utilities.formatDate(now,timeZone,'dd/MM/yyyy HH:mm:ss')+'\nMember: '+(data.memberId||'-')+'\nCustomer: '+(data.customerName||'-')+'\nWhatsApp: '+(data.phone||'-')+'\nEmail: '+(data.email||'-')+'\nAlamat: '+(data.addressDetail||'-')+'\n\nProduk: '+(data.itemsSummary||'-')+'\nTotal: Rp'+Number(data.grandTotal||0).toLocaleString('id-ID')+'\nMetode: '+(data.paymentMethod||'-')+'\nStatus: MENUNGGU PEMBAYARAN\n\nPeriksa pesanan: https://www.vartana.id/admin/operations';
+    MailApp.sendEmail('vartana@vartanaglobal.com','[Order Baru VARTANA] '+serial,body);
+    return 'SENT';
+  }catch(error){console.warn('Email order '+serial+' belum terkirim: '+String(error));return 'FAILED';}
+}
+function setupOrderEmailNotifications(){
+  var quota=MailApp.getRemainingDailyQuota();
+  return 'Notifikasi order baru: vartana@vartanaglobal.com. Sisa kuota email hari ini: '+quota;
+}

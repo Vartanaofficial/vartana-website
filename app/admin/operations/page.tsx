@@ -109,32 +109,27 @@ export default function OperationsPage() {
 
     try {
       const response = await fetch("/api/admin/data");
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error("Gagal mengambil data operasi.");
+        if (response.status === 401) setAuthenticated(false);
+        throw new Error(response.status === 401 ? "Sesi admin berakhir. Silakan login kembali." : data.message || "Gagal mengambil data operasi.");
       }
-
-      const data = await response.json();
 
       setOrders(Array.isArray(data.orders) ? data.orders : []);
       setMembers(Array.isArray(data.members) ? data.members : []);
     } catch (err) {
-      console.error("Operations monitoring error:", err);
-      setError("Data monitoring belum berhasil dimuat. Silakan refresh.");
+      setError(err instanceof Error ? err.message : "Data monitoring belum berhasil dimuat. Silakan refresh.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const savedAuth = sessionStorage.getItem("vartana_admin_auth");
-
-    if (savedAuth === "true") {
-      setAuthenticated(true);
-      fetchData();
-    } else {
-      setAuthenticated(false);
-    }
+    void fetch("/api/admin/auth/session", { cache: "no-store" }).then(r => r.json()).then(data => {
+      setAuthenticated(data.authenticated === true);
+      if (data.authenticated === true) void fetchData();
+    }).catch(() => setAuthenticated(false));
   }, []);
 
   const filteredOrders = useMemo(() => {

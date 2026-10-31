@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Link from "next/link";
+import ProductResearch from "./ProductResearch";
 import ProductImage from "@/app/components/ProductImage";
 import { productImageUrl } from "@/lib/product-image";
 
@@ -788,6 +789,7 @@ export default function MasterProductPage() {
                       </div>
                     </div>
 
+                    <ProductResearch key={`${editingSku || "new"}:${selectedIngredients.join("|")}`} ingredients={selectedIngredients} onApply={(benefits,references)=>setForm(previous=>({...previous, benefits:[previous.benefits,benefits].filter(Boolean).join("\n\n"), journalReferences:[previous.journalReferences,references].filter(Boolean).join("\n\n")}))}/>
                     <label className={labelClass}>
                       Manfaat Produk
                       <textarea rows={3} value={form.benefits || ""} onChange={(e) => updateField("benefits", e.target.value)} placeholder="Masukkan manfaat berdasarkan bukti yang tersedia..." className={fieldClass} />

@@ -2,15 +2,20 @@ import { NextResponse } from "next/server";
 import { checkoutQuote } from "@/lib/checkout";
 import { requestMasterScript } from "@/lib/master-products";
 
-const pending = new Map<string, Promise<{ serial: string; total: number }>>();
+import { normalizeWhatsApp } from "@/lib/checkout-contact";
+
+const pending = new Map<string, Promise<{ serial: string; total: number; paymentMethod: string }>>();
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const customer = body.customer || {};
+    const phone = normalizeWhatsApp(customer.phone);
+    const paymentMethod = body.paymentMethod || "bank_transfer";
+    if (!["bank_transfer", "qris"].includes(paymentMethod)) return NextResponse.json({message: "Pilih metode pembayaran yang tersedia."}, {status: 400});
     const fields = ["name", "email", "phone", "address", "provinceName", "cityName", "districtName", "districtId"];
     if (!fields.every(key => typeof customer[key] === "string" && customer[key].trim() && customer[key].length <= 1000)
-      || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email) || !/^[+\d\s()-]{8,20}$/.test(customer.phone)
+      || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email) || !phone
       || !/^[a-f0-9-]{36}$/.test(body.orderKey || "")) return NextResponse.json({ message: "Lengkapi nama, kontak, dan alamat pengiriman." }, { status: 400 });
     const serial = `VRT-${String(body.orderKey).replaceAll("-", "").toUpperCase()}`;
     const execute = async () => {
@@ -20,8 +25,8 @@ export async function POST(req: Request) {
       const data = await requestMasterScript("getAdminData");
       const existing = (data.orders || []).find((order: { orderSerial: string }) => order.orderSerial === serial);
       if (existing) {
-        if (existing.phone !== customer.phone || Number(existing.grandTotal) !== quote.total) throw new Error("Pesanan ini sudah tercatat dengan rincian berbeda. Muat ulang checkout.");
-        return { serial, total: quote.total };
+        if (normalizeWhatsApp(existing.phone) !== phone || Number(existing.grandTotal) !== quote.total) throw new Error("Pesanan ini sudah tercatat dengan rincian berbeda. Muat ulang checkout.");
+        return { serial, total: quote.total, paymentMethod: existing.paymentMethod || paymentMethod };
       }
       const memberId = `VRT-${customer.phone.replace(/\D/g, "")}`;
       const member = await requestMasterScript("saveMember", { memberId, name: customer.name, email: customer.email, phone: customer.phone, addressDetail: customer.address, districtName: customer.districtName, cityName: customer.cityName });
@@ -29,7 +34,7 @@ export async function POST(req: Request) {
       const summary = quote.lines.map(line => `${line.name} [${line.variant}] (${line.quantity}x)`).join(", ");
       const rewardSummary = quote.rewardLines.map(line=>`${line.kind==='redeem'?'TEBUS MURAH':'GRATIS'} ${line.name} [${line.variant}] (${line.quantity}x @Rp${line.price}) [${line.promoCode}]`).join(", ");
       const result = await requestMasterScript("saveOrder", {
-        orderSerial: serial, memberId, customerName: customer.name, phone: customer.phone, email: customer.email,
+        paymentMethod, orderSerial: serial, memberId, customerName: customer.name, phone: customer.phone, email: customer.email,
         addressDetail: `${customer.address}, ${customer.districtName}, ${customer.cityName}, ${customer.provinceName}${customer.postalCode ? ` ${customer.postalCode}` : ""}`,
         sku: [...quote.lines,...quote.rewardLines].map(line => line.sku).join(", "),
         itemsSummary: `${summary}${rewardSummary?` | ${rewardSummary}`:''}${quote.promoCode ? ` | Promo ${quote.promoCode}: diskon produk Rp${quote.productDiscount}, diskon ongkir Rp${quote.shippingDiscount}` : ""} | Kurir ${quote.shipping.name}${customer.notes ? ` | Catatan: ${String(customer.notes).slice(0,500)}` : ""}`,
@@ -41,7 +46,7 @@ export async function POST(req: Request) {
         shippingSubsidy: quote.shippingDiscount, customerShippingFee: quote.shipping.price - quote.shippingDiscount, grandTotal: quote.total,
       });
       if (result.status !== "success" && result.success !== true) throw new Error("Pesanan belum tersimpan.");
-      return { serial, total: quote.total };
+      return { serial, total: quote.total, paymentMethod };
     };
     let task = pending.get(serial);
     if (!task) { task = execute(); pending.set(serial, task); }

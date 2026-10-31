@@ -50,6 +50,8 @@ function vartanaReadOrders_(sheet) {
       grandTotal: money(row, ['Grand Total', 'Total Pembayaran']),
       status: text(row, ['Status']),
       resiJNT: text(row, ['No. Resi J&T', 'Resi JNT']),
+      paymentMethod: text(row, ['Payment Method']),
+      reconciliationStatus: text(row, ['Status Rekonsiliasi']),
       grossSubtotalProducts: money(row, ['Gross Subtotal Products']),
       productDiscount: money(row, ['Product Discount'])
     };

@@ -2951,13 +2951,13 @@ function vartanaPromoColumnNames_() {
 }
 
 function vartanaOrderColumnNames_() {
-  return ['Gross Subtotal Products','Promo Code','Promo Name','Product Discount','Promo Shipping Discount','Redeem Total','Promo Breakdown','Reward Items'];
+  return ['Gross Subtotal Products','Promo Code','Promo Name','Product Discount','Promo Shipping Discount','Redeem Total','Promo Breakdown','Reward Items','Payment Method'];
 }
 
 function checkoutColumns_(sheet,names) {
   var headers=sheet.getLastColumn()?sheet.getRange(1,1,1,sheet.getLastColumn()).getDisplayValues()[0]:[];
   var cols={};
-  names.forEach(function(name){var index=headers.indexOf(name);if(index<0){index=headers.length;headers.push(name);sheet.getRange(1,index+1).setValue(name).setFontWeight('bold');}cols[name]=index+1;});
+  names.forEach(function(name){var index=headers.indexOf(name);if(index<0){index=headers.length;headers.push(name);if(index+1>sheet.getMaxColumns())sheet.insertColumnsAfter(sheet.getMaxColumns(),index+1-sheet.getMaxColumns());sheet.getRange(1,index+1).setValue(name).setFontWeight('bold');}cols[name]=index+1;});
   return cols;
 }
 
@@ -3021,7 +3021,7 @@ function vartanaOrderStatusRule_(sheet,row,count) {
 
 function recordCheckoutPromoOnOrder_(sheet,row,data) {
   var cols=checkoutColumns_(sheet,vartanaOrderColumnNames_());
-  var fields={'Gross Subtotal Products':Number(data.grossSubtotalProducts===undefined?data.subtotalProducts:data.grossSubtotalProducts)||0,'Promo Code':data.promoCode||'','Promo Name':data.promoName||'','Product Discount':Number(data.productDiscount)||0,'Promo Shipping Discount':Number(data.promoShippingDiscount)||0,'Redeem Total':Number(data.redeemTotal)||0,'Promo Breakdown':JSON.stringify(data.promoBreakdown||[]),'Reward Items':JSON.stringify(data.rewardItems||[])};
+  var fields={'Payment Method':data.paymentMethod||'', 'Gross Subtotal Products':Number(data.grossSubtotalProducts===undefined?data.subtotalProducts:data.grossSubtotalProducts)||0,'Promo Code':data.promoCode||'','Promo Name':data.promoName||'','Product Discount':Number(data.productDiscount)||0,'Promo Shipping Discount':Number(data.promoShippingDiscount)||0,'Redeem Total':Number(data.redeemTotal)||0,'Promo Breakdown':JSON.stringify(data.promoBreakdown||[]),'Reward Items':JSON.stringify(data.rewardItems||[])};
   Object.keys(fields).forEach(function(key){sheet.getRange(row,cols[key]).setValue(fields[key]);});
 }
 
@@ -3102,6 +3102,8 @@ function vartanaReadOrders_(sheet) {
       grandTotal: money(row, ['Grand Total', 'Total Pembayaran']),
       status: text(row, ['Status']),
       resiJNT: text(row, ['No. Resi J&T', 'Resi JNT']),
+      paymentMethod: text(row, ['Payment Method']),
+      reconciliationStatus: text(row, ['Status Rekonsiliasi']),
       grossSubtotalProducts: money(row, ['Gross Subtotal Products']),
       productDiscount: money(row, ['Product Discount'])
     };

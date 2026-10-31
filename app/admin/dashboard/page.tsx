@@ -1,11 +1,15 @@
 "use client";
 import { analyzeOrderItems, type AnalysisProduct } from "@/lib/admin-order-analysis";
 import { orderFinancialIssues } from "@/lib/order-financials";
+import { downloadCustomerInvoice, invoiceAvailable } from "./customer-invoice";
+import { normalizeWhatsApp } from "@/lib/checkout-contact";
 import { generateSalesReportPdf } from "./pdf-report";
 
 import { useState, useEffect, useMemo } from "react";
 
 type OrderItem = {
+  paymentMethod?: string;
+  reconciliationStatus?: string;
   rowKey?: string;
   orderSerial: string;
   memberId: string;
@@ -491,6 +495,7 @@ export default function AdminDashboard() {
       </div>
 
       {unknownNetCount > 0 && <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">Total transfer mencakup seluruh pesanan berstatus pembayaran diterima sampai selesai. Net Sales baru mencakup nominal yang terverifikasi; {unknownNetCount} pesanan masih perlu rincian ongkir. Pesanan menunggu pembayaran tidak masuk omzet diterima.</div>}
+      {validFinancialOrders.some(order => order.reconciliationStatus === "ESTIMASI_ONGKIR" || order.originalShipping == null) && <div className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">Sebagian rincian ongkir historis belum terverifikasi. Net Sales mencakup estimasi ongkir Rp14.000 sesuai arahan pemilik; periksa Laporan_Omzet_20261031 untuk rinciannya.</div>}
       {recoveredCount > 0 && <div className="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-blue-950">{recoveredCount} pesanan lama dipulihkan dari susunan kolom lama. Total transfer tersimpan digunakan kembali; rincian ongkir/subsidi yang belum pasti perlu diverifikasi.</div>}
       {missingCostCount > 0 && <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">HPP belum tersedia untuk {missingCostCount} pesanan. Isi modal per SKU di master Products. Laba dan margin belum dapat dipastikan; perhitungan modal memakai HPP master saat ini.</div>}
       {dataError && <div role="alert" className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">{dataError} Gunakan tombol refresh untuk mencoba lagi.</div>}
@@ -818,6 +823,7 @@ export default function AdminDashboard() {
                             )}
                           </td>
                           <td className="p-3 align-top text-center">
+                            {invoiceAvailable(ord) && <div className="mb-2 flex flex-col gap-2"><button onClick={()=>downloadCustomerInvoice(ord)} className="rounded bg-emerald-700 px-2 py-1 text-[10px] text-white">Unduh nota PDF</button>{normalizeWhatsApp(ord.phone) && <a href={`https://wa.me/${normalizeWhatsApp(ord.phone)}?text=${encodeURIComponent(`Halo ${ord.customerName}, pembayaran pesanan ${ord.orderSerial} sudah kami terima. Pesanan sedang diproses, mohon ditunggu. Nota pembelian kami lampirkan pada pesan ini.`)}`} target="_blank" rel="noreferrer" className="text-[10px] underline">Buka WA customer</a>}<span className="text-[9px] text-gray-500">Unduh lalu lampirkan nota di WhatsApp.</span></div>}
                             {isEditing ? (
                               <div className="flex items-center justify-center gap-1">
                                 <button onClick={() => handleUpdateOrder(ord.orderSerial)} disabled={isUpdating} className="rounded bg-emerald-700 px-2 py-1 text-[9px] font-bold text-white">

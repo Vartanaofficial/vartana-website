@@ -39,3 +39,9 @@ Pembaruan ini fokus pada promo dan pencatatan order. Ini bukan penyelesaian selu
 
 PERBAIKAN PEMBACAAN DASHBOARD
 Orders dibaca berdasarkan nama header, mendukung nominal teks Rp72.800, dan mempertahankan subsidi 0. Nilai kosong tidak ditebak. Ganti seluruh kode Apps Script dengan file TXT terbaru, simpan, lalu Deploy > Manage deployments > Edit > New version > Deploy pada deployment yang sama. Tidak perlu menjalankan setupAndMigrateSheet untuk perbaikan ini.
+
+PEMBARUAN QRIS DAN NOTA CUSTOMER
+- Salin file lengkap lalu Deploy > Manage deployments > Edit > New version agar Payment Method ikut disimpan dan dibaca. Kolom baru ditambahkan setelah kolom rekonsiliasi; data lama dipertahankan. Tidak perlu menjalankan setup master.
+- Checkout mendukung transfer BCA dan QRIS. Bukti pembayaran diperiksa admin.
+- Admin: Edit order > pilih PEMBAYARAN DITERIMA setelah memeriksa bukti > Simpan. Tombol Unduh nota PDF muncul. Buka WA customer lalu lampirkan PDF secara manual.
+- Membuka WhatsApp tidak otomatis mengubah order menjadi lunas.

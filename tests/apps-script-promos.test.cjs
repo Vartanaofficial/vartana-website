@@ -3,7 +3,8 @@ const source=fs.readFileSync('deliverables/VARTANA-AppsScript-v2/VARTANA-AppsScr
 const promoHeaders=['Promotion ID','SKU','Promotion Name','Promo Price','Discount Percentage','Banner Text','Start Date','End Date','Active','Created At','Updated At'];
 const orderHeaders=['Timestamp','Order Serial','Member ID','Nama Customer','No. WhatsApp','Email','Detail Alamat','SKU','Items Summary','Subtotal Products','Original Shipping','Shipping Subsidy','Customer Shipping Fee','Grand Total','Status','No. Resi J&T'];
 class Sheet {
- constructor(rows){this.rows=rows;this.validations=[];}
+ constructor(rows){this.rows=rows;this.validations=[];this.maxColumns=26;}
+ getMaxColumns(){return this.maxColumns;}insertColumnsAfter(after,count){this.maxColumns+=count;}
  getLastColumn(){return Math.max(0,...this.rows.map(r=>r.length));}getLastRow(){return this.rows.length;}getMaxRows(){return Math.max(100,this.rows.length);}
  getRange(row,col,height=1,width=1){const sheet=this;return {getValues(){return Array.from({length:height},(_,y)=>Array.from({length:width},(_,x)=>sheet.rows[row+y-1]?.[col+x-1]??''));},getDisplayValues(){return this.getValues().map(r=>r.map(String));},setValue(value){while(sheet.rows.length<row)sheet.rows.push([]);sheet.rows[row-1][col-1]=value;return this;},setValues(values){values.forEach((r,y)=>r.forEach((v,x)=>sheet.getRange(row+y,col+x).setValue(v)));return this;},setFontWeight(){return this;},setNumberFormat(){return this;},setDataValidation(rule){sheet.validations.push({row,col,height,rule});return this;}};}
  getDataRange(){return this.getRange(1,1,this.rows.length,this.getLastColumn());}appendRow(row){this.rows.push([...row]);}setFrozenRows(){}
@@ -31,3 +32,5 @@ test('order records promo audit data, waits for payment, and deduplicates retrie
 test('legitimate zero-subtotal orders never use fallback pricing',()=>{
  const {context:c,sheets}=fixture();const r=JSON.parse(c.saveRetailOrderWithPromo_({orderSerial:'FREE',phone:'081234567890',subtotalProducts:0,grandTotal:0,customerShippingFee:0}).getContent());assert.equal(r.success,true);assert.equal(sheets.Orders.rows[1][9],0);const bad=JSON.parse(c.saveRetailOrderWithPromo_({orderSerial:'BAD',phone:'081234567890',subtotalProducts:0,grandTotal:1,customerShippingFee:0}).getContent());assert.equal(bad.status,'error');assert.equal(sheets.Orders.rows.length,2);
 });
+
+test("payment method appends beyond reconciliation columns without overwriting them",()=>{const {context:c,sheets}=fixture();sheets.Orders.rows[0].push(...c.vartanaOrderColumnNames_().filter(x=>x!=="Payment Method"),"Status Rekonsiliasi","Catatan Rekonsiliasi");const cols=c.checkoutColumns_(sheets.Orders,c.vartanaOrderColumnNames_());assert.equal(cols["Payment Method"],27);assert.equal(sheets.Orders.getMaxColumns(),27);assert.equal(sheets.Orders.rows[0][24],"Status Rekonsiliasi");});

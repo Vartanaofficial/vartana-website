@@ -42,6 +42,17 @@ const menus = [
   },
 ];
 
+function MenuIcon({ href }: { href: string }) {
+  const paths: Record<string, React.ReactNode> = {
+    "/admin/promos": <><path d="M20 13 13 20a2 2 0 0 1-3 0l-7-7V4h9l8 6a2 2 0 0 1 0 3Z"/><circle cx="7.5" cy="8" r="1"/><path d="m11 10 5 5m0-5-5 5"/></>,
+    "/admin/dashboard": <><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/></>,
+    "/admin/operations": <><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M9 10l1 1 2-2m2 1h2m-7 6 1 1 2-2m2 1h2"/></>,
+    "/admin/master-product": <><path d="m12 3 9 5v9l-9 5-9-5V8l9-5Zm0 10v9M3 8l9 5 9-5M8 5l9 5v4"/></>,
+    "/admin/konsinyasi": <><path d="M3 10V6l4-3h10l4 3v4M3 10h18M5 10v11h14V10M9 21v-7h6v7M3 6h18"/><path d="M3 10a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></>,
+  };
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8" aria-hidden="true">{paths[href]}</svg>;
+}
+
 export default function AdminAccessPage() {
   const [authenticated, setAuthenticated] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -185,8 +196,8 @@ export default function AdminAccessPage() {
           </div>
         </header>
 
-        <section className="grid flex-1 items-center gap-10 py-12 lg:grid-cols-[1.05fr_.95fr] lg:gap-16 lg:py-16">
-          <div className="max-w-xl">
+        <section className={authenticated ? "flex flex-1 flex-col items-center gap-9 py-10 sm:py-12" : "grid flex-1 items-center gap-10 py-12 lg:grid-cols-[1.05fr_.95fr] lg:gap-16 lg:py-16"}>
+          <div className={authenticated ? "mx-auto max-w-2xl text-center" : "max-w-xl"}>
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#c5a66b]/40 bg-[#c5a66b]/10 px-4 py-2 text-[10px] tracking-[0.24em] text-[#e3c981]">
               <span className="h-1.5 w-1.5 rounded-full bg-[#d9bd72]" />
               PRIVATE ACCESS
@@ -198,15 +209,15 @@ export default function AdminAccessPage() {
                 : "Welcome to VARTANA"}
             </h1>
 
-            <div className="mt-5 h-px w-24 bg-gradient-to-r from-[#d8b76c] to-transparent" />
+            <div className={`mt-5 h-px w-24 bg-gradient-to-r from-[#d8b76c] to-transparent ${authenticated ? "mx-auto" : ""}`} />
 
-            <p className="mt-5 max-w-lg text-sm leading-7 text-[#d0d9d0] sm:text-base">
+            <p className={`mt-5 max-w-lg text-sm leading-7 text-[#d0d9d0] sm:text-base ${authenticated ? "mx-auto" : ""}`}>
               {authenticated
                 ? "Satu pintu untuk mengelola dashboard, operasional, dan kemitraan VARTANA."
                 : "Akses ruang kerja internal VARTANA untuk mengelola operasional, data, dan pertumbuhan bisnis."}
             </p>
 
-            <div className="mt-9 grid max-w-md grid-cols-3 gap-3">
+            <div className={`${authenticated ? "hidden" : "mt-9 grid max-w-md grid-cols-3 gap-3"}`}>
               {[
                 { value: "01", label: "DASHBOARD" },
                 { value: "02", label: "OPERATIONS" },
@@ -226,12 +237,12 @@ export default function AdminAccessPage() {
               ))}
             </div>
 
-            <p className="mt-10 max-w-md text-xs leading-6 text-[#a9b9ad]">
+            <p className={`${authenticated ? "hidden" : "mt-10 max-w-md text-xs leading-6 text-[#a9b9ad]"}`}>
               More than wellness. A better future for farmers.
             </p>
           </div>
 
-          <div className="w-full max-w-xl justify-self-center lg:justify-self-end">
+          <div className={authenticated ? "w-full max-w-5xl" : "w-full max-w-xl justify-self-center lg:justify-self-end"}>
             {checking ? (
               <div className="rounded-3xl border border-white/15 bg-[#102a20]/90 p-8 text-sm text-[#c5d0c7] shadow-2xl backdrop-blur-xl">
                 Memeriksa sesi admin...
@@ -255,15 +266,15 @@ export default function AdminAccessPage() {
                   </span>
                 </div>
 
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 gap-4 min-[440px]:grid-cols-2 lg:grid-cols-3">
                   {menus.map((menu) => (
                     <Link
                       key={menu.href}
                       href={menu.href}
-                      className="group flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4 transition hover:border-[#d7bd77]/70 hover:bg-[#c5a66b]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d7bd77]"
+                      className="group relative flex flex-col items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.035] px-5 py-7 text-center transition duration-200 hover:-translate-y-1 hover:border-[#d7bd77]/70 hover:bg-[#c5a66b]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d7bd77] motion-reduce:transform-none"
                     >
-                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#c5a66b]/40 bg-[#c5a66b]/10 font-serif text-2xl text-[#e0c47b]">
-                        {menu.symbol}
+                      <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-[#c5a66b]/40 bg-gradient-to-br from-[#d9bd72]/20 to-[#c5a66b]/5 text-[#e0c47b] shadow-[0_4px_20px_#0002] transition group-hover:text-[#f4dda1]">
+                        <MenuIcon href={menu.href}/>
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-semibold sm:text-base">
@@ -273,7 +284,7 @@ export default function AdminAccessPage() {
                           {menu.description}
                         </span>
                       </span>
-                      <span className="text-lg text-[#d7bd77] transition-transform group-hover:translate-x-1">
+                      <span aria-hidden="true" className="absolute right-4 top-3 text-lg text-[#d7bd77] transition-transform group-hover:translate-x-1">
                         →
                       </span>
                     </Link>

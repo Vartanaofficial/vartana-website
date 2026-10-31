@@ -7,6 +7,7 @@ import ProductImage from "@/app/components/ProductImage";
 import Link from "next/link";
 import StorefrontMotion from "@/app/components/StorefrontMotion";
 import AmbientMusic from "@/app/components/AmbientMusic";
+import StorefrontIcon from "@/app/components/StorefrontIcon";
 import { BotanicalSprig } from "@/app/checkout/CheckoutVisuals";
 import "./storefront.css";
 import { readCart, writeCart } from "@/lib/cart-storage";
@@ -1051,14 +1052,14 @@ export default function Home() {
       <StorefrontMotion />
       <AmbientMusic />
       {/* NAVBAR TOP DESKTOP & MOBILE HEADER */}
-      <nav className="sticky top-0 z-40 border-b border-[#B69245]/15 bg-[#F6F2E8]/90 backdrop-blur-xl transition-all">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+      <nav className="storefront-header sticky top-0 z-40 border-b border-[#B69245]/15 bg-[#F6F2E8]/90 backdrop-blur-xl transition-all">
+        <div className="storefront-header-row mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <a href="#home" className="flex items-center gap-3 transition hover:opacity-85">
             <img src="/Logo Vartana.png" alt="VARTANA Botanical Wellness" className="h-9 w-auto object-contain md:h-12" />
           </a>
 
           {/* MENU DESKTOP */}
-          <div className="hidden items-center gap-8 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#526158] md:flex">
+          <div className="storefront-desktop-links hidden items-center gap-8 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#526158] xl:flex">
             <a href="#philosophy" className="transition hover:text-[#B69245]">
               {t.nav.philosophy}
             </a>
@@ -1079,25 +1080,27 @@ export default function Home() {
             </a>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="storefront-header-actions flex items-center gap-2 sm:gap-3">
             {/* BUTTON LACAK PESANAN */}
             <button
+              aria-label={language === "en" ? "Track order" : "Lacak pesanan"}
               onClick={() => setIsTrackModalOpen(true)}
-              className="flex items-center gap-1.5 rounded-full border border-[#B69245]/30 bg-[#F6F2E8] px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A] hover:bg-[#B69245] hover:text-white transition shadow-xs"
+              className="storefront-track-top hidden md:flex items-center gap-1.5 rounded-full border border-[#B69245]/30 bg-[#F6F2E8] px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A] hover:bg-[#B69245] hover:text-white transition shadow-xs"
             >
-              <span>🔍</span>
+              <StorefrontIcon name="search"/>
               <span className="hidden md:inline">{language === "en" ? "Track Order" : "Lacak Pesanan"}</span>
             </button>
 
             {/* BUTTON CART */}
             <button
+              aria-label={language === "en" ? "Open cart" : "Buka keranjang"}
               onClick={() => {
                 setIsCartOpen(true);
                 setCheckoutStep("cart");
               }}
               className="relative flex items-center gap-2 rounded-full border border-[#16382A]/15 bg-white/80 px-4 py-2 text-[11px] font-semibold transition hover:border-[#B69245] shadow-xs"
             >
-              <span className="text-sm">🛒</span>
+              <StorefrontIcon name="cart"/>
               <span className="hidden tracking-wider sm:inline">{t.cart.title}</span>
               {totalItemsInCart > 0 && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#16382A] text-[10px] font-bold text-[#F6F2E8]">{totalItemsInCart}</span>}
             </button>
@@ -1115,7 +1118,7 @@ export default function Home() {
         </div>
 
         {/* HORIZONTAL NAVIGATION BAR FOR MOBILE */}
-<div className="no-scrollbar flex items-center gap-2 overflow-x-auto border-t border-[#B69245]/10 bg-[#FBF9F4] px-4 py-2.5 md:hidden">
+<div className="storefront-mobile-links no-scrollbar flex items-center gap-2 overflow-x-auto border-t border-[#B69245]/10 bg-[#FBF9F4] px-4 py-2.5 xl:hidden">
   <button
     onClick={() => setIsTrackModalOpen(true)}
     className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#B69245]/40 bg-[#F6F2E8] px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#8E6E2E]"
@@ -1147,7 +1150,7 @@ export default function Home() {
       </nav>
 
       {/* MOBILE BOTTOM NAVIGATION BAR */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#B69245]/20 bg-[#FBF9F4]/95 px-4 py-2.5 backdrop-blur-md md:hidden">
+      <div className="storefront-bottom-nav fixed bottom-0 left-0 right-0 z-40 border-t border-[#B69245]/20 bg-[#FBF9F4]/95 px-4 py-2.5 backdrop-blur-md md:hidden">
         <div className="grid grid-cols-5 items-center text-center">
           <a href="#home" className="flex flex-col items-center py-1 text-[#16382A]">
             <span className="inline-flex h-6 w-6 items-center justify-center">
@@ -1159,15 +1162,15 @@ export default function Home() {
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Home</span>
           </a>
           <a href="#collection" className="flex flex-col items-center py-1 text-[#16382A]">
-            <span className="text-base">🛒</span>
+            <StorefrontIcon name="cart"/>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">{t.nav.collection}</span>
           </a>
           <button onClick={() => setIsTrackModalOpen(true)} className="flex flex-col items-center py-1 text-[#8E6E2E]">
-            <span className="text-base">🔍</span>
+            <StorefrontIcon name="search"/>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Lacak</span>
           </button>
           <a href="#origin" className="flex flex-col items-center py-1 text-[#16382A]">
-            <span className="text-base">📖</span>
+            <StorefrontIcon name="book"/>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Origin</span>
           </a>
           <button
@@ -1177,7 +1180,7 @@ export default function Home() {
             }}
             className="relative flex flex-col items-center py-1 text-[#16382A]"
           >
-            <span className="text-base">🛒</span>
+            <StorefrontIcon name="cart"/>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Cart</span>
             {totalItemsInCart > 0 && <span className="absolute right-2 top-0 flex h-4 w-4 items-center justify-center rounded-full bg-[#B69245] text-[8px] font-bold text-[#0D261C]">{totalItemsInCart}</span>}
           </button>
@@ -1382,7 +1385,7 @@ export default function Home() {
               <span className="text-[#9E7A32]">{t.hero.accent}</span>
             </h1>
             <p className="mt-6 max-w-xl text-[14px] leading-relaxed text-[#526158] md:mt-8 md:text-[15px] md:leading-[1.8]">{t.hero.text}</p>
-            <div className="mt-8 flex flex-wrap gap-4 md:mt-10">
+            <div className="storefront-hero-actions mt-8 flex flex-wrap gap-4 md:mt-10">
               <a href="#collection" className="rounded-full bg-[#16382A] px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#F6F2E8] transition duration-300 hover:bg-[#214737] shadow-xs">
                 {t.hero.primary}
               </a>

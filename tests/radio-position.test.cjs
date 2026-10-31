@@ -1,0 +1,4 @@
+﻿const {test}=require('node:test'),assert=require('node:assert/strict'),load=require('./load-ts.cjs');const {clampRadioPosition,isRadioDrag}=load('lib/radio-position.ts');
+test('radio remains fully reachable after desktop position is restored on a phone',()=>{assert.deepEqual(clampRadioPosition({x:1200,y:800},{width:150,height:44},{width:320,height:640,bottomInset:72}),{x:162,y:516});});
+test('radio respects the visible viewport and bottom navigation in zoomed and landscape layouts',()=>{assert.deepEqual(clampRadioPosition({x:-200,y:9999},{width:150,height:44},{width:300,height:220,left:20,top:40,bottomInset:72}),{x:28,y:136});assert.deepEqual(clampRadioPosition({x:20,y:20},{width:150,height:44},{width:120,height:100,bottomInset:72}),{x:8,y:8});});
+test('a tap or slight finger jitter does not count as moving the radio',()=>{assert.equal(isRadioDrag(2,3),false);assert.equal(isRadioDrag(0,6),true);assert.equal(isRadioDrag(-8,2),true);});

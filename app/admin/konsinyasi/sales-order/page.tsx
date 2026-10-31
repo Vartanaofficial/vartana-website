@@ -35,7 +35,10 @@ type Product = {
   totalBeratBersihPerKemasan?: number;
 };
 type Line = { sku: string; qty: string };
+type Promo = { kodePromo: string; namaPromo: string; jenisPromo: string; nilaiPromo: number; status: string; tanggalMulai: string; tanggalSelesai: string; detail: Array<{kodeMitra?: string; sku?: string}> };
 type SO = {
+  kodePromo?: string;
+  diskonPromo?: number;
   nomorSO?: string;
   tanggalSO?: string;
   kodeMitra?: string;
@@ -59,6 +62,9 @@ export default function SalesOrderKonsinyasiPage() {
   const [tanggalSO, setTanggalSO] = useState(today());
   const [kodeMitra, setKodeMitra] = useState("");
   const [catatan, setCatatan] = useState("");
+  const [promos, setPromos] = useState<Promo[]>([]);
+  const [kodePromo, setKodePromo] = useState("");
+  const [promoReady, setPromoReady] = useState(false);
   const [lines, setLines] = useState<Line[]>([{ sku: "", qty: "1" }]);
   const [editingSO, setEditingSO] = useState<string | null>(null);
   const [invoiceSO, setInvoiceSO] = useState<SO | null>(null);
@@ -89,6 +95,10 @@ export default function SalesOrderKonsinyasiPage() {
       setProduk(Array.isArray(pData.produk) ? pData.produk : []);
       const rows = soData.salesOrder ?? soData.salesOrders ?? soData.data ?? [];
       setOrders(Array.isArray(rows) ? rows : []);
+      const promoResponse = await fetch("/api/konsinyasi/promo", { cache: "no-store" });
+      const promoData = await promoResponse.json();
+      setPromoReady(promoResponse.ok && promoData.targetingVersion === 2);
+      setPromos(promoResponse.ok && Array.isArray(promoData.promo) ? promoData.promo : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal memuat data Sales Order.");
     } finally {
@@ -117,6 +127,12 @@ export default function SalesOrderKonsinyasiPage() {
     .map((line, index) => ({ ...line, index, product: activeProducts.find((p) => p.sku === line.sku), subtotal: (activeProducts.find((p) => p.sku === line.sku)?.hargaKonsinyasi || 0) * Math.max(0, Number(line.qty) || 0) }))
     .filter((x) => x.sku);
   const total = cart.reduce((sum, line) => sum + line.subtotal, 0);
+  const promoToday = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+  const availablePromos = promos.filter(p => p.status === "AKTIF" && p.tanggalMulai <= promoToday && p.tanggalSelesai >= promoToday && ["PERSEN", "NOMINAL", "HARGA_KHUSUS"].includes(p.jenisPromo) && cart.some(line => !p.detail?.length || p.detail.some(t => (!t.kodeMitra || t.kodeMitra === kodeMitra) && (!t.sku || t.sku === line.sku))));
+  const selectedPromo = availablePromos.find(p => p.kodePromo === kodePromo);
+  const eligibleLines = selectedPromo ? cart.filter(line => !selectedPromo.detail?.length || selectedPromo.detail.some(t => (!t.kodeMitra || t.kodeMitra === kodeMitra) && (!t.sku || t.sku === line.sku))) : [];
+  const eligibleTotal = eligibleLines.reduce((sum,line) => sum+line.subtotal,0);
+  const promoDiscount = selectedPromo ? selectedPromo.jenisPromo === "PERSEN" ? Math.min(eligibleTotal, Math.round(eligibleTotal*selectedPromo.nilaiPromo/100)) : selectedPromo.jenisPromo === "NOMINAL" ? Math.min(eligibleTotal, selectedPromo.nilaiPromo) : eligibleLines.reduce((sum,line)=>sum+Math.max(0,(line.product?.hargaKonsinyasi||0)-selectedPromo.nilaiPromo)*Number(line.qty),0) : 0;
 
   // Dashboard uses the same Sales Order data returned by the existing Apps Script endpoint.
   // A cancelled/inactive SO that has already been printed is excluded from operational KPIs
@@ -165,7 +181,7 @@ export default function SalesOrderKonsinyasiPage() {
         const sku = String(item.sku || item.namaProduk || "SKU-TIDAK-DIKETAHUI");
         const current = map.get(sku) || { sku, name: String(item.namaProduk || item.sku || "Produk tidak diketahui"), qty: 0, value: 0, orders: 0 };
         current.qty += Math.max(0, Number(item.qty) || 0);
-        current.value += Number(item.subtotal) || (Number(item.qty) || 0) * (Number(item.hargaKonsinyasi) || 0);
+        current.value += item.subtotal !== undefined && item.subtotal !== null ? Number(item.subtotal) : (Number(item.qty) || 0) * (Number(item.hargaKonsinyasi) || 0);
         current.orders += 1;
         map.set(sku, current);
       }
@@ -226,6 +242,7 @@ export default function SalesOrderKonsinyasiPage() {
     setSaving(true);
     try {
       const payload = {
+        kodePromo: promoReady && selectedPromo ? selectedPromo.kodePromo : "",
         tanggalSO,
         kodeMitra: selectedMitra.kodeMitra,
         namaToko: selectedMitra.namaToko,
@@ -263,7 +280,7 @@ export default function SalesOrderKonsinyasiPage() {
       setNotice(
         `${editingSO ? `Revisi ${editingSO} berhasil diproses sebagai Sales Order baru` : "Sales Order berhasil disimpan"}${nomorSO ? `: ${nomorSO}` : "."}${editingSO ? ". Periksa riwayat untuk memastikan nomor SO baru dan status SO lama sudah diperbarui di database." : ""}`,
       );
-      setEditingSO(null);
+      setEditingSO(null); setKodePromo("");
       setTanggalSO(today());
       setKodeMitra("");
       setCatatan("");
@@ -529,7 +546,10 @@ export default function SalesOrderKonsinyasiPage() {
                   <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-sm text-gray-500">Total pesanan</p>
-                      <p className="mt-1 text-2xl font-bold text-[#173d2b]">{rupiah(total)}</p>
+                      <label className="my-3 block text-sm">Promo konsinyasi<select className={inputClass} disabled={!promoReady} value={selectedPromo?.kodePromo || ""} onChange={e=>setKodePromo(e.target.value)}><option value="">Tanpa promo</option>{availablePromos.map(p=><option key={p.kodePromo} value={p.kodePromo}>{p.namaPromo} · {p.kodePromo}</option>)}</select></label>
+                      {!promoReady && <p className="text-xs text-amber-800">Pengaturan promo memerlukan deployment Apps Script terbaru dan sesi admin aktif.</p>}
+                      {promoDiscount > 0 && <p className="text-sm">Subtotal {rupiah(total)} · Diskon −{rupiah(promoDiscount)}</p>}
+                      <p className="mt-1 text-2xl font-bold text-[#173d2b]">{rupiah(total-promoDiscount)}</p>
                       <p className="mt-1 text-xs text-gray-500">{cart.length} jenis produk dipilih</p>
                     </div>
                     <button
@@ -610,6 +630,7 @@ export default function SalesOrderKonsinyasiPage() {
                                       setTanggalSO(so.tanggalSO ? so.tanggalSO.slice(0, 10) : today());
                                       setKodeMitra(so.kodeMitra || "");
                                       setCatatan(so.catatan || "");
+                                      setKodePromo(so.kodePromo || "");
                                       setLines(so.items.map((item) => ({ sku: item.sku || "", qty: String(item.qty || 1) })));
                                       setNotice(`Mode revisi ${so.nomorSO}: simpan akan membuat nomor Sales Order baru menggunakan tanggal dan mitra yang dipilih.`);
                                       setError("");
@@ -937,7 +958,7 @@ export default function SalesOrderKonsinyasiPage() {
                           </td>
                           <td className="p-3 text-right">{Number(item.qty) || 0}</td>
                           <td className="p-3 text-right whitespace-nowrap">{rupiah(Number(item.hargaKonsinyasi) || 0)}</td>
-                          <td className="p-3 text-right whitespace-nowrap">{rupiah(Number(item.subtotal) || (Number(item.qty) || 0) * (Number(item.hargaKonsinyasi) || 0))}</td>
+                          <td className="p-3 text-right whitespace-nowrap">{rupiah(item.subtotal !== undefined && item.subtotal !== null ? Number(item.subtotal) : (Number(item.qty) || 0) * (Number(item.hargaKonsinyasi) || 0))}</td>
                         </tr>
                       ))}
                       {(!detailSO.items || detailSO.items.length === 0) && (
@@ -1054,7 +1075,7 @@ export default function SalesOrderKonsinyasiPage() {
                         </td>
                         <td className="px-2 py-3 text-right align-top">{item.qty || 0}</td>
                         <td className="whitespace-nowrap px-2 py-3 text-right align-top">{rupiah(Number(item.hargaKonsinyasi) || 0)}</td>
-                        <td className="whitespace-nowrap px-2 py-3 text-right align-top">{rupiah(Number(item.subtotal) || (Number(item.qty) || 0) * (Number(item.hargaKonsinyasi) || 0))}</td>
+                        <td className="whitespace-nowrap px-2 py-3 text-right align-top">{rupiah(item.subtotal !== undefined && item.subtotal !== null ? Number(item.subtotal) : (Number(item.qty) || 0) * (Number(item.hargaKonsinyasi) || 0))}</td>
                       </tr>
                     ))}
                     {(!invoiceSO.items || invoiceSO.items.length === 0) && (
@@ -1073,6 +1094,7 @@ export default function SalesOrderKonsinyasiPage() {
                     <span>Subtotal</span>
                     <span>{rupiah(Number(invoiceSO.items?.reduce((sum, item) => sum + (Number(item.qty) || 0) * (Number(item.hargaKonsinyasi) || 0), 0)) || Number(invoiceSO.totalSO) || 0)}</span>
                   </div>
+                  {!!invoiceSO.diskonPromo && <div className="flex justify-between gap-4 py-1 text-sm"><span>Promo {invoiceSO.kodePromo}</span><span>−{rupiah(invoiceSO.diskonPromo)}</span></div>}
                   <div className="flex justify-between gap-4 border-t border-gray-200 pt-2 font-bold">
                     <span>TOTAL SO</span>
                     <span className="text-xl">{rupiah(Number(invoiceSO.totalSO) || 0)}</span>

@@ -912,7 +912,7 @@ function doGet(e) {
       ensureKonsinyasiSheets_();
       if (action === "getKonsinyasiMitra") return responseJSON({ success: true, mitra: getKonsinyasiMitra_() });
       if (action === "getKonsinyasiProduk") return responseJSON({ success: true, produk: getKonsinyasiProduk_() });
-      if (action === "getKonsinyasiPromo") return responseJSON({ success: true, promo: getKonsinyasiPromo_() });
+      if (action === "getKonsinyasiPromo") return responseJSON({ success: true, targetingVersion: 2, promo: getKonsinyasiPromo_() });
       if (action === "getKonsinyasiSO") return responseJSON({ success: true, salesOrder: getKonsinyasiSO_() });
       if (action === "getKonsinyasiPengiriman") return responseJSON({ success: true, pengiriman: getKonsinyasiPengiriman_() });
       if (action === "getKonsinyasiStok") return responseJSON({ success: true, stok: getKonsinyasiStok_() });
@@ -2605,20 +2605,49 @@ function saveKonsinyasiProduk_(data) {
 // ============================================================
 // 34. KONSINYASI — PROMO
 // ============================================================
-function getKonsinyasiPromo_(){return konRows_(SHEET_KON_PROMO).map(function(x){return {timestamp:x.Timestamp,kodePromo:x["Kode Promo"],namaPromo:x["Nama Promo"],jenisPromo:x["Jenis Promo"],nilaiPromo:konNum_(x["Nilai Promo"]),tanggalMulai:formatDateValue(x["Tanggal Mulai"]),tanggalSelesai:formatDateValue(x["Tanggal Selesai"]),status:x.Status,syarat:x.Syarat};});}
-function saveKonsinyasiPromo_(data){
-  var d=data.data&&typeof data.data==="object"?data.data:data, sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_KON_PROMO);
-  var nama=konText_(d.namaPromo), jenis=konText_(d.jenisPromo||"PERSEN").toUpperCase(), nilai=konNum_(d.nilaiPromo), mulai=konText_(d.tanggalMulai), selesai=konText_(d.tanggalSelesai), status=konText_(d.status||"AKTIF").toUpperCase(), kode=konText_(d.kodePromo).toUpperCase();
-  if(!nama||!mulai||!selesai||selesai<mulai||nilai<0) return konJsonError_("Nama promo, periode valid, dan nilai promo wajib diisi.");
-  if(["PERSEN","NOMINAL","HARGA_KHUSUS","BONUS"].indexOf(jenis)<0) return konJsonError_("Jenis promo tidak valid.");
-  if(jenis==="PERSEN"&&nilai>100) return konJsonError_("Promo persen tidak boleh lebih dari 100.");
-  var row=kode?konFindRow_(sh,2,kode):-1; if(kode&&row<0)return konJsonError_("Kode promo tidak ditemukan untuk update."); if(!kode)kode=konCode_("KPRM",SHEET_KON_PROMO,2);
-  var now=new Date(), dataRow=[row>0?sh.getRange(row,1).getValue():now,kode,nama,jenis,nilai,new Date(mulai+"T12:00:00"),new Date(selesai+"T12:00:00"),status,konText_(d.syarat),now];
-  if(row>0)sh.getRange(row,1,1,dataRow.length).setValues([dataRow]);else sh.appendRow(dataRow);
-  var detail=Array.isArray(d.detail)?d.detail:[]; if(detail.length){var ds=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_KON_PROMO_DETAIL);detail.forEach(function(it){ds.appendRow([now,kode,konText_(it.sku),konText_(it.namaProduk),konText_(it.kodeMitra),konText_(it.namaToko),konText_(it.ketentuan)]);});}
-  return responseJSON({success:true,message:"Promo konsinyasi berhasil disimpan.",promo:{kodePromo:kode,namaPromo:nama,jenisPromo:jenis,nilaiPromo:nilai,tanggalMulai:mulai,tanggalSelesai:selesai,status:status}});
+function getKonsinyasiPromo_(){
+ var details=konRows_(SHEET_KON_PROMO_DETAIL);
+ return konRows_(SHEET_KON_PROMO).map(function(x){return {kodePromo:String(x["Kode Promo"]),namaPromo:x["Nama Promo"],jenisPromo:x["Jenis Promo"],nilaiPromo:konNum_(x["Nilai Promo"]),tanggalMulai:formatDateValue(x["Tanggal Mulai"]),tanggalSelesai:formatDateValue(x["Tanggal Selesai"]),status:x.Status,syarat:x.Syarat,detail:details.filter(function(d){return String(d["Kode Promo"])===String(x["Kode Promo"]);}).map(function(d){return {sku:konText_(d.SKU),kodeMitra:konText_(d["Kode Mitra"])};})};});
 }
-function getKonsinyasiPromoAktif_(kodeMitra,sku){var today=Utilities.formatDate(new Date(),SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(),"yyyy-MM-dd");return getKonsinyasiPromo_().filter(function(p){if(String(p.status).toUpperCase()!=="AKTIF"||p.tanggalMulai>today||p.tanggalSelesai<today)return false;var ds=konRows_(SHEET_KON_PROMO_DETAIL).filter(function(d){return String(d["Kode Promo"])===String(p.kodePromo);});if(!ds.length)return true;return ds.some(function(d){return (!d.SKU||String(d.SKU)===String(sku))&&(!d["Kode Mitra"]||String(d["Kode Mitra"])===String(kodeMitra));});});}
+function saveKonsinyasiPromo_(data){
+ var d=data.data&&typeof data.data==="object"?data.data:data,nama=konText_(d.namaPromo),jenis=konText_(d.jenisPromo).toUpperCase(),nilai=Number(d.nilaiPromo),mulai=konText_(d.tanggalMulai),selesai=konText_(d.tanggalSelesai),status=konText_(d.status).toUpperCase(),kode=konText_(d.kodePromo).toUpperCase();
+ function validDate(v){return /^\d{4}-\d{2}-\d{2}$/.test(v)&&!isNaN(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v;}
+ if(!nama||nama.length>100||!validDate(mulai)||!validDate(selesai)||selesai<mulai||!isFinite(nilai)||nilai<=0||nilai>1e12||["PERSEN","NOMINAL","HARGA_KHUSUS"].indexOf(jenis)<0||(jenis==="PERSEN"&&nilai>100)||["AKTIF","NONAKTIF"].indexOf(status)<0)return konJsonError_("Nama, jenis, nilai, status, atau periode promo tidak valid.");
+ if(!Array.isArray(d.detail)||d.detail.length>1000)return konJsonError_("Sasaran promo tidak valid; maksimal 1000 kombinasi.");
+ var detail=d.detail,lock=LockService.getScriptLock();lock.waitLock(20000);
+ try{
+  var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName(SHEET_KON_PROMO),ds=ss.getSheetByName(SHEET_KON_PROMO_DETAIL),mitra=getKonsinyasiMitra_(),products=getKonsinyasiProduk_(),clean=[],seen={};
+  for(var i=0;i<detail.length;i++){
+   var t=detail[i]||{},m=konText_(t.kodeMitra),sku=konText_(t.sku),mp=mitra.filter(function(x){return x.kodeMitra===m;})[0],pr=products.filter(function(x){return x.sku===sku;})[0];
+   if((m&&!mp)||(sku&&!pr)||(!m&&!sku))return konJsonError_("Sasaran mitra atau SKU tidak ditemukan.");
+   var key=m+"|"+sku;if(seen[key])continue;seen[key]=true;clean.push({kodeMitra:m,sku:sku,namaToko:mp?mp.namaToko:"",namaProduk:pr?pr.namaProduk:""});
+  }
+  var row=kode?konFindRow_(sh,2,kode):-1;if(kode&&row<0)return konJsonError_("Kode promo tidak ditemukan untuk update.");if(!kode)kode=konCode_("KPRM",SHEET_KON_PROMO,2);
+  var now=new Date(),values=[row>0?sh.getRange(row,1).getValue():now,kode,nama,jenis,nilai,new Date(mulai+"T12:00:00"),new Date(selesai+"T12:00:00"),status,konText_(d.syarat).slice(0,1000),now];
+  if(row>0)sh.getRange(row,1,1,values.length).setValues([values]);else sh.appendRow(values);
+  var rows=ds.getDataRange().getValues();for(var r=rows.length-1;r>=1;r--)if(String(rows[r][1])===kode)ds.deleteRow(r+1);
+  clean.forEach(function(t){ds.appendRow([now,kode,t.sku,t.namaProduk,t.kodeMitra,t.namaToko,""]);});
+  return responseJSON({success:true,message:"Promo dan sasaran berhasil disimpan.",kodePromo:kode});
+ }finally{lock.releaseLock();}
+}
+function getKonsinyasiPromoAktif_(kodeMitra,sku){
+ var today=Utilities.formatDate(new Date(),SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(),"yyyy-MM-dd");
+ return getKonsinyasiPromo_().filter(function(p){return String(p.status).toUpperCase()==="AKTIF"&&p.tanggalMulai<=today&&p.tanggalSelesai>=today&&(!p.detail.length||p.detail.some(function(t){return (!t.kodeMitra||t.kodeMitra===kodeMitra)&&(!t.sku||t.sku===sku);}));});
+}
+function konApplyPromo_(promo,kodeMitra,items){
+ var eligible=items.map(function(it){return !promo.detail.length||promo.detail.some(function(t){return (!t.kodeMitra||t.kodeMitra===kodeMitra)&&(!t.sku||t.sku===it.p.sku);});});
+ var base=items.reduce(function(sum,it,i){return sum+(eligible[i]?it.line:0);},0);
+ if(base<=0)throw new Error("Promo tidak berlaku untuk mitra dan produk pada SO ini.");
+ var discounts=items.map(function(){return 0;}),value=Number(promo.nilaiPromo);
+ if(!isFinite(value)||value<=0)throw new Error("Nilai promo tidak valid.");
+ if(promo.jenisPromo==="HARGA_KHUSUS")items.forEach(function(it,i){if(eligible[i])discounts[i]=Math.max(0,it.price-value)*it.qty;});
+ else if(promo.jenisPromo==="PERSEN"||promo.jenisPromo==="NOMINAL"){
+  if(promo.jenisPromo==="PERSEN"&&value>100)throw new Error("Persen promo tidak valid.");
+  var remaining=Math.min(base,promo.jenisPromo==="PERSEN"?Math.round(base*value/100):value),left=base;
+  items.forEach(function(it,i){if(!eligible[i])return;var part=left===it.line?remaining:Math.min(it.line,Math.round(remaining*it.line/left));discounts[i]=part;remaining-=part;left-=it.line;});
+ }else throw new Error("Jenis promo belum mendukung perhitungan SO.");
+ return discounts;
+}
 
 // ============================================================
 // 35. KONSINYASI — SALES ORDER MULTI-SKU
@@ -2703,11 +2732,16 @@ function saveKonsinyasiSO_(data){
   var mitra=getKonsinyasiMitra_().filter(function(m){return m.kodeMitra===kodeMitra&&String(m.status).toUpperCase()==="AKTIF";})[0]; if(!mitra)return konJsonError_("Mitra aktif tidak ditemukan.");
   var products=getKonsinyasiProduk_(), subtotal=0, clean=[];
   items.forEach(function(it){var p=products.filter(function(x){return x.sku===konText_(it.sku)&&String(x.status).toUpperCase()==="AKTIF";})[0];var qty=konNum_(it.qty);if(!p||qty<=0||Math.floor(qty)!==qty)throw new Error("SKU tidak aktif atau qty tidak valid: "+konText_(it.sku));var price=konNum_(it.hargaSatuan!==undefined?it.hargaSatuan:p.hargaKonsinyasi);var line=price*qty;subtotal+=line;clean.push({p:p,qty:qty,price:price,line:line});});
-  var kodePromo=konText_(d.kodePromo), discount=0;
-  if(kodePromo){var promo=getKonsinyasiPromoAktif_(kodeMitra,"").filter(function(p){return p.kodePromo===kodePromo;})[0];if(!promo)return konJsonError_("Promo tidak aktif atau tidak berlaku untuk mitra ini.");if(promo.jenisPromo==="PERSEN")discount=subtotal*promo.nilaiPromo/100;else if(promo.jenisPromo==="NOMINAL")discount=Math.min(subtotal,promo.nilaiPromo);}
+  var kodePromo=konText_(d.kodePromo),discount=0,discounts=clean.map(function(){return 0;});
+  if(kodePromo){
+    var today=Utilities.formatDate(new Date(),ss.getSpreadsheetTimeZone(),"yyyy-MM-dd");
+    var promo=getKonsinyasiPromo_().filter(function(p){return p.kodePromo===kodePromo&&String(p.status).toUpperCase()==="AKTIF"&&p.tanggalMulai<=today&&p.tanggalSelesai>=today;})[0];
+    if(!promo)return konJsonError_("Promo tidak aktif atau sudah di luar periode.");
+    discounts=konApplyPromo_(promo,kodeMitra,clean);discount=discounts.reduce(function(a,n){return a+n;},0);
+  }
   var now=new Date(), noSO=konNextSalesOrderNumber_(d.tanggalSO || now, kodeMitra), total=Math.max(0,subtotal-discount);
   sh.appendRow([now,noSO,kodeMitra,mitra.namaToko,d.tanggalSO?new Date(d.tanggalSO+"T12:00:00"):now,"DRAFT",konText_(d.catatan),"BELUM DIKIRIM","",subtotal,discount,total,kodePromo,"BELUM CETAK",0,""]);
-  clean.forEach(function(it){var prDiscount=subtotal?discount*(it.line/subtotal):0;detail.appendRow([now,noSO,kodeMitra,it.p.sku,it.p.namaProduk,it.p.varian,it.p.isiTeaBag,it.qty,it.price,prDiscount,it.line-prDiscount,0,""]);});
+  clean.forEach(function(it,index){var prDiscount=discounts[index];detail.appendRow([now,noSO,kodeMitra,it.p.sku,it.p.namaProduk,it.p.varian,it.p.isiTeaBag,it.qty,it.price,prDiscount,it.line-prDiscount,0,""]);});
   return responseJSON({success:true,message:"Sales Order berhasil disimpan.",salesOrder:{nomorSO:noSO,kodeMitra:kodeMitra,namaToko:mitra.namaToko,subtotal:subtotal,diskonPromo:discount,totalSO:total,kodePromo:kodePromo,items:clean.length}});
 }
 

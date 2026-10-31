@@ -62,3 +62,11 @@ MASTER BAHAN BAKU DAN BOM
 - Perubahan harga master tidak otomatis mengubah BOM tersimpan. Pilih ulang bahan pada baris BOM untuk mengambil harga terbaru, kemudian Simpan HPP.
 - Deploy versi lengkap terbaru dengan New version agar getRawMaterials/saveRawMaterials aktif. Tidak perlu menjalankan setup master.
 - Halaman pembayaran kini menyediakan tombol Transfer BCA dan Lihat QRIS juga untuk pesanan tersimpan. Jika tampilan localhost lama, refresh Ctrl+Shift+R.
+
+PROMO KONSINYASI MITRA DAN PRODUK
+- Ganti SELURUH kode dengan file TXT terbaru, Save, lalu Deploy > Manage deployments > Edit > New version pada deployment konsinyasi yang dipakai website. Jika URL konsinyasi berbeda dari retail, perbarui project konsinyasi itu juga. Tidak perlu setup master.
+- Admin > Konsinyasi > Promo: buat/edit nama, periode, status, diskon persen, potongan nominal, atau harga khusus per unit. Pilihan mitra kosong berarti semua mitra; pilihan SKU kosong berarti semua produk. Jika keduanya dipilih, mitra DAN SKU harus cocok.
+- Catatan syarat adalah teks informasi, bukan aturan perhitungan tambahan. Satu promo dipilih per Sales Order; tidak digabung otomatis.
+- Promo disimpan pada KON_PROMO dan sasaran pada KON_PROMO_DETAIL di spreadsheet existing. Mengedit promo mengganti hanya sasaran promo itu; histori SO lama tidak dihitung ulang.
+- Sales Order menampilkan promo yang sesuai keranjang dan mitra. Backend memvalidasi periode aktif pada hari penyimpanan (Asia/Jakarta sesuai timezone spreadsheet), menghitung ulang diskon hanya dari baris yang memenuhi sasaran, lalu menyimpan diskon per SKU dan total SO.
+- Potongan nominal dibatasi subtotal produk sasaran. Harga khusus tidak pernah menaikkan harga normal. BONUS lama tetap tersimpan tetapi tidak tersedia untuk dipilih karena perhitungan bonus barang belum diterapkan.

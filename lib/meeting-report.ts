@@ -31,3 +31,10 @@ export function buildMeetingReport(orders:MeetingOrder[],products:AnalysisProduc
  ];
  return {period:(start||'Awal data')+' - '+(end||'Akhir data'),generatedAt,kpis:[{label:'Net sales produk tercatat',value:rupiah(revenue)},{label:'HPP terjual',value:missingCost?'Belum lengkap':rupiah(cost)},{label:'Hasil operasional sebelum pajak',value:contribution===null||!expensesConfirmed?'Belum lengkap':rupiah(contribution-opex)},{label:'Nilai stok saat ini',value:rupiah(stockValue)+(unknownStock?' *':'')}],notes,sections,months:Object.keys(monthly).sort().map(month=>({month,revenue:monthly[month]}))};
 }
+
+export type ReportScope='all'|'sales'|'pnl'|'stock';
+export const reportLabels:Record<ReportScope,string>={all:'Semua laporan bisnis',sales:'Laporan penjualan',pnl:'Laporan laba rugi',stock:'Laporan persediaan stok'};
+export function selectReportScope(report:MeetingReport,scope:ReportScope):MeetingReport&{title:string}{
+ const indexes:Record<ReportScope,number[]>={all:report.sections.map((_,i)=>i),sales:[1,2,9,10],pnl:[0,8,9,10],stock:[3,4,5,6,7,10]};
+ return {...report,title:reportLabels[scope],sections:indexes[scope].map(i=>report.sections[i]).filter(Boolean),kpis:scope==='stock'?[report.kpis[3]]:scope==='sales'?[report.kpis[0]]:scope==='pnl'?report.kpis.slice(0,3):report.kpis,months:scope==='stock'||scope==='pnl'?[]:report.months};
+}

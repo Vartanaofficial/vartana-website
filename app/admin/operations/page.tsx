@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import OperationsHeader from "./components/OperationsHeader";
 import OperationsKpi from "./components/OperationsKpi";
 import OperationsStatus from "./components/OperationsStatus";
@@ -103,12 +103,15 @@ export default function OperationsPage() {
   const [period, setPeriod] = useState<Period>("ALL");
   const [error, setError] = useState("");
 
+  const seen = useRef<Set<string>|null>(null), fetching=useRef(false);
+  const [incoming,setIncoming]=useState<OrderItem[]>([]),[focusSerial,setFocusSerial]=useState<string>(),[lastChecked,setLastChecked]=useState('');
   const fetchData = async () => {
+    if(fetching.current)return; fetching.current=true;
     setLoading(true);
     setError("");
 
     try {
-      const response = await fetch("/api/admin/data");
+      const response = await fetch("/api/admin/data",{cache:"no-store"});
       const data = await response.json();
 
       if (!response.ok) {
@@ -116,12 +119,17 @@ export default function OperationsPage() {
         throw new Error(response.status === 401 ? "Sesi admin berakhir. Silakan login kembali." : data.message || "Gagal mengambil data operasi.");
       }
 
-      setOrders(Array.isArray(data.orders) ? data.orders : []);
+      if(!Array.isArray(data.orders))throw Error("Respons pesanan tidak valid.");
+      const current=data.orders as OrderItem[];
+      if(seen.current){const fresh=current.filter(o=>!seen.current!.has(o.orderSerial));if(fresh.length)setIncoming(prev=>[...fresh,...prev].filter((o,i,a)=>a.findIndex(x=>x.orderSerial===o.orderSerial)===i));}
+      seen.current=new Set(current.map(o=>o.orderSerial));
+      setLastChecked(new Date().toLocaleTimeString("id-ID",{timeZone:"Asia/Jakarta"}));
+      setOrders(current);
       setMembers(Array.isArray(data.members) ? data.members : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Data monitoring belum berhasil dimuat. Silakan refresh.");
     } finally {
-      setLoading(false);
+      setLoading(false);fetching.current=false;
     }
   };
 
@@ -131,6 +139,8 @@ export default function OperationsPage() {
       if (data.authenticated === true) void fetchData();
     }).catch(() => setAuthenticated(false));
   }, []);
+
+  useEffect(()=>{if(!authenticated)return;const timer=setInterval(()=>{if(document.visibilityState==='visible')void fetchData();},30000);return()=>clearInterval(timer);},[authenticated]);
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => isWithinPeriod(order, period));
@@ -154,6 +164,7 @@ export default function OperationsPage() {
     const processing = filteredOrders.filter((order) => {
       const status = order.status.toUpperCase();
       return (
+        status === "PEMBAYARAN DITERIMA" ||
         status.includes("SIAP") ||
         status.includes("PROSES") ||
         status.includes("DIPROSES")
@@ -185,7 +196,7 @@ export default function OperationsPage() {
         const dateB = parseDate(b.createdAt)?.getTime() || 0;
         return dateB - dateA;
       })
-      .slice(0, 10);
+      ;
   }, [filteredOrders]);
 
   if (authenticated === null) {
@@ -226,6 +237,8 @@ export default function OperationsPage() {
   return (
     <main className="min-h-screen bg-[#F7F4ED] px-4 py-5 md:px-8 md:py-8">
       <div className="mx-auto max-w-7xl space-y-5">
+        {incoming.length>0&&<aside className="new-order-toast" role="status"><small>PESANAN BARU MASUK · {incoming.length}</small><strong>{incoming[0].customerName} ? {formatRupiah(incoming[0].grandTotal)}</strong><p className="order-serial">{incoming[0].orderSerial}</p><div><button onClick={()=>{setPeriod("ALL");setFocusSerial(incoming[0].orderSerial);setIncoming(prev=>prev.slice(1));}}>Cek & proses pesanan</button><button onClick={()=>setIncoming(prev=>prev.slice(1))}>Nanti</button></div></aside>}
+        <p className="text-xs text-[#526158]" role="status">Monitoring otomatis tiap 30 detik saat halaman ini terbuka · {lastChecked?'Terakhir diperiksa '+lastChecked+' WIB':'Menunggu data'}</p>
         <OperationsHeader onRefresh={fetchData} loading={loading} />
 
         <section className="rounded-3xl border border-[#B69245]/20 bg-white p-4 shadow-sm">
@@ -273,9 +286,9 @@ export default function OperationsPage() {
           />
 
           <OperationsKpi
-            label="Revenue"
+            label="Nilai pesanan"
             value={formatRupiah(metrics.revenue)}
-            helper="Gross transfer customer"
+            helper="Total tagihan, termasuk yang belum dibayar"
             icon="💰"
           />
 
@@ -304,6 +317,8 @@ export default function OperationsPage() {
         <OperationsOrders
           orders={recentOrders}
           formatRupiah={formatRupiah}
+          focusSerial={focusSerial}
+          onUpdated={()=>void fetchData()}
         />
 
         <footer className="pb-6 pt-1 text-center text-[10px] text-[#526158]">

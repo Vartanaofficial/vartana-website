@@ -33,7 +33,7 @@ export default function AdminHeader({ activeMenuTab, setActiveMenuTab, onRefresh
           onClick={() => setActiveMenuTab("profit")}
           className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition ${activeMenuTab === "profit" ? "bg-[#16382A] text-white shadow-xs" : "text-[#526158] hover:text-[#16382A]"}`}
         >
-          💰 2. Profit & P&L Closing
+          💰 2. Laba Rugi
         </button>
       </div>
 

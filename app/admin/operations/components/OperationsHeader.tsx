@@ -16,7 +16,7 @@ export default function OperationsHeader({
           <span className="h-3 w-3 rounded-full bg-emerald-500 animate-pulse" />
 
           <h1 className="font-serif text-2xl md:text-4xl font-bold text-[#16382A]">
-            Operations Monitoring
+            Pesanan & pelanggan
           </h1>
         </div>
 
@@ -30,7 +30,7 @@ export default function OperationsHeader({
           href="/admin/dashboard"
           className="rounded-full border border-[#16382A]/15 bg-white px-4 py-2 text-xs font-bold text-[#16382A] transition hover:bg-[#16382A] hover:text-white"
         >
-          ← Dashboard Lama
+          ← Dashboard bisnis
         </a>
 
         <button

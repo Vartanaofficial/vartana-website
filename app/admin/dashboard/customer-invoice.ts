@@ -16,3 +16,10 @@ export async function downloadCustomerInvoice(order:ReceiptOrder,format:"pdf"|"p
  const height=design.height/design.width*80,doc=new jsPDF({unit:"mm",format:[80,height],orientation:height>=80?"portrait":"landscape"});doc.addImage(canvas.toDataURL("image/png"),"PNG",0,0,80,height);doc.save(name+".pdf");
  }catch(e){window.alert(e instanceof Error?e.message:"Struk belum berhasil dibuat.");}
 }
+
+export async function shareCustomerInvoice(order:ReceiptOrder){
+ try{const {canvas}=await render(order),blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('Gambar struk belum tersedia.')),'image/png')),file=new File([blob],'Struk-VARTANA-'+order.orderSerial.replace(/[^a-z0-9-]/gi,'')+'.png',{type:'image/png'});
+ if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:'Struk VARTANA',text:'Struk pembelian VARTANA '+order.orderSerial});}
+ else{const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);window.alert('Struk diunduh. Buka WhatsApp pelanggan lalu lampirkan file struk ini.');}
+ }catch(e){if(e instanceof DOMException&&e.name==='AbortError')return;window.alert(e instanceof Error?e.message:'Struk gagal dibagikan.');}
+}

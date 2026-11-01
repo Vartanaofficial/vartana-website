@@ -1,140 +1,23 @@
-﻿"use client";
-
-type OrderRow = {
-  orderSerial: string;
-  customerName: string;
-  grandTotal: number;
-  status: string;
-  sku?: string;
-  createdAt?: string;
-};
-
-type OperationsOrdersProps = {
-  orders: OrderRow[];
-  formatRupiah: (value: number) => string;
-};
-
-function getStatusClass(status: string) {
-  const value = status.toUpperCase();
-
-  if (value.includes("SELESAI")) {
-    return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  }
-
-  if (value.includes("KIRIM")) {
-    return "bg-blue-50 text-blue-700 border-blue-200";
-  }
-
-  if (value.includes("SIAP") || value.includes("PROSES")) {
-    return "bg-amber-50 text-amber-700 border-amber-200";
-  }
-
-  return "bg-slate-50 text-slate-700 border-slate-200";
-}
-
-export default function OperationsOrders({
-  orders,
-  formatRupiah,
-}: OperationsOrdersProps) {
-  return (
-    <section className="rounded-3xl border border-[#16382A]/10 bg-white shadow-sm overflow-hidden">
-      <div className="border-b border-[#16382A]/10 p-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8E6E2E]">
-          Live Order Queue
-        </p>
-
-        <div className="mt-1 flex items-end justify-between gap-3">
-          <h2 className="font-serif text-xl font-bold text-[#16382A]">
-            Pesanan Terbaru
-          </h2>
-
-          <span className="text-xs text-[#526158]">
-            {orders.length} order
-          </span>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left">
-          <thead className="bg-[#FFFDF9]">
-            <tr className="border-b border-[#16382A]/10">
-              <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-[#526158]">
-                Order
-              </th>
-
-              <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-[#526158]">
-                Customer
-              </th>
-
-              <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-[#526158]">
-                SKU
-              </th>
-
-              <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-[#526158]">
-                Amount
-              </th>
-
-              <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-[#526158]">
-                Status
-              </th>
-
-              <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-[#526158]">
-                Date
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {orders.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="px-5 py-10 text-center text-sm text-[#526158]"
-                >
-                  Belum ada data order.
-                </td>
-              </tr>
-            ) : (
-              orders.map((order) => (
-                <tr
-                  key={order.orderSerial}
-                  className="border-b border-[#16382A]/5 last:border-0 hover:bg-[#FFFDF9]/70"
-                >
-                  <td className="px-5 py-4 text-xs font-bold text-[#16382A]">
-                    {order.orderSerial}
-                  </td>
-
-                  <td className="px-5 py-4 text-xs text-[#526158]">
-                    {order.customerName || "-"}
-                  </td>
-
-                  <td className="px-5 py-4 text-xs font-semibold text-[#526158]">
-                    {order.sku || "-"}
-                  </td>
-
-                  <td className="px-5 py-4 text-xs font-bold text-[#16382A]">
-                    {formatRupiah(order.grandTotal || 0)}
-                  </td>
-
-                  <td className="px-5 py-4">
-                    <span
-                      className={`inline-flex rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-wider ${getStatusClass(
-                        order.status
-                      )}`}
-                    >
-                      {order.status || "UNKNOWN"}
-                    </span>
-                  </td>
-
-                  <td className="px-5 py-4 text-[11px] text-[#526158]">
-                    {order.createdAt || "-"}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
+"use client";
+import {useEffect,useState,useRef} from 'react';
+import {downloadCustomerInvoice,shareCustomerInvoice,invoiceAvailable} from '../../dashboard/customer-invoice';
+import {normalizeWhatsApp} from '@/lib/checkout-contact';
+import type {ReceiptOrder} from '@/lib/customer-receipt';
+export type OrderRow=ReceiptOrder&{resiJNT:string;sku?:string;email?:string};
+const statuses=['MENUNGGU PEMBAYARAN','PEMBAYARAN DITERIMA','PESANAN DISIAPKAN','DIKIRIM','SELESAI'];
+export default function OperationsOrders({orders,formatRupiah,onUpdated,focusSerial}:{orders:OrderRow[];formatRupiah:(n:number)=>string;onUpdated:()=>void;focusSerial?:string}){
+ const openedFocus=useRef('');
+ const [search,setSearch]=useState(''),[filter,setFilter]=useState('ALL'),[selected,setSelected]=useState<OrderRow|null>(null),[status,setStatus]=useState(''),[resi,setResi]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ function open(o:OrderRow){setSelected(o);setStatus(o.status);setResi(o.resiJNT==='-'?'':o.resiJNT);setMessage('');}
+ useEffect(()=>{const q=new URLSearchParams(location.search).get('status');if(q&&statuses.includes(q))setFilter(q);},[]);
+ useEffect(()=>{if(focusSerial&&openedFocus.current!==focusSerial){const o=orders.find(o=>o.orderSerial===focusSerial);if(o){openedFocus.current=focusSerial;open(o);}}},[focusSerial,orders]);
+ useEffect(()=>{if(!selected)return;const key=(e:KeyboardEvent)=>{if(e.key==='Escape'&&!busy)setSelected(null);};document.addEventListener('keydown',key);return()=>document.removeEventListener('keydown',key);},[selected,busy]);
+ async function save(){if(!selected)return;setBusy(true);setMessage('');try{const r=await fetch('/api/admin/update-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderSerial:selected.orderSerial,status,resiJNT:resi.trim()})}),d=await r.json();if(!r.ok||!d.success)throw Error(d.message||'Pesanan gagal diperbarui.');setSelected({...selected,status,resiJNT:resi.trim()});setMessage('Status dan resi berhasil disimpan.');onUpdated();}catch(e){setMessage(e instanceof Error?e.message:'Gagal menyimpan.');}finally{setBusy(false);}}
+ const visible=orders.filter(o=>(filter==='ALL'||o.status===filter)&&[o.orderSerial,o.customerName,o.phone,o.itemsSummary].join(' ').toLowerCase().includes(search.toLowerCase()));
+ const phone=selected?normalizeWhatsApp(selected.phone):'';
+ return <section className="order-monitor"><header><div><small>PUSAT EKSEKUSI PESANAN</small><h2>Antrean & riwayat pesanan</h2><p>{orders.length} pesanan · buka kartu untuk pembayaran, struk, dan resi.</p></div><div className="order-filters"><input aria-label="Cari pesanan" placeholder="Cari nama, nomor pesanan, atau WA..." value={search} onChange={e=>setSearch(e.target.value)}/><select aria-label="Status pesanan" value={filter} onChange={e=>setFilter(e.target.value)}><option value="ALL">Semua status</option>{statuses.map(s=><option key={s}>{s}</option>)}</select></div></header>
+ <div className="order-cards">{visible.length?visible.map((o,i)=><article key={o.orderSerial+'-'+i}><div className="order-card-top"><span className={'order-badge '+(o.status==='MENUNGGU PEMBAYARAN'?'pending':'')}>{o.status}</span><small>{o.createdAt||'Tanggal belum tercatat'}</small></div><h3>{o.customerName||'Pelanggan'}</h3><p className="order-serial">{o.orderSerial}</p><p className="order-items">{o.itemsSummary}</p><div className="order-card-bottom"><strong>{formatRupiah(o.grandTotal)}</strong><button onClick={()=>open(o)}>Buka pesanan ↗</button></div><small>Resi: {o.resiJNT&&o.resiJNT!=='-'?o.resiJNT:'Belum diisi'}</small></article>):<p className="p-6">Tidak ada pesanan sesuai pencarian.</p>}</div>
+ {selected&&<div className="order-modal-backdrop"><section role="dialog" aria-modal="true" aria-labelledby="quick-order-title" className="order-quick-dialog"><header><div><small>DETAIL & TINDAKAN CEPAT</small><h2 id="quick-order-title">{selected.customerName}</h2></div><button autoFocus disabled={busy} onClick={()=>setSelected(null)} aria-label="Tutup detail pesanan">×</button></header><p className="order-serial">{selected.orderSerial}</p><strong className="order-total">{formatRupiah(selected.grandTotal)}</strong><p className="order-items">{selected.itemsSummary}</p><dl><dt>Alamat</dt><dd>{selected.addressDetail||'Belum diisi'}</dd><dt>WhatsApp</dt><dd>{selected.phone}</dd><dt>Status tersimpan</dt><dd>{selected.status}</dd></dl><div className="order-edit-grid"><label>Status pesanan<select value={status} disabled={busy} onChange={e=>setStatus(e.target.value)}>{statuses.map(s=><option key={s}>{s}</option>)}</select></label><label>Nomor resi J&T<input disabled={busy} value={resi} onChange={e=>setResi(e.target.value)} placeholder="Masukkan nomor resi" maxLength={100}/></label></div><p className="business-muted">Verifikasi dana masuk sebelum memilih pembayaran diterima. Simpan perubahan sebelum membuat struk.</p><button className="order-save" disabled={busy} onClick={()=>void save()}>{busy?'Menyimpan...':'Simpan status & resi'}</button>{message&&<p role="status" className="order-feedback">{message}</p>}
+ <div className="order-receipt-actions"><button disabled={!invoiceAvailable(selected)||busy} onClick={()=>void shareCustomerInvoice(selected)}>Bagikan struk</button><button disabled={!invoiceAvailable(selected)||busy} onClick={()=>void downloadCustomerInvoice(selected)}>Unduh struk PDF</button><button disabled={!invoiceAvailable(selected)||busy} onClick={()=>void downloadCustomerInvoice(selected,'png')}>Unduh struk gambar</button>{phone&&<a target="_blank" rel="noreferrer" href={'https://wa.me/'+phone+'?text='+encodeURIComponent('Halo '+selected.customerName+', informasi pesanan VARTANA '+selected.orderSerial+'. Total '+formatRupiah(selected.grandTotal)+'. Status: '+selected.status+(selected.resiJNT&&selected.resiJNT!=='-'?'. Resi J&T: '+selected.resiJNT:'')+(invoiceAvailable(selected)?'. Struk pembelian kami lampirkan.':'. Silakan konfirmasi pembayaran.'))}>Kirim pesan WhatsApp ↗</a>}</div><p className="business-muted">{invoiceAvailable(selected)?'Bagikan struk memakai menu berbagi HP, atau unduh lalu lampirkan di WhatsApp.':'Struk tersedia setelah pembayaran diverifikasi dan status disimpan.'}</p></section></div>}
+ </section>;
 }

@@ -1,12 +1,14 @@
 "use client";
 import Inventory from "./Inventory";
+import BusinessOverview from "./BusinessOverview";
 import ProductCosting from "./ProductCosting";
 import { analyzeOrderItems, type AnalysisProduct } from "@/lib/admin-order-analysis";
 import { orderFinancialIssues } from "@/lib/order-financials";
 import { downloadCustomerInvoice, invoiceAvailable } from "./customer-invoice";
 import { normalizeWhatsApp } from "@/lib/checkout-contact";
 
-import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState, useEffect, useMemo } from "react";
 
 type OrderItem = {
   paymentMethod?: string;
@@ -42,8 +44,10 @@ type MemberItem = {
   totalOrders?: number;
 };
 
-export default function AdminDashboard() {
-  const [activeMenuTab, setActiveMenuTab] = useState<"omset" | "profit" | "stock">("omset");
+export default function AdminDashboard(){return <Suspense fallback={<p className="p-6">Memuat dashboard...</p>}><AdminDashboardContent/></Suspense>;}
+function AdminDashboardContent() {
+  const searchParams=useSearchParams();
+  const [activeMenuTab, setActiveMenuTab] = useState<"overview" | "omset" | "profit" | "stock">("overview");
   const [isProfitAuthenticated, setIsProfitAuthenticated] = useState<boolean>(false);
   const [profitUsername, setProfitUsername] = useState<string>("");
   const [profitPin, setProfitPin] = useState<string>("");
@@ -91,7 +95,7 @@ export default function AdminDashboard() {
     }
   };
 
-  useEffect(() => { if (new URLSearchParams(window.location.search).get("view") === "stock") setActiveMenuTab("stock"); }, []);
+  useEffect(() => { const view=searchParams.get("view"); setActiveMenuTab(view === "stock" || view === "profit" || view === "omset" ? view : "overview"); }, [searchParams]);
   useEffect(() => {
     fetch("/api/admin/auth/session", { cache: "no-store" }).then(res => res.json()).then(data => {
       if (data.authenticated) { setIsAuthenticated(true); void fetchDashboardData(); }
@@ -446,12 +450,14 @@ export default function AdminDashboard() {
         <div>
           <div className="flex items-center gap-2">
             <span className="h-3 w-3 rounded-full bg-emerald-500 animate-pulse" />
-            <h1 className="font-serif text-xl md:text-3xl font-bold text-[#16382A]">Monitoring & Operations</h1>
+            <h1 className="font-serif text-xl md:text-3xl font-bold text-[#16382A]">{activeMenuTab === "stock" ? "Persediaan & produksi" : activeMenuTab === "profit" ? "Laporan laba rugi" : activeMenuTab === "omset" ? "Penjualan & pendapatan" : "Dashboard Bisnis"}</h1>
           </div>
-          <p className="text-[11px] md:text-xs text-[#526158] mt-0.5">VARTANA Botanical Wellness — Financial Intelligence</p>
+          <p className="text-[11px] md:text-xs text-[#526158] mt-0.5">VARTANA Botanical Wellness — Pusat kendali bisnis & operasional</p>
         </div>
 
-        <div className="flex flex-wrap gap-1 bg-[#FFFDF9] p-1 rounded-2xl border border-[#16382A]/15 shadow-xs">
+        <label className="sm:hidden text-xs">Buka modul<select aria-label="Pilih modul dashboard" value={activeMenuTab} onChange={e=>setActiveMenuTab(e.target.value as typeof activeMenuTab)} className="mt-2 w-full rounded-xl border border-[#ccd7c1] bg-white p-3 text-base"><option value="overview">Ringkasan bisnis</option><option value="omset">Penjualan & pendapatan</option><option value="profit">Laba rugi</option><option value="stock">Persediaan & produksi</option></select></label>
+        <div className="hidden sm:flex flex-wrap gap-1 bg-[#FFFDF9] p-1 rounded-2xl border border-[#16382A]/15 shadow-xs">
+          <button onClick={() => setActiveMenuTab("overview")} className={`px-4 py-2 rounded-xl text-xs font-bold ${activeMenuTab === "overview" ? "bg-[#16382A] text-white" : "text-[#526158]"}`}>Ringkasan bisnis</button>
           <button
             onClick={() => setActiveMenuTab("omset")}
             className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition ${activeMenuTab === "omset" ? "bg-[#16382A] text-white shadow-xs" : "text-[#526158] hover:text-[#16382A]"}`}
@@ -462,7 +468,7 @@ export default function AdminDashboard() {
             onClick={() => setActiveMenuTab("profit")}
             className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition ${activeMenuTab === "profit" ? "bg-[#16382A] text-white shadow-xs" : "text-[#526158] hover:text-[#16382A]"}`}
           >
-            💰 2. Profit & P&L Closing
+            💰 2. Laba Rugi
           </button>
           <button onClick={() => setActiveMenuTab("stock")} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider ${activeMenuTab === "stock" ? "bg-[#16382A] text-white" : "text-[#526158]"}`}>3. Stok Bahan & Barang Jadi</button>
         </div>
@@ -484,7 +490,7 @@ export default function AdminDashboard() {
               </button>
             </>
           )}
-          <a href="/admin/reports" className="rounded-full border border-[#B69245] bg-white px-4 py-2 text-xs font-bold">Laporan Direksi / PDF & PPT</a>
+          <a href="/admin/reports" className="rounded-full border border-[#B69245] bg-white px-4 py-2 text-xs font-bold">Unduh laporan / PDF & PPT</a>
           <a href="/admin/production" className="rounded-full border bg-white px-4 py-2 text-xs font-bold">Produksi / PPIC</a>
           <button onClick={fetchDashboardData} className="rounded-full border border-[#16382A]/20 bg-white px-3 py-2 text-xs font-bold text-[#16382A] hover:bg-[#16382A] hover:text-white transition">
             🔄 Refresh
@@ -495,7 +501,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {activeMenuTab === "stock" ? <Inventory/> : activeMenuTab === "omset" ? (
+      {activeMenuTab === "overview" ? <BusinessOverview orders={orders} products={products} memberCount={members.length}/> : activeMenuTab === "stock" ? <Inventory/> : activeMenuTab === "omset" ? (
         <>
           <div className="mt-4 md:mt-6 rounded-2xl md:rounded-3xl border border-[#B69245]/30 bg-white p-3.5 md:p-5 shadow-xs space-y-3">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -816,7 +822,7 @@ export default function AdminDashboard() {
                             )}
                           </td>
                           <td className="p-3 align-top text-center">
-                            {invoiceAvailable(ord) && <div className="mb-2 flex flex-col gap-2"><button onClick={()=>downloadCustomerInvoice(ord)} className="rounded bg-emerald-700 px-2 py-1 text-[10px] text-white">Struk PDF ? 80 mm</button><button onClick={()=>downloadCustomerInvoice(ord,"png")} className="rounded border border-emerald-700 px-2 py-1 text-[10px] text-emerald-800">Struk gambar ? WhatsApp</button>{normalizeWhatsApp(ord.phone) && <a href={`https://wa.me/${normalizeWhatsApp(ord.phone)}?text=${encodeURIComponent(`Halo ${ord.customerName}, pembayaran pesanan ${ord.orderSerial} sudah kami terima. Pesanan sedang diproses, mohon ditunggu. Nota pembelian kami lampirkan pada pesan ini.`)}`} target="_blank" rel="noreferrer" className="text-[10px] underline">Buka WA customer</a>}<span className="text-[9px] text-gray-500">Unduh lalu lampirkan nota di WhatsApp.</span></div>}
+                            {invoiceAvailable(ord) && <div className="mb-2 flex flex-col gap-2"><button onClick={()=>downloadCustomerInvoice(ord)} className="rounded bg-emerald-700 px-2 py-1 text-[10px] text-white">Struk PDF · 80 mm</button><button onClick={()=>downloadCustomerInvoice(ord,"png")} className="rounded border border-emerald-700 px-2 py-1 text-[10px] text-emerald-800">Struk gambar · WhatsApp</button>{normalizeWhatsApp(ord.phone) && <a href={`https://wa.me/${normalizeWhatsApp(ord.phone)}?text=${encodeURIComponent(`Halo ${ord.customerName}, pembayaran pesanan ${ord.orderSerial} sudah kami terima. Pesanan sedang diproses, mohon ditunggu. Nota pembelian kami lampirkan pada pesan ini.`)}`} target="_blank" rel="noreferrer" className="text-[10px] underline">Buka WA customer</a>}<span className="text-[9px] text-gray-500">Unduh lalu lampirkan nota di WhatsApp.</span></div>}
                             {isEditing ? (
                               <div className="flex items-center justify-center gap-1">
                                 <button onClick={() => handleUpdateOrder(ord.orderSerial)} disabled={isUpdating} className="rounded bg-emerald-700 px-2 py-1 text-[9px] font-bold text-white">
@@ -890,7 +896,7 @@ export default function AdminDashboard() {
             <div className="mx-auto max-w-md rounded-3xl border border-[#B69245]/40 bg-white p-6 md:p-8 shadow-xl">
               <div className="text-center">
                 <span className="inline-block rounded-full bg-amber-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.20em] text-amber-800">RESTRICTED AREA</span>
-                <h2 className="mt-3 font-serif text-2xl font-bold text-[#16382A]">Profit & P&L Closing</h2>
+                <h2 className="mt-3 font-serif text-2xl font-bold text-[#16382A]">Laba Rugi</h2>
                 <p className="mt-1 text-xs text-[#526158]">Masukkan Akses Kredensial Keuangan yang Sah</p>
               </div>
               <form onSubmit={handleProfitLogin} className="mt-6 space-y-4">
@@ -918,7 +924,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <button type="submit" className="w-full rounded-full bg-[#16382A] py-3.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg transition active:scale-95">
-                  🔓 Buka Menu P&L Closing
+                  🔓 Buka Laporan Laba Rugi
                 </button>
               </form>
             </div>
@@ -1048,7 +1054,7 @@ export default function AdminDashboard() {
               <div className="rounded-3xl border border-[#16382A]/10 bg-white p-6 shadow-xs">
                 <div className="flex justify-between items-center mb-4">
                   <div>
-                    <h3 className="font-serif text-lg font-bold text-[#16382A]">Rincian Laporan Tutup Buku (P&L Closing Statement)</h3>
+                    <h3 className="font-serif text-lg font-bold text-[#16382A]">Rincian Laporan Laba Rugi</h3>
                     <p className="text-xs text-[#526158]">Ringkasan laba rugi bersih berdasarkan transaksi aktual periode berjalan</p>
                   </div>
                 </div>
@@ -1106,7 +1112,7 @@ export default function AdminDashboard() {
       {unknownNetCount > 0 && <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">Total transfer mencakup seluruh pesanan berstatus pembayaran diterima sampai selesai. Net Sales baru mencakup nominal yang terverifikasi; {unknownNetCount} pesanan masih perlu rincian ongkir. Pesanan menunggu pembayaran tidak masuk omzet diterima.</div>}
       {hasShippingEstimates && <div className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">Sebagian rincian ongkir historis belum terverifikasi. Net Sales mencakup estimasi ongkir Rp14.000 sesuai arahan pemilik; periksa Laporan_Omzet_20261031 untuk rinciannya.</div>}
       {recoveredCount > 0 && financialIssues.length > 0 && <div className="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-blue-950">{recoveredCount} pesanan lama dipulihkan dari susunan kolom lama. Total transfer tersimpan digunakan kembali; rincian ongkir/subsidi yang belum pasti perlu diverifikasi.</div>}
-      {missingCostCount > 0 && <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">HPP belum tersedia untuk {missingCostCount} pesanan. Isi modal per SKU melalui kalkulator HPP di menu Profit & P&L. Laba dan margin belum dapat dipastikan; perhitungan modal memakai HPP master saat ini.</div>}
+      {missingCostCount > 0 && <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-950">HPP belum tersedia untuk {missingCostCount} pesanan. Isi modal per SKU melalui kalkulator HPP di menu Laba Rugi. Laba dan margin belum dapat dipastikan; perhitungan modal memakai HPP master saat ini.</div>}
       {dataError && <div role="alert" className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">{dataError} Gunakan tombol refresh untuk mencoba lagi.</div>}
       {financialIssues.length > 0 && <div role="alert" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
         <strong>{financialIssues.length} pesanan memiliki nominal kosong atau tidak konsisten.</strong> Pesanan tetap ada di tabel. Nominal yang belum valid tidak dijumlahkan; Net Sales yang terbaca tetap dihitung. Periksa subtotal, ongkir, subsidi, dan grand total di sheet Orders. Rp0 pada ringkasan tidak berarti tidak ada transaksi.

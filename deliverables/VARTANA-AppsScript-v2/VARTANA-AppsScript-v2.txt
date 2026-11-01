@@ -3350,7 +3350,7 @@ function inventoryCommit_(sheets,state,eventId,changes,note){
  return {duplicate:false};
 }
 function saveInventory_(data){
- if(['archiveMaterial','expenseSave','productionPlan','productionComplete','productionCancel'].indexOf(data.operation)>=0)return saveInventoryOperations_(data);
+ if(['archiveMaterial','archiveMaterials','expenseSave','productionPlan','productionComplete','productionCancel'].indexOf(data.operation)>=0)return saveInventoryOperations_(data);
  if(String(data.operation||'').indexOf('batch')===0)return saveInventoryBatch_(data);
  if(data.operation==='opname')return saveInventoryItem_(data);
  var operation=String(data.operation||''),kind=String(data.kind||''),id=String(data.id||''),qty=Number(data.qty),requestId=String(data.requestId||''),note=String(data.note||'').trim().slice(0,300);
@@ -3535,13 +3535,19 @@ function saveInventoryOperations_(data){
  try{
   if(!/^[a-f0-9-]{36}$/i.test(String(data.requestId||'')))throw new Error('Kunci permintaan tidak valid.');
   var ss=SpreadsheetApp.getActiveSpreadsheet(),sheets=inventorySheets_(),state=inventoryState_(sheets),materials=JSON.parse(getRawMaterials_().getContent()).materials||[];
-  if(op==='archiveMaterial'){
-   var material=materials.filter(function(m){return m.id===data.id;})[0];if(!material)throw new Error('Item tidak ditemukan.');
-   if(Math.abs(state.balances['material:'+data.id]||0)>1e-7)throw new Error('Habiskan atau keluarkan stok dengan catatan terlebih dahulu.');
-   var recipes=inventoryRecipes_();if(Object.keys(recipes).some(function(sku){return (recipes[sku].components||[]).some(function(c){return c.materialId===data.id;});}))throw new Error('Item masih dipakai resep. Perbarui resep sebelum mengarsipkan.');
-   if(productionOrders_().some(function(p){return p.status==='DRAFT'&&(p.recipe.components||[]).some(function(c){return c.materialId===data.id;});}))throw new Error('Item masih dipakai rencana produksi.');
-   var sh=ss.getSheetByName('RawMaterials'),rows=sh.getDataRange().getValues();for(var i=1;i<rows.length;i++)if(String(rows[i][0])===data.id){material.archived=true;sh.getRange(i+1,3).setValue(JSON.stringify(material));sh.getRange(i+1,4).setValue(new Date());}
-   return responseJSON({success:true});
+  if(op==='archiveMaterial'||op==='archiveMaterials'){
+   var ids=op==='archiveMaterials'?data.ids:[data.id];if(!Array.isArray(ids)||!ids.length||ids.length>150||ids.some(function(id){return typeof id!=='string'||!/^MAT-[a-z0-9-]+$/i.test(id);}))throw new Error('Daftar bahan tidak valid.');
+   var recipes=inventoryRecipes_(),plans=productionOrders_(),sh=ss.getSheetByName('RawMaterials'),rows=sh.getDataRange().getValues(),removed=[],failed=[];
+   ids.filter(function(id,i,list){return list.indexOf(id)===i;}).forEach(function(id){try{
+    var material=materials.filter(function(m){return m.id===id;})[0];if(!material)throw new Error('Item tidak ditemukan.');
+    if(Math.abs(state.balances['material:'+id]||0)>1e-7)throw new Error('Masih memiliki stok. Catat pengeluaran terlebih dahulu.');
+    if(Object.keys(recipes).some(function(sku){return (recipes[sku].components||[]).some(function(c){return c.materialId===id;});}))throw new Error('Masih dipakai resep.');
+    if(plans.some(function(p){return p.status==='DRAFT'&&(p.recipe.components||[]).some(function(c){return c.materialId===id;});}))throw new Error('Masih dipakai rencana produksi.');
+    var row=-1;for(var i=1;i<rows.length;i++)if(String(rows[i][0])===id)row=i+1;if(row<0)throw new Error('Baris bahan tidak ditemukan.');
+    material.archived=true;sh.getRange(row,3,1,2).setValues([[JSON.stringify(material),new Date()]]);removed.push(id);
+   }catch(error){failed.push({id:id,message:error.message});}});
+   if(op==='archiveMaterial'&&failed.length)throw new Error(failed[0].message);
+   return responseJSON({success:true,removed:removed,failed:failed});
   }
   if(op==='expenseSave'){
    if(!inventoryValidDate_(data.date,false)||!['Gaji','Sewa','Utilitas','Pemasaran','Transportasi','Lainnya'].includes(data.category)||typeof data.amount!=='number'||!isFinite(data.amount)||data.amount<=0||data.amount>1e12||!String(data.note||'').trim())throw new Error('Lengkapi tanggal, kategori, nominal, dan catatan biaya.');

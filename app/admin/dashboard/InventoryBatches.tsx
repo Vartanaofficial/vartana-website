@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import {useEffect,useState,type FormEvent} from 'react';
 export type InventoryBatch={batchId:string;materialId:string;receivedOn:string;expiryDate:string;quality:string;qualityNote:string;updatedAt:string;qty:number;daysToExpiry:number|null;expired:boolean;expiringSoon:boolean;eligible:boolean;ageDays:number|null;ageMonths:number|null};
 type Material={id:string;name:string;unit:string;qty:number|null;unitCost:number;unassignedQty?:number;usableQty?:number;batches?:InventoryBatch[]};
@@ -8,7 +8,7 @@ const field='mt-1 w-full rounded-xl border border-[#d6dfd5] bg-white p-3 text-sm
 function localDay(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function monthLabel(date:string){if(!date)return 'Belum diketahui';return new Intl.DateTimeFormat('id-ID',{month:'long',year:'numeric'}).format(new Date(date.slice(0,7)+'-15T12:00:00'));}
 export default function InventoryBatches({item,onClose,onSaved}:{item:Material;onClose:()=>void;onSaved:()=>Promise<unknown>}){
- const [massUnit,setMassUnit]=useState<'gram'|'kg'>('gram');
+ const [massUnit,setMassUnit]=useState<'gram'|'kg'>('kg');
  const f=item.unit==='gram'&&massUnit==='kg'?1000:1,u=item.unit==='gram'?massUnit:item.unit,batches=item.batches||[];
  const [operation,setOperation]=useState((item.unassignedQty||0)>0?'batchAllocate':'batchReceive'),[selected,setSelected]=useState<InventoryBatch|null>(null),[qty,setQty]=useState(''),[received,setReceived]=useState(localDay().slice(0,7)),[exact,setExact]=useState(false),[expiry,setExpiry]=useState(''),[quality,setQuality]=useState('HOLD'),[note,setNote]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[requestId,setRequestId]=useState(()=>crypto.randomUUID());
  useEffect(()=>{const old=document.body.style.overflow;document.body.style.overflow='hidden';const escape=(e:KeyboardEvent)=>{if(e.key==='Escape'&&!busy)onClose();};document.addEventListener('keydown',escape);return()=>{document.body.style.overflow=old;document.removeEventListener('keydown',escape);};},[busy,onClose]);

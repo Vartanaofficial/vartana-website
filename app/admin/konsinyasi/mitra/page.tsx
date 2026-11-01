@@ -140,38 +140,14 @@ export default function KonsinyasiPage() {
   ).length;
 
   return (
-    <main className="min-h-screen bg-[#f5f5ef] p-4 text-[#193d2b] sm:p-7 lg:p-9">
+    <main className="mitra-directory min-h-screen bg-[#f5f5ef] p-4 text-[#193d2b] sm:p-7 lg:p-9">
       <div className="mx-auto max-w-7xl space-y-7">
-        <header className="relative overflow-hidden rounded-3xl bg-[#173d2b] p-6 text-white shadow-lg sm:p-9">
-          <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full border border-[#c5a45d]/30" />
-          <div className="pointer-events-none absolute -right-1 -top-7 h-40 w-40 rounded-full border border-[#c5a45d]/20" />
-          <div className="relative">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#c5a45d]/40 px-3 py-1.5 text-xs tracking-[0.18em] text-[#e6d4a5]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#d7b96e]" />
-              VARTANA · PARTNERSHIP
-            </div>
-            <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-              <div>
-                <p className="mb-2 text-sm text-[#d1dfd3]">OPERATIONS MANAGEMENT</p>
-                <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                  Master Mitra
-                </h1>
-                <p className="mt-3 max-w-xl text-sm leading-6 text-[#d1dfd3]">
-                  Kelola data toko mitra konsinyasi dalam satu tempat.
-                  Terstruktur, mudah ditelusuri, dan terhubung ke database.
-                </p>
-              </div>
-              <button
-                onClick={openCreate}
-                className="shrink-0 rounded-xl bg-[#d7b96e] px-5 py-3 text-sm font-semibold text-[#193d2b] transition hover:bg-[#e6cc88]"
-              >
-                + Tambah Mitra
-              </button>
-            </div>
-          </div>
+        <header className="mitra-hero">
+          <div><p className="mitra-eyebrow">VARTANA / KEMITRAAN</p><h1>Jaringan mitra</h1><p>Kelola toko, kontak penanggung jawab, dan status kemitraan dalam satu tempat.</p></div>
+          <button onClick={openCreate} className="mitra-add">+ Tambah mitra</button>
         </header>
 
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <section className="mitra-summary grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-[#e5e6dc] bg-white p-5">
             <p className="text-sm text-gray-500">Total Mitra</p>
             <p className="mt-3 text-3xl font-semibold">
@@ -372,7 +348,7 @@ export default function KonsinyasiPage() {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="mitra-table overflow-x-auto">
               <table className="w-full min-w-[760px] text-left text-sm">
                 <thead className="bg-[#f7f7f1] text-xs uppercase tracking-wider text-gray-500">
                   <tr>

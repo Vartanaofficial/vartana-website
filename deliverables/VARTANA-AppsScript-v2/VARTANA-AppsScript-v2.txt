@@ -859,6 +859,8 @@ function doPost(e) {
     // ACTION 8 — SAVE ORDER
     // ========================================================
 
+    if (['saveKonsinyasiPenjualanMitra','updateKonsinyasiPenjualanMitra','saveKonsinyasiSetoranMitra'].indexOf(data.action)>=0) return saveKonsinyasiSaleV2_(data);
+
     if (data.action === 'getAdminArticles') { verifyArticleAdmin_(data); return responseJSON({success:true,articleVersion:1,articles:readArticles_()}); }
 
     if (data.action === "saveArticle") return saveArticle_(data);
@@ -907,6 +909,8 @@ function doGet(e) {
     // ========================================================
     // KONSINYASI — GET MASTER MITRA
     // ========================================================
+    if (action === "getKonsinyasiPenjualanMitra") { ensureKonsinyasiSheets_(); return getKonsinyasiPenjualanMitra_(); }
+
     if (action === "getKonsinyasiMitra") {
       ensureKonsinyasiSheets_();
       return responseJSON({
@@ -2318,6 +2322,7 @@ function getKonsinyasiMitra_() {
 // ============================================================
 
 function saveKonsinyasiMitra_(data) {
+  data = data.data && typeof data.data === "object" ? data.data : data;
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(SHEET_KON_MITRA);
 
@@ -3253,11 +3258,13 @@ function saveProductCosting_(data) {
 function getRawMaterials_(){
   var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('RawMaterials'),materials=[];
   if(sh&&sh.getLastRow()>1){var rows=sh.getDataRange().getValues();for(var i=1;i<rows.length;i++){if(!rows[i][0])continue;try{var m=JSON.parse(String(rows[i][2]));m.id=String(rows[i][0]);m.name=String(rows[i][1]);if(rows[i].length>=11){m.category=String(rows[i][4]);m.purchaseCost=Number(rows[i][5]);m.purchaseQty=Number(rows[i][6]);m.unit=String(rows[i][7]);m.supplier=String(rows[i][8]||" ").trim();m.source=String(rows[i][9]||" ").trim();m.confirmed=m.confirmed===true&&isFinite(m.purchaseCost)&&m.purchaseCost>0&&isFinite(m.purchaseQty)&&m.purchaseQty>0;}materials.push(m);}catch(e){return responseJSON({success:false,message:'Data bahan baris '+(i+1)+' tidak terbaca. Periksa RawMaterials.'});}}}
-  return responseJSON({success:true,materials:materials});
+  return responseJSON({success:true,materialWorkflowVersion:2,materials:materials});
 }
 function saveRawMaterials_(data){
   var list=data.materials;
   if(!Array.isArray(list)||!list.length||list.length>150)return responseJSON({success:false,message:'Daftar bahan tidak valid.'});
+  var settings=data.inventorySettings;
+  if(settings&&(list.length!==1||settings.id!==list[0].id||typeof settings.minimum!=='number'||!isFinite(settings.minimum)||settings.minimum<0||settings.minimum>1e12||(settings.maximum!==null&&(typeof settings.maximum!=='number'||!isFinite(settings.maximum)||settings.maximum<settings.minimum||settings.maximum>1e12))))return responseJSON({success:false,message:'Batas minimum / maksimum bahan tidak valid.'});
   var seen={};
   for(var i=0;i<list.length;i++){
     var m=list[i];
@@ -3271,6 +3278,8 @@ function saveRawMaterials_(data){
     var rows=sh.getDataRange().getValues(),ids={},names={},saved=0;
     if(rows[0][0]!=='Material ID'||rows[0][2]!=='Material JSON')return responseJSON({success:false,message:'Struktur RawMaterials berbeda. Data tidak diubah.'});
     for(var j=1;j<rows.length;j++){ids[String(rows[j][0])]=j+1;names[String(rows[j][1]).trim().toLowerCase()]=String(rows[j][0]);}
+    var inventorySettingsSheet=null;
+    if(settings){if(!ids[settings.id])return responseJSON({success:false,message:'Bahan untuk edit tidak ditemukan.'});inventorySettingsSheet=inventorySheets_().config;}
     for(var c=0;c<list.length;c++){var item=list[c],name=item.name.trim().toLowerCase();if(ids[item.id]&&String(rows[ids[item.id]-1][7])!==item.unit){var stock=inventoryState_(inventorySheets_()).balances['material:'+item.id];if(stock!==undefined||Object.keys(inventoryRecipes_()).some(function(sku){return (inventoryRecipes_()[sku].components||[]).some(function(x){return x.materialId===item.id;});}))return responseJSON({success:false,message:'Satuan item yang sudah punya stok / resep tidak boleh diganti. Buat item baru untuk satuan berbeda.'});}if(names[name]&&names[name]!==item.id&&!data.skipExisting)return responseJSON({success:false,message:'Nama bahan sudah tersedia. Edit bahan yang ada.'});}
     for(var n=0;n<list.length;n++){
       var x=list[n],key=x.name.trim().toLowerCase(),row=ids[x.id];
@@ -3280,7 +3289,8 @@ function saveRawMaterials_(data){
       if(row)sh.getRange(row,1,1,11).setValues([values]);else{sh.appendRow(values);ids[x.id]=sh.getLastRow();}
       names[key]=x.id;saved++;
     }
-    return responseJSON({success:true,saved:saved});
+    if(settings){var configRows=inventorySettingsSheet.getDataRange().getValues(),configRow=-1,key='material:'+settings.id;for(var k=1;k<configRows.length;k++)if(String(configRows[k][0])===key)configRow=k+1;inventorySettingsSheet.getRange(configRow>0?configRow:inventorySettingsSheet.getLastRow()+1,1,1,4).setValues([[key,settings.minimum,new Date(),settings.maximum===null?'':settings.maximum]]);}
+    return responseJSON({success:true,saved:saved,inventorySettingsSaved:!!settings});
   }finally{lock.releaseLock();}
 }
 
@@ -3336,7 +3346,7 @@ function inventoryReport_(){
  var batchList=inventoryBatchState_(sheets,state,inventoryToday_());
  raw.forEach(function(x){var bs=batchList.filter(function(b){return b.materialId===x.id;}).sort(inventoryBatchOrder_);x.batches=bs;x.unassignedQty=Math.max(0,(x.qty||0)-bs.reduce(function(s,b){return s+b.qty;},0));x.usableQty=bs.filter(function(b){return b.eligible;}).reduce(function(s,b){return s+b.qty;},0);});
  var finished=products.map(function(p){var x=item('finished',p.sku,p.productName+' '+p.variantName,'pack',Number(p.hpp)||0);x.sellingPrice=Number(p.sellingPrice)||0;try{var usage=inventoryUsage_(recipes[p.sku]),ids=Object.keys(usage),unknown=ids.some(function(id){return state.balances['material:'+id]===undefined;});x.capacity=unknown?null:Math.max(0,Math.min.apply(null,ids.map(function(id){return Math.floor(((raw.filter(function(m){return m.id===id&&!m.archived;})[0]||{usableQty:0}).usableQty+1e-8)/usage[id]);})));}catch(e){x.capacity=null;x.capacityReason=e.message;}return x;});
- return responseJSON({success:true,inventoryVersion:4,products:products,recipes:inventoryRecipes_(),production:productionOrders_(),expenses:operatingExpenses_(),spreadsheetUrl:typeof SpreadsheetApp.getActiveSpreadsheet().getUrl==='function'?SpreadsheetApp.getActiveSpreadsheet().getUrl():'',materials:raw,finished:finished,history:state.rows.slice(-30).reverse().filter(function(r){return r[1]!=='Event ID';}).map(function(r){return {date:formatKonsinyasiDateTime_(r[0]),eventId:r[1],kind:r[2],id:r[3],qty:r[4],note:r[5],batchId:r[6]||''};}),valuation:'Harga acuan master saat ini; belum FIFO atau nilai historis pembelian.'});
+ return responseJSON({success:true,inventoryVersion:4,openingEditVersion:1,materialActualVersion:1,batchRevisionVersion:1,materialWorkflowVersion:2,products:products,recipes:inventoryRecipes_(),production:productionOrders_(),expenses:operatingExpenses_(),spreadsheetUrl:typeof SpreadsheetApp.getActiveSpreadsheet().getUrl==='function'?SpreadsheetApp.getActiveSpreadsheet().getUrl():'',materials:raw,finished:finished,history:state.rows.slice(-30).reverse().filter(function(r){return r[1]!=='Event ID';}).map(function(r){return {date:formatKonsinyasiDateTime_(r[0]),eventId:r[1],kind:r[2],id:r[3],qty:r[4],note:r[5],batchId:r[6]||''};}),valuation:'Harga acuan master saat ini; belum FIFO atau nilai historis pembelian.'});
 }
 function inventoryCommit_(sheets,state,eventId,changes,note){
  if(state.rows.some(function(r){return String(r[1])===eventId;}))return {duplicate:true};
@@ -3352,6 +3362,7 @@ function inventoryCommit_(sheets,state,eventId,changes,note){
 function saveInventory_(data){
  if(['archiveMaterial','archiveMaterials','expenseSave','productionPlan','productionComplete','productionCancel'].indexOf(data.operation)>=0)return saveInventoryOperations_(data);
  if(String(data.operation||'').indexOf('batch')===0)return saveInventoryBatch_(data);
+ if(data.operation==='materialActual')return saveMaterialActual_(data);
  if(data.operation==='opname')return saveInventoryItem_(data);
  var operation=String(data.operation||''),kind=String(data.kind||''),id=String(data.id||''),qty=Number(data.qty),requestId=String(data.requestId||''),note=String(data.note||'').trim().slice(0,300);
  if(!/^[a-f0-9-]{36}$/.test(requestId)||['opening','receive','consume','produce','minimum'].indexOf(operation)<0||['material','finished'].indexOf(kind)<0||!isFinite(qty)||qty<0||qty>1e9)return responseJSON({success:false,message:'Mutasi stok tidak valid.'});
@@ -3469,9 +3480,10 @@ function inventoryBatchState_(sheets,state,today){
  var balances={},rows=sheets.batches.getDataRange().getValues(),batches=[];
  state.rows.slice(1).forEach(function(r){if(r[6])balances[String(r[6])]=(balances[String(r[6])]||0)+Number(r[4]||0);});
  for(var i=1;i<rows.length;i++){
-  var r=rows[i];if(!r[0])continue;var received=r[2] instanceof Date?formatDateValue(r[2]):String(r[2]||''),expiry=r[3] instanceof Date?formatDateValue(r[3]):String(r[3]||''),valid=inventoryValidDate_(received,true)&&(!expiry||inventoryValidDate_(expiry,false)),days=expiry&&valid?Math.round((Date.parse(expiry)-Date.parse(today))/86400000):null;
+  var r=rows[i];if(!r[0]||r[4]==='DELETED')continue;var received=r[2] instanceof Date?formatDateValue(r[2]):String(r[2]||''),expiry=r[3] instanceof Date?formatDateValue(r[3]):String(r[3]||''),valid=inventoryValidDate_(received,true)&&(!expiry||inventoryValidDate_(expiry,false)),days=expiry&&valid?Math.round((Date.parse(expiry)-Date.parse(today))/86400000):null;
+  var openingQty=null;state.rows.slice(1).forEach(function(entry){if(String(entry[6])===String(r[0])&&/^batchOpening(?:Edit)?(?: \||$)/.test(String(entry[5])))openingQty=(openingQty===null?0:openingQty)+Number(entry[4]||0);});
   var qty=Math.max(0,balances[String(r[0])]||0),quality=String(r[4]||'HOLD'),expired=days!==null&&days<0;
-  batches.push({batchId:String(r[0]),materialId:String(r[1]),receivedOn:received,expiryDate:expiry,quality:quality,qualityNote:String(r[5]||''),updatedAt:r[6] instanceof Date?r[6].toISOString():String(r[6]||''),qty:qty,daysToExpiry:days,expired:expired,expiringSoon:days!==null&&days>=0&&days<=30,eligible:valid&&quality==='READY'&&!expired&&received.slice(0,10)<=today,ageDays:received.length===10&&valid?Math.max(0,Math.floor((Date.parse(today)-Date.parse(received))/86400000)):null,ageMonths:valid?(Number(today.slice(0,4))-Number(received.slice(0,4)))*12+Number(today.slice(5,7))-Number(received.slice(5,7)):null});
+  batches.push({openingQty:openingQty,batchId:String(r[0]),materialId:String(r[1]),receivedOn:received,expiryDate:expiry,quality:quality,qualityNote:String(r[5]||''),updatedAt:r[6] instanceof Date?r[6].toISOString():String(r[6]||''),qty:qty,daysToExpiry:days,expired:expired,expiringSoon:days!==null&&days>=0&&days<=30,eligible:valid&&quality==='READY'&&!expired&&received.slice(0,10)<=today,ageDays:received.length===10&&valid?Math.max(0,Math.floor((Date.parse(today)-Date.parse(received))/86400000)):null,ageMonths:valid?(Number(today.slice(0,4))-Number(received.slice(0,4)))*12+Number(today.slice(5,7))-Number(received.slice(5,7)):null});
  }
  return batches;
 }
@@ -3486,18 +3498,27 @@ function inventoryBatchChanges_(sheets,state,changes){
  changes.forEach(function(c){if(c.kind==='material'&&c.qty<0&&!c.batchId&&!c.unassigned)out=out.concat(inventoryAllocateFEFO_(batches,c.id,-c.qty));else out.push(c);});return out;
 }
 function saveInventoryBatch_(data){
+ if(['batchRevise','batchDelete','batchSplit'].indexOf(data.operation)>=0)return saveBatchRevision_(data);
  var operation=String(data.operation),id=String(data.id||''),requestId=String(data.requestId||''),qty=data.qty,note=String(data.note||'').trim().slice(0,300);
  function valid(n){return typeof n==='number'&&isFinite(n)&&n>=0&&n<=1e12;}
- if(!/^[a-f0-9-]{36}$/i.test(requestId)||!id||['batchReceive','batchAllocate','batchOpname','batchQuality'].indexOf(operation)<0||((operation!=='batchQuality')&&!valid(qty)))return responseJSON({success:false,message:'Data batch tidak valid.'});
+ if(!/^[a-f0-9-]{36}$/i.test(requestId)||!id||['batchOpening','batchOpeningEdit','batchReceive','batchAllocate','batchOpname','batchQuality'].indexOf(operation)<0||((operation!=='batchQuality')&&!valid(qty)))return responseJSON({success:false,message:'Data batch tidak valid.'});
  var lock=LockService.getScriptLock();lock.waitLock(20000);
  try{
   var sheets=inventorySheets_(),state=inventoryState_(sheets),event='INV:'+requestId,today=inventoryToday_();
   if(state.rows.some(function(r){return String(r[1])===event;}))return responseJSON({success:true,duplicate:true});
+  if(operation==='batchReceive'&&!Object.prototype.hasOwnProperty.call(state.balances,'material:'+id))throw new Error('Isi stok awal bahan terlebih dahulu melalui Input stok awal.');
+  if(operation==='batchOpening'&&Object.prototype.hasOwnProperty.call(state.balances,'material:'+id))throw new Error('Stok awal sudah tercatat. Gunakan penerimaan tambahan atau stok opname.');
   var materials=JSON.parse(getRawMaterials_().getContent()).materials||[];if(!materials.some(function(m){return m.id===id&&!m.archived&&m.category!=='Produksi';}))throw new Error('Bahan tidak ditemukan.');
   var batches=inventoryBatchState_(sheets,state,today),batch=null,changes=[];
-  if(operation==='batchOpname'||operation==='batchQuality'){
+  if(operation==='batchOpeningEdit'||operation==='batchOpname'||operation==='batchQuality'){
    batch=batches.filter(function(b){return b.batchId===data.batchId&&b.materialId===id;})[0];if(!batch)throw new Error('Batch tidak ditemukan.');
-   if(operation==='batchOpname'){
+   if(operation==='batchOpeningEdit'){
+    if(batch.openingQty===null)throw new Error('Batch ini bukan stok awal. Gunakan stok opname untuk mengoreksi saldo fisik.');
+    if(!valid(data.expectedOpeningQty)||Math.abs(batch.openingQty-data.expectedOpeningQty)>1e-7||!valid(data.expectedQty)||Math.abs(batch.qty-data.expectedQty)>1e-7)throw new Error('Stok awal atau saldo berubah. Refresh sebelum mengedit.');
+    if(!note)throw new Error('Isi alasan koreksi stok awal.');
+    var difference=qty-batch.openingQty;if(batch.qty+difference < -1e-7)throw new Error('Koreksi membuat saldo batch negatif karena sudah ada pemakaian. Periksa riwayat dan hasil opname.');
+    changes=[{kind:'material',id:id,qty:difference,batchId:batch.batchId}];
+   }else if(operation==='batchOpname'){
     if(!valid(data.expectedQty)||Math.abs(batch.qty-data.expectedQty)>1e-7)throw new Error('Saldo batch berubah. Refresh lalu hitung ulang.');
     if(!note)throw new Error('Isi alasan selisih atau pengeluaran batch.');changes=[{kind:'material',id:id,qty:qty-batch.qty,batchId:batch.batchId}];
    }else{
@@ -3509,7 +3530,7 @@ function saveInventoryBatch_(data){
     sheets.batches.getRange(found,3,1,5).setValues([[correctedReceived,correctedExpiry,data.quality,note,new Date()]]);changes=[{kind:'material',id:id,qty:0,batchId:batch.batchId}];
    }
   }else{
-   if(qty<=0)throw new Error('Jumlah batch harus lebih dari nol.');
+   if(qty<=0&&operation!=='batchOpening')throw new Error('Jumlah batch harus lebih dari nol.');
    var received=String(data.receivedOn||''),expiry=String(data.expiryDate||''),quality=String(data.quality||'HOLD');
    if(!inventoryValidDate_(received,true)||received>today||!inventoryValidDate_(expiry||today,false)||(expiry&&expiry<(received.length===7?received+'-01':received))||['READY','HOLD','REJECTED'].indexOf(quality)<0)throw new Error('Tanggal masuk, kedaluwarsa, atau kualitas batch tidak valid.');
    if(operation==='batchAllocate'){
@@ -3540,7 +3561,7 @@ function saveInventoryOperations_(data){
    var recipes=inventoryRecipes_(),plans=productionOrders_(),sh=ss.getSheetByName('RawMaterials'),rows=sh.getDataRange().getValues(),removed=[],failed=[];
    ids.filter(function(id,i,list){return list.indexOf(id)===i;}).forEach(function(id){try{
     var material=materials.filter(function(m){return m.id===id;})[0];if(!material)throw new Error('Item tidak ditemukan.');
-    if(Math.abs(state.balances['material:'+id]||0)>1e-7)throw new Error('Masih memiliki stok. Catat pengeluaran terlebih dahulu.');
+
     if(Object.keys(recipes).some(function(sku){return (recipes[sku].components||[]).some(function(c){return c.materialId===id;});}))throw new Error('Masih dipakai resep.');
     if(plans.some(function(p){return p.status==='DRAFT'&&(p.recipe.components||[]).some(function(c){return c.materialId===id;});}))throw new Error('Masih dipakai rencana produksi.');
     var row=-1;for(var i=1;i<rows.length;i++)if(String(rows[i][0])===id)row=i+1;if(row<0)throw new Error('Baris bahan tidak ditemukan.');
@@ -3566,6 +3587,7 @@ function saveInventoryOperations_(data){
   if(op==='productionCancel'){if(pr[row-1][4]!=='DRAFT')throw new Error('Hanya draft yang dapat dibatalkan.');ps.getRange(row,5).setValue('CANCELLED');return responseJSON({success:true});}
   if(op!=='productionComplete')throw new Error('Aktivitas tidak dikenal.');
   if(pr[row-1][4]==='COMPLETED')return responseJSON({success:true,duplicate:true});if(pr[row-1][4]!=='DRAFT')throw new Error('Produksi tidak aktif.');
+  if(data.usageMode==='bom'){var automaticUsage=inventoryUsage_(JSON.parse(String(pr[row-1][8])));data.usage=Object.keys(automaticUsage).map(function(id){return {materialId:id,qty:automaticUsage[id]*data.actual};});}
   if(!Number.isSafeInteger(data.actual)||data.actual<0||data.actual>1000000||!Array.isArray(data.usage)||!data.usage.length||!String(data.note||'').trim())throw new Error('Isi hasil aktual, pemakaian bahan, dan catatan hasil produksi.');
   if(!getProducts().some(function(p){return p.sku===String(pr[row-1][1]);}))throw new Error('SKU produksi sudah tidak tersedia di Master Product.');
   var snapshot=JSON.parse(String(pr[row-1][8])),required=Object.keys(inventoryUsage_(snapshot)),seen={},changes=[];
@@ -3607,4 +3629,101 @@ function verifyArticleAdmin_(data){
  var timestamp=String(data.authTime||'');if(!/^\d{13}$/.test(timestamp)||Math.abs(Date.now()-Number(timestamp))>300000)throw new Error('Otorisasi artikel kedaluwarsa. Coba simpan lagi.');
  var message=String(data.action)+'\n'+timestamp+'\n'+JSON.stringify(data.article||null)+'\n'+String(data.expectedUpdatedAt||''),bytes=Utilities.computeHmacSha256Signature(message,key),expected=bytes.map(function(v){return ('0'+((v+256)%256).toString(16)).slice(-2);}).join(''),provided=String(data.authSignature||'');
  if(provided.length!==expected.length)throw new Error('Otorisasi artikel tidak valid.');var diff=0;for(var i=0;i<expected.length;i++)diff|=expected.charCodeAt(i)^provided.charCodeAt(i);if(diff)throw new Error('Otorisasi artikel tidak valid.');
+}
+
+// CONSIGNMENT SALES V2: append-only revisions, one atomic row per sale/payment.
+// SO and BAST remain immutable. Stock outside is not a receivable until sold.
+function konSalesSheet_(){return inventoryOperationsSheet_('KON_SALES_LEDGER',['Timestamp','Request ID','Transaction ID','Revision','Action','Transaction JSON','Request JSON']);}
+function konSalesState_(sh){var rows=sh.getDataRange().getValues(),map={};for(var i=1;i<rows.length;i++){if(!rows[i][2])continue;var t;try{t=JSON.parse(String(rows[i][5]));}catch(e){throw new Error('Riwayat penjualan tidak terbaca pada baris '+(i+1));}if(!map[t.idTransaksi]||Number(t.revision)>Number(map[t.idTransaksi].revision))map[t.idTransaksi]=t;}return {rows:rows,transactions:Object.keys(map).map(function(k){return map[k];})};}
+function konSalesBalances_(transactions){
+ var sold={};transactions.forEach(function(t){t.items.forEach(function(it){var key=t.nomorSO+'|'+it.sku;sold[key]=(sold[key]||0)+it.qtyTerjual;});});
+ return getKonsinyasiSO_().filter(function(o){return o.statusPenerimaan==='DIKONFIRMASI'||o.statusPenerimaan==='DITERIMA'||o.items.some(function(it){return Number(it.qtyDiterima)>0;});}).map(function(o){
+  var items=o.items.map(function(it){var received=Number(it.qtyDiterima)||0,ordered=Number(it.qty)||0,price=ordered>0&&typeof it.subtotal==='number'?it.subtotal/ordered:Number(it.hargaKonsinyasi)||0,used=sold[o.nomorSO+'|'+it.sku]||0;return {sku:it.sku,namaProduk:it.namaProduk,varian:it.varian,qtySO:ordered,qtyDiterima:received,qtyTerjual:used,sisaStok:received-used,hargaKonsinyasi:price,nilaiSisa:(received-used)*price};});
+  var ts=transactions.filter(function(t){return t.nomorSO===o.nomorSO;}),due=ts.reduce(function(s,t){return s+t.nominalWajibSetor;},0),paid=ts.reduce(function(s,t){return s+t.nominalDiterima;},0);
+  return {nomorSO:o.nomorSO,kodeMitra:o.kodeMitra,namaToko:o.namaToko,tanggalSO:o.tanggalSO,statusPenerimaan:o.statusPenerimaan,items:items,qtyDiterima:items.reduce(function(s,i){return s+i.qtyDiterima;},0),qtyTerjual:items.reduce(function(s,i){return s+i.qtyTerjual;},0),sisaStok:items.reduce(function(s,i){return s+i.sisaStok;},0),nilaiStok:items.reduce(function(s,i){return s+i.nilaiSisa;},0),nominalTerjual:due,nominalDiterima:paid,piutang:Math.max(0,due-paid)};
+ });
+}
+function getKonsinyasiPenjualanMitra_(){var state=konSalesState_(konSalesSheet_()),ts=state.transactions;return responseJSON({success:true,consignmentSalesVersion:2,saldoSO:konSalesBalances_(ts),transactions:ts,penjualan:ts.reduce(function(out,t){return out.concat(t.items.map(function(it){var x={};Object.keys(it).forEach(function(k){x[k]=it[k];});x.idTransaksi=t.idTransaksi;x.nomorSO=t.nomorSO;x.kodeMitra=t.kodeMitra;x.namaToko=t.namaToko;x.tanggalPenjualan=t.tanggalPenjualan;return x;}));},[]),setoran:ts.reduce(function(out,t){return out.concat(t.payments);},[])});}
+function saveKonsinyasiSaleV2_(data){
+ var lock=LockService.getScriptLock();lock.waitLock(20000);try{
+  if(!/^[a-f0-9-]{36}$/i.test(String(data.requestId||'')))throw new Error('Kunci permintaan tidak valid. Refresh formulir.');
+  var sh=konSalesSheet_(),state=konSalesState_(sh),fingerprint=JSON.stringify(data),duplicate=state.rows.filter(function(r){return String(r[1])===data.requestId;})[0];
+  if(duplicate){if(String(duplicate[6])!==fingerprint)throw new Error('Kunci permintaan sudah dipakai untuk rincian lain.');return responseJSON({success:true,duplicate:true,consignmentSalesVersion:2});}
+  var editing=data.action==='updateKonsinyasiPenjualanMitra',paying=data.action==='saveKonsinyasiSetoranMitra',old=state.transactions.filter(function(t){return t.idTransaksi===data.idTransaksi;})[0];
+  if((editing||paying)&&(!old||old.revision!==data.expectedRevision))throw new Error('Transaksi berubah atau tidak ditemukan. Refresh sebelum menyimpan.');
+  if(!editing&&!paying&&data.idTransaksi)throw new Error('Transaksi baru tidak boleh menggunakan ID transaksi lama.');
+  var now=new Date(),tx=old?JSON.parse(JSON.stringify(old)):{idTransaksi:'KSALE-'+data.requestId,revision:0,nomorSO:String(data.nomorSO||''),payments:[],nominalDiterima:0};
+  function money(n){return typeof n==='number'&&isFinite(n)&&n>=0&&n<=1e12;}
+  function date(v){return inventoryValidDate_(v,false)&&v<=inventoryToday_();}
+  var amount=paying?data.nominalSetoran:editing?0:(data.nominalSetoran===undefined?0:data.nominalSetoran);
+  if(!money(amount))throw new Error('Nominal setoran tidak valid.');
+  if(!paying){
+   if(!date(data.tanggalPenjualan)||!Array.isArray(data.items)||!data.items.length||data.items.length>100)throw new Error('Tanggal atau rincian penjualan tidak valid.');
+   if(editing&&!String(data.alasanKoreksi||'').trim())throw new Error('Alasan koreksi wajib diisi.');
+   var balances=konSalesBalances_(state.transactions.filter(function(t){return !editing||t.idTransaksi!==old.idTransaksi;})),so=balances.filter(function(o){return o.nomorSO===tx.nomorSO;})[0];if(!so)throw new Error('SO belum memiliki penerimaan BAST terkonfirmasi.');
+   var clean=[],seen={};data.items.forEach(function(x){var it=so.items.filter(function(i){return i.sku===x.sku;})[0];if(!it||seen[x.sku]||!Number.isSafeInteger(x.qtyTerjual)||x.qtyTerjual<0||x.qtyTerjual>it.sisaStok)throw new Error('Qty melebihi stok atau SKU tidak valid: '+String(x.sku));seen[x.sku]=true;if(!x.qtyTerjual)return;var previous=old&&old.items.filter(function(i){return i.sku===x.sku;})[0],price=previous?previous.hargaKonsinyasi:it.hargaKonsinyasi;clean.push({sku:it.sku,namaProduk:it.namaProduk,varian:it.varian,qtyTerjual:x.qtyTerjual,hargaKonsinyasi:price,nominalWajibSetor:Math.round(x.qtyTerjual*price)});});
+   if(!clean.length)throw new Error('Isi minimal satu barang terjual.');
+   tx.items=clean;tx.kodeMitra=so.kodeMitra;tx.namaToko=so.namaToko;tx.tanggalPenjualan=data.tanggalPenjualan;tx.catatan=String(data.catatan||'').slice(0,500);tx.nominalWajibSetor=clean.reduce(function(s,i){return s+i.nominalWajibSetor;},0);
+   if(tx.nominalWajibSetor<tx.nominalDiterima)throw new Error('Nilai koreksi kurang dari setoran yang sudah diterima. Selesaikan pengembalian dana melalui rekonsiliasi terlebih dahulu; setoran tidak diubah otomatis.');
+  }
+  if(amount>tx.nominalWajibSetor-tx.nominalDiterima)throw new Error('Setoran melebihi sisa piutang transaksi.');
+  if(paying&&amount<=0)throw new Error('Isi nominal setoran lebih dari nol.');
+  if(amount>0){var pd=paying?data.tanggalSetoran:data.tanggalPenjualan;if(!date(pd)||['TRANSFER','TUNAI','QRIS','LAINNYA'].indexOf(data.metodePembayaran)<0||!String(data.referensiPembayaran||'').trim())throw new Error('Lengkapi tanggal, metode, dan referensi setoran.');tx.payments.push({idSetoran:'KDEP-'+data.requestId,idTransaksi:tx.idTransaksi,nomorSO:tx.nomorSO,kodeMitra:tx.kodeMitra,namaToko:tx.namaToko,tanggalSetoran:pd,nominalDiterima:amount,metodePembayaran:data.metodePembayaran,referensiPembayaran:String(data.referensiPembayaran).slice(0,200)});tx.nominalDiterima+=amount;}
+  tx.revision++;tx.updatedAt=now.toISOString();tx.piutang=tx.nominalWajibSetor-tx.nominalDiterima;tx.alasanKoreksi=editing?String(data.alasanKoreksi).slice(0,500):'';
+  if(JSON.stringify(tx).length>44000)throw new Error('Riwayat transaksi terlalu panjang. Hubungi admin untuk rekonsiliasi.');
+  sh.getRange(sh.getLastRow()+1,1,1,7).setValues([[now,data.requestId,tx.idTransaksi,tx.revision,data.action,JSON.stringify(tx),fingerprint]]);
+  return responseJSON({success:true,consignmentSalesVersion:2,message:paying?'Setoran tercatat.':editing?'Koreksi tersimpan dengan riwayat revisi.':'Penjualan tersimpan.',transaction:tx});
+ }catch(e){return responseJSON({success:false,message:e.message});}finally{lock.releaseLock();}
+}
+
+// Correct the physical total with an audited delta; never add it as a receipt.
+function saveMaterialActual_(data){
+ var lock=LockService.getScriptLock();lock.waitLock(20000);
+ try{
+  var qty=data.qty,id=String(data.id||''),note=String(data.note||'').trim().slice(0,300);
+  if(typeof qty!=='number'||!isFinite(qty)||qty<0||qty>1e12||!note||!/^[a-f0-9-]{36}$/i.test(String(data.requestId||'')))throw new Error('Isi stok aktual dan alasan perubahan.');
+  var sheets=inventorySheets_(),state=inventoryState_(sheets),event='INV:'+data.requestId,key='material:'+id,current=state.balances[key]===undefined?null:state.balances[key];
+  if(state.rows.some(function(r){return String(r[1])===event;}))return responseJSON({success:true,duplicate:true});
+  if(data.expectedQty!==current)throw new Error('Saldo berubah. Muat ulang sebelum menyimpan.');
+  if(!(JSON.parse(getRawMaterials_().getContent()).materials||[]).some(function(m){return m.id===id&&!m.archived&&m.category!=='Produksi';}))throw new Error('Bahan tidak ditemukan.');
+  var difference=qty-(current||0),changes=[],batches=inventoryBatchState_(sheets,state,inventoryToday_()).filter(function(b){return b.materialId===id;});
+  if(difference<0){var remaining=-difference,assigned=batches.reduce(function(sum,b){return sum+b.qty;},0),unassigned=Math.max(0,(current||0)-assigned),take=Math.min(unassigned,remaining);if(take>0){changes.push({kind:'material',id:id,qty:-take,unassigned:true});remaining-=take;}
+   batches.sort(inventoryBatchOrder_).forEach(function(b){var amount=Math.min(b.qty,remaining);if(amount>0){changes.push({kind:'material',id:id,qty:-amount,batchId:b.batchId});remaining-=amount;}});
+   if(remaining>1e-7)throw new Error('Saldo batch tidak sesuai total. Periksa riwayat bahan.');
+  }else if(difference>0){var batchId='BAT-'+data.requestId;sheets.batches.appendRow([batchId,id,inventoryToday_(),'','HOLD','Koreksi stok aktual: '+note,new Date()]);changes.push({kind:'material',id:id,qty:difference,batchId:batchId});}
+  else changes.push({kind:'material',id:id,qty:0,unassigned:true});
+  inventoryCommit_(sheets,state,event,changes,'KOREKSI STOK AKTUAL | '+note+' | '+String(current)+' -> '+qty);
+  return responseJSON({success:true,qty:qty,difference:difference});
+ }catch(e){return responseJSON({success:false,message:e.message});}finally{lock.releaseLock();}
+}
+
+function saveBatchRevision_(data){
+ var lock=LockService.getScriptLock();lock.waitLock(20000);
+ try{
+  if(!/^[a-f0-9-]{36}$/i.test(String(data.requestId||''))||!String(data.note||'').trim())throw new Error('Isi alasan perubahan batch.');
+  var sheets=inventorySheets_(),state=inventoryState_(sheets),event='INV:'+data.requestId,today=inventoryToday_();
+  if(state.rows.some(function(r){return String(r[1])===event;}))return responseJSON({success:true,duplicate:true});
+  var batch=inventoryBatchState_(sheets,state,today).filter(function(b){return b.batchId===data.batchId&&b.materialId===data.id;})[0];
+  if(!batch)throw new Error('Batch tidak ditemukan.');
+  if(data.expectedQty!==batch.qty||data.expectedUpdatedAt!==batch.updatedAt)throw new Error('Batch berubah. Refresh dan buka ulang.');
+  var meta=sheets.batches.getDataRange().getValues(),row=-1;for(var i=1;i<meta.length;i++)if(String(meta[i][0])===batch.batchId)row=i+1;
+  function validQty(q){return typeof q==='number'&&isFinite(q)&&q>=0&&q<=1e12;}
+  function dates(received,expiry){if(!inventoryValidDate_(received,true)||received>today||(expiry&&(!inventoryValidDate_(expiry,false)||expiry<(received.length===7?received+'-01':received))))throw new Error('Bulan masuk atau kedaluwarsa tidak valid.');}
+  var changes=[],updates=[],note=String(data.note).trim().slice(0,300),op=data.operation;
+  if(op==='batchSplit'){
+   if(!Array.isArray(data.parts)||!data.parts.length||data.parts.length>12)throw new Error('Isi pembagian bulan, maksimal 12 bagian.');
+   var sum=0;data.parts.forEach(function(part,index){if(!validQty(part.qty)||part.qty<=0)throw new Error('Jumlah setiap bagian harus lebih dari nol.');var expiry=part.expiryDate===undefined?batch.expiryDate:String(part.expiryDate||'');dates(part.receivedOn,expiry);sum+=part.qty;var id='BAT-'+data.requestId+'-'+index;updates.push([id,data.id,part.receivedOn,expiry,batch.quality,note,new Date()]);changes.push({kind:'material',id:data.id,qty:part.qty,batchId:id});});
+   if(sum>batch.qty+1e-7)throw new Error('Total pembagian melebihi sisa batch.');changes.push({kind:'material',id:data.id,qty:-sum,batchId:batch.batchId});
+  }else if(op==='batchDelete'){changes=[{kind:'material',id:data.id,qty:-batch.qty,batchId:batch.batchId}];}
+  else if(op==='batchRevise'){
+   if(!validQty(data.qty)||['READY','HOLD','REJECTED'].indexOf(data.quality)<0)throw new Error('Jumlah atau kondisi batch tidak valid.');dates(data.receivedOn,data.expiryDate||'');changes=[{kind:'material',id:data.id,qty:data.qty-batch.qty,batchId:batch.batchId}];
+  }else throw new Error('Aktivitas batch tidak dikenal.');
+  // All validation is complete before writing metadata or the stock movement.
+  if(updates.length)sheets.batches.getRange(sheets.batches.getLastRow()+1,1,updates.length,7).setValues(updates);
+  inventoryCommit_(sheets,state,event,changes,op+' | '+note);
+  if(op==='batchDelete')sheets.batches.getRange(row,5,1,3).setValues([['DELETED',note,new Date()]]);
+  if(op==='batchRevise')sheets.batches.getRange(row,3,1,5).setValues([[data.receivedOn,data.expiryDate||'',data.quality,note,new Date()]]);
+  if(op==='batchSplit')sheets.batches.getRange(row,7).setValue(new Date());
+  return responseJSON({success:true});
+ }catch(e){return responseJSON({success:false,message:e.message});}finally{lock.releaseLock();}
 }

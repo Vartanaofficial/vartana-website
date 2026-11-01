@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const SCRIPT_URL = (process.env.KONSINYASI_GOOGLE_SCRIPT_URL || "").trim();
 const GET_ACTIONS = new Set(["getKonsinyasiPenjualanMitra", "getKonsinyasiSO", "getKonsinyasiMitra"]);
-const POST_ACTIONS = new Set(["saveKonsinyasiPenjualanMitra"]);
+const POST_ACTIONS = new Set(["saveKonsinyasiPenjualanMitra", "updateKonsinyasiPenjualanMitra", "saveKonsinyasiSetoranMitra"]);
 function fail(message: string, status = 500) {
   return NextResponse.json({ success: false, message }, { status });
 }

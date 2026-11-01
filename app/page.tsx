@@ -83,15 +83,15 @@ const content = {
       "eyebrow": "VARTANA · BOTANICAL WELLNESS",
       "title": "Seduhan rempah,",
       "accent": "teman di sela harimu.",
-      "text": "Kenali racikannya, pilih kemasannya, lalu nikmati dengan cara yang kamu suka.",
+      "text": "VARTANA meracik teh herbal dari rempah Indonesia dalam tea bag yang praktis diseduh. Dari bahan yang akrab, kami menghadirkan hangatnya jeda untuk keseharianmu.",
       "primary": "Lihat Katalog",
       "secondary": "Tentang VARTANA"
     },
     "philosophy": {
       "eyebrow": "FILOSOFI VARTANA",
       "title": "Mulai dari bahan yang kita kenal.",
-      "text1": "Jahe, serai, dan kayu manis sudah akrab dalam keseharian kita. Masing-masing punya rasa dan aroma yang berbeda.",
-      "text2": "VARTANA mengajak kamu mengenal bahan dalam racikan yang dipilih. Komposisi dan petunjuk seduh bisa dibaca di setiap detail produk.",
+      "text1": "Cerita VARTANA berawal dari hal yang dekat: aroma jahe di dapur, serai yang baru dimemarkan, dan hangatnya kayu manis dalam secangkir seduhan. Kami percaya, merawat keseharian bisa dimulai dari jeda sederhana.",
+      "text2": "Kami membawa kebiasaan itu ke dalam racikan teh herbal berbahan rempah Indonesia, dikemas dalam tea bag agar mudah menemani harimu. Di sini kamu bisa mengenal rempahnya, membaca cerita di balik racikan, dan memilih seduhan untuk dibawa pulang.",
       "quote": "Rooted in Earth, Built for Growth."
     },
     "collection": {
@@ -210,7 +210,7 @@ const content = {
       "eyebrow": "VARTANA · BOTANICAL WELLNESS",
       "title": "A cup of spices,",
       "accent": "a moment for yourself.",
-      "text": "Explore the blends, choose a pack, and enjoy a cup your way.",
+      "text": "VARTANA blends Indonesian spices into herbal tea bags, made for an easy everyday brew. Familiar ingredients, a warm cup, and a little space to pause.",
       "primary": "Browse Catalog",
       "secondary": "About VARTANA"
     },

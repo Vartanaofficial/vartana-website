@@ -24,3 +24,13 @@ test('material import preserves edited supplier prices on repeat and keeps recip
  assert.equal(c.getRawMaterials_().materials[0].purchaseCost,70000);assert.equal(sheets.RawMaterials.rows.length,2);assert.equal(sheets.RawMaterials.rows[1][10],"=F2/G2");
  const before=JSON.stringify(sheets.RawMaterials.rows);assert.equal(c.saveRawMaterials_({materials:[{...m,purchaseQty:0}]}).success,false);assert.equal(JSON.stringify(sheets.RawMaterials.rows),before);
 });
+
+test('editing material price and thresholds preserves stock and rejects invalid limits before writing',()=>{
+ const m={id:'MAT-EDIT',name:'Adas',category:'Bahan baku',unit:'gram',purchaseCost:33000,purchaseQty:1000,supplier:'Supplier',source:'Master',confirmed:true};
+ const raw=new Sheet([['Material ID','Nama Bahan','Material JSON','Updated At','Kelompok','Harga Beli','Jumlah Beli','Satuan','Supplier','Sumber Harga','Harga Per Satuan'],[m.id,m.name,JSON.stringify(m),'',m.category,m.purchaseCost,m.purchaseQty,m.unit,m.supplier,m.source,'']]),config=new Sheet([['Item Key','Minimum Stock','Updated At','Maximum Stock']]);
+ const ledger=[['material',m.id,800]],before=JSON.stringify(ledger);
+ const c=vm.createContext({SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:()=>raw})},inventorySheets_:()=>({config}),LockService:{getScriptLock:()=>({waitLock(){},releaseLock(){}})},responseJSON:x=>x});vm.runInContext(fs.readFileSync('apps-script/raw-material-functions.txt','utf8'),c);
+ const result=c.saveRawMaterials_({materials:[{...m,name:'Adas manis',purchaseCost:35000}],inventorySettings:{id:m.id,minimum:200,maximum:2000}});
+ assert.equal(result.success,true);assert.equal(result.inventorySettingsSaved,true);assert.equal(raw.rows.length,2);assert.equal(raw.rows[1][1],'Adas manis');assert.equal(raw.rows[1][5],35000);assert.equal(config.rows[1][1],200);assert.equal(config.rows[1][3],2000);assert.equal(JSON.stringify(ledger),before);
+ const saved=JSON.stringify(raw.rows);assert.equal(c.saveRawMaterials_({materials:[m],inventorySettings:{id:m.id,minimum:100,maximum:50}}).success,false);assert.equal(JSON.stringify(raw.rows),saved);
+});

@@ -5,5 +5,6 @@ export async function requestCostingBackend(action:string,payload?:Record<string
  const field=readAction==="getRawMaterials"?"materials":"costs";
  const current=await requestMasterScript(readAction);
  if(!Array.isArray(current[field]))throw Error(COSTING_DEPLOY_MESSAGE);
+ if(payload?.inventorySettings&&current.materialWorkflowVersion!==2)throw Error(COSTING_DEPLOY_MESSAGE);
  return payload?requestMasterScript(action,payload):current;
 }

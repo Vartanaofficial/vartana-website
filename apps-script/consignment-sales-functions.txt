@@ -1,0 +1,44 @@
+// CONSIGNMENT SALES V2: append-only revisions, one atomic row per sale/payment.
+// SO and BAST remain immutable. Stock outside is not a receivable until sold.
+function konSalesSheet_(){return inventoryOperationsSheet_('KON_SALES_LEDGER',['Timestamp','Request ID','Transaction ID','Revision','Action','Transaction JSON','Request JSON']);}
+function konSalesState_(sh){var rows=sh.getDataRange().getValues(),map={};for(var i=1;i<rows.length;i++){if(!rows[i][2])continue;var t;try{t=JSON.parse(String(rows[i][5]));}catch(e){throw new Error('Riwayat penjualan tidak terbaca pada baris '+(i+1));}if(!map[t.idTransaksi]||Number(t.revision)>Number(map[t.idTransaksi].revision))map[t.idTransaksi]=t;}return {rows:rows,transactions:Object.keys(map).map(function(k){return map[k];})};}
+function konSalesBalances_(transactions){
+ var sold={};transactions.forEach(function(t){t.items.forEach(function(it){var key=t.nomorSO+'|'+it.sku;sold[key]=(sold[key]||0)+it.qtyTerjual;});});
+ return getKonsinyasiSO_().filter(function(o){return o.statusPenerimaan==='DIKONFIRMASI'||o.statusPenerimaan==='DITERIMA'||o.items.some(function(it){return Number(it.qtyDiterima)>0;});}).map(function(o){
+  var items=o.items.map(function(it){var received=Number(it.qtyDiterima)||0,ordered=Number(it.qty)||0,price=ordered>0&&typeof it.subtotal==='number'?it.subtotal/ordered:Number(it.hargaKonsinyasi)||0,used=sold[o.nomorSO+'|'+it.sku]||0;return {sku:it.sku,namaProduk:it.namaProduk,varian:it.varian,qtySO:ordered,qtyDiterima:received,qtyTerjual:used,sisaStok:received-used,hargaKonsinyasi:price,nilaiSisa:(received-used)*price};});
+  var ts=transactions.filter(function(t){return t.nomorSO===o.nomorSO;}),due=ts.reduce(function(s,t){return s+t.nominalWajibSetor;},0),paid=ts.reduce(function(s,t){return s+t.nominalDiterima;},0);
+  return {nomorSO:o.nomorSO,kodeMitra:o.kodeMitra,namaToko:o.namaToko,tanggalSO:o.tanggalSO,statusPenerimaan:o.statusPenerimaan,items:items,qtyDiterima:items.reduce(function(s,i){return s+i.qtyDiterima;},0),qtyTerjual:items.reduce(function(s,i){return s+i.qtyTerjual;},0),sisaStok:items.reduce(function(s,i){return s+i.sisaStok;},0),nilaiStok:items.reduce(function(s,i){return s+i.nilaiSisa;},0),nominalTerjual:due,nominalDiterima:paid,piutang:Math.max(0,due-paid)};
+ });
+}
+function getKonsinyasiPenjualanMitra_(){var state=konSalesState_(konSalesSheet_()),ts=state.transactions;return responseJSON({success:true,consignmentSalesVersion:2,saldoSO:konSalesBalances_(ts),transactions:ts,penjualan:ts.reduce(function(out,t){return out.concat(t.items.map(function(it){var x={};Object.keys(it).forEach(function(k){x[k]=it[k];});x.idTransaksi=t.idTransaksi;x.nomorSO=t.nomorSO;x.kodeMitra=t.kodeMitra;x.namaToko=t.namaToko;x.tanggalPenjualan=t.tanggalPenjualan;return x;}));},[]),setoran:ts.reduce(function(out,t){return out.concat(t.payments);},[])});}
+function saveKonsinyasiSaleV2_(data){
+ var lock=LockService.getScriptLock();lock.waitLock(20000);try{
+  if(!/^[a-f0-9-]{36}$/i.test(String(data.requestId||'')))throw new Error('Kunci permintaan tidak valid. Refresh formulir.');
+  var sh=konSalesSheet_(),state=konSalesState_(sh),fingerprint=JSON.stringify(data),duplicate=state.rows.filter(function(r){return String(r[1])===data.requestId;})[0];
+  if(duplicate){if(String(duplicate[6])!==fingerprint)throw new Error('Kunci permintaan sudah dipakai untuk rincian lain.');return responseJSON({success:true,duplicate:true,consignmentSalesVersion:2});}
+  var editing=data.action==='updateKonsinyasiPenjualanMitra',paying=data.action==='saveKonsinyasiSetoranMitra',old=state.transactions.filter(function(t){return t.idTransaksi===data.idTransaksi;})[0];
+  if((editing||paying)&&(!old||old.revision!==data.expectedRevision))throw new Error('Transaksi berubah atau tidak ditemukan. Refresh sebelum menyimpan.');
+  if(!editing&&!paying&&data.idTransaksi)throw new Error('Transaksi baru tidak boleh menggunakan ID transaksi lama.');
+  var now=new Date(),tx=old?JSON.parse(JSON.stringify(old)):{idTransaksi:'KSALE-'+data.requestId,revision:0,nomorSO:String(data.nomorSO||''),payments:[],nominalDiterima:0};
+  function money(n){return typeof n==='number'&&isFinite(n)&&n>=0&&n<=1e12;}
+  function date(v){return inventoryValidDate_(v,false)&&v<=inventoryToday_();}
+  var amount=paying?data.nominalSetoran:editing?0:(data.nominalSetoran===undefined?0:data.nominalSetoran);
+  if(!money(amount))throw new Error('Nominal setoran tidak valid.');
+  if(!paying){
+   if(!date(data.tanggalPenjualan)||!Array.isArray(data.items)||!data.items.length||data.items.length>100)throw new Error('Tanggal atau rincian penjualan tidak valid.');
+   if(editing&&!String(data.alasanKoreksi||'').trim())throw new Error('Alasan koreksi wajib diisi.');
+   var balances=konSalesBalances_(state.transactions.filter(function(t){return !editing||t.idTransaksi!==old.idTransaksi;})),so=balances.filter(function(o){return o.nomorSO===tx.nomorSO;})[0];if(!so)throw new Error('SO belum memiliki penerimaan BAST terkonfirmasi.');
+   var clean=[],seen={};data.items.forEach(function(x){var it=so.items.filter(function(i){return i.sku===x.sku;})[0];if(!it||seen[x.sku]||!Number.isSafeInteger(x.qtyTerjual)||x.qtyTerjual<0||x.qtyTerjual>it.sisaStok)throw new Error('Qty melebihi stok atau SKU tidak valid: '+String(x.sku));seen[x.sku]=true;if(!x.qtyTerjual)return;var previous=old&&old.items.filter(function(i){return i.sku===x.sku;})[0],price=previous?previous.hargaKonsinyasi:it.hargaKonsinyasi;clean.push({sku:it.sku,namaProduk:it.namaProduk,varian:it.varian,qtyTerjual:x.qtyTerjual,hargaKonsinyasi:price,nominalWajibSetor:Math.round(x.qtyTerjual*price)});});
+   if(!clean.length)throw new Error('Isi minimal satu barang terjual.');
+   tx.items=clean;tx.kodeMitra=so.kodeMitra;tx.namaToko=so.namaToko;tx.tanggalPenjualan=data.tanggalPenjualan;tx.catatan=String(data.catatan||'').slice(0,500);tx.nominalWajibSetor=clean.reduce(function(s,i){return s+i.nominalWajibSetor;},0);
+   if(tx.nominalWajibSetor<tx.nominalDiterima)throw new Error('Nilai koreksi kurang dari setoran yang sudah diterima. Selesaikan pengembalian dana melalui rekonsiliasi terlebih dahulu; setoran tidak diubah otomatis.');
+  }
+  if(amount>tx.nominalWajibSetor-tx.nominalDiterima)throw new Error('Setoran melebihi sisa piutang transaksi.');
+  if(paying&&amount<=0)throw new Error('Isi nominal setoran lebih dari nol.');
+  if(amount>0){var pd=paying?data.tanggalSetoran:data.tanggalPenjualan;if(!date(pd)||['TRANSFER','TUNAI','QRIS','LAINNYA'].indexOf(data.metodePembayaran)<0||!String(data.referensiPembayaran||'').trim())throw new Error('Lengkapi tanggal, metode, dan referensi setoran.');tx.payments.push({idSetoran:'KDEP-'+data.requestId,idTransaksi:tx.idTransaksi,nomorSO:tx.nomorSO,kodeMitra:tx.kodeMitra,namaToko:tx.namaToko,tanggalSetoran:pd,nominalDiterima:amount,metodePembayaran:data.metodePembayaran,referensiPembayaran:String(data.referensiPembayaran).slice(0,200)});tx.nominalDiterima+=amount;}
+  tx.revision++;tx.updatedAt=now.toISOString();tx.piutang=tx.nominalWajibSetor-tx.nominalDiterima;tx.alasanKoreksi=editing?String(data.alasanKoreksi).slice(0,500):'';
+  if(JSON.stringify(tx).length>44000)throw new Error('Riwayat transaksi terlalu panjang. Hubungi admin untuk rekonsiliasi.');
+  sh.getRange(sh.getLastRow()+1,1,1,7).setValues([[now,data.requestId,tx.idTransaksi,tx.revision,data.action,JSON.stringify(tx),fingerprint]]);
+  return responseJSON({success:true,consignmentSalesVersion:2,message:paying?'Setoran tercatat.':editing?'Koreksi tersimpan dengan riwayat revisi.':'Penjualan tersimpan.',transaction:tx});
+ }catch(e){return responseJSON({success:false,message:e.message});}finally{lock.releaseLock();}
+}

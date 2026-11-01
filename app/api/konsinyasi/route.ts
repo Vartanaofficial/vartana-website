@@ -9,7 +9,7 @@ const TIMEOUT_MS = 25_000;
 // Hanya izinkan action yang diperlukan modul Stok Mitra.
 const GET_ACTIONS = new Set(["getKonsinyasiStok", "getKonsinyasiMitra", "getKonsinyasiProduk", "getKonsinyasiSO", "getKonsinyasiPengiriman"]);
 
-const POST_ACTIONS = new Set(["saveKonsinyasiMutasiStok"]);
+const POST_ACTIONS = new Set(["saveKonsinyasiMutasiStok", "saveKonsinyasiMitra", "updateKonsinyasiMitra"]);
 
 function errorResponse(message: string, status = 500) {
   return NextResponse.json({ success: false, message }, { status });

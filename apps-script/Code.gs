@@ -941,6 +941,7 @@ function doGet(e) {
 
     if (action === 'getArticles') { var articles=readArticles_(); return responseJSON({success:true,articleVersion:1,articles:articles.filter(function(a){return a.status==='PUBLISHED';}),hiddenSlugs:articles.filter(function(a){return a.status!=='PUBLISHED';}).map(function(a){return a.slug;})}); }
 
+    if (action === "getInventoryCapabilities") return responseJSON({inventoryVersion:4,batchRevisionVersion:1,materialActualVersion:1,openingEditVersion:1,materialWorkflowVersion:2});
     if (action === "getInventory") return inventoryReport_();
     if (action === "getCatalogTranslations") return getCatalogTranslations_();
 
@@ -3344,7 +3345,7 @@ function inventoryReport_(){
  function item(kind,id,name,unit,cost){var key=kind+':'+id,known=Object.prototype.hasOwnProperty.call(state.balances,key),qty=known?Math.max(0,state.balances[key]):null,min=state.minimum[key]||0;return {kind:kind,id:id,name:name,unit:unit,qty:qty,minimum:min,maximum:state.maximum[key]===undefined?null:state.maximum[key],unitCost:cost,value:qty===null?null:qty*cost,low:known&&qty<=min};}
  var raw=materials.filter(function(m){return !m.archived&&m.category!=='Produksi';}).map(function(m){var x=item('material',m.id,m.name,m.unit,Number(m.purchaseQty)>0?Number(m.purchaseCost)/Number(m.purchaseQty):0);x.category=m.category;return x;});
  var batchList=inventoryBatchState_(sheets,state,inventoryToday_());
- raw.forEach(function(x){var bs=batchList.filter(function(b){return b.materialId===x.id;}).sort(inventoryBatchOrder_);x.batches=bs;x.unassignedQty=Math.max(0,(x.qty||0)-bs.reduce(function(s,b){return s+b.qty;},0));x.usableQty=bs.filter(function(b){return b.eligible;}).reduce(function(s,b){return s+b.qty;},0);});
+ raw.forEach(function(x){var bs=batchList.filter(function(b){return b.materialId===x.id;});x.batches=bs;x.unassignedQty=Math.max(0,(x.qty||0)-bs.reduce(function(s,b){return s+b.qty;},0));x.usableQty=bs.filter(function(b){return b.eligible;}).reduce(function(s,b){return s+b.qty;},0);});
  var finished=products.map(function(p){var x=item('finished',p.sku,p.productName+' '+p.variantName,'pack',Number(p.hpp)||0);x.sellingPrice=Number(p.sellingPrice)||0;try{var usage=inventoryUsage_(recipes[p.sku]),ids=Object.keys(usage),unknown=ids.some(function(id){return state.balances['material:'+id]===undefined;});x.capacity=unknown?null:Math.max(0,Math.min.apply(null,ids.map(function(id){return Math.floor(((raw.filter(function(m){return m.id===id&&!m.archived;})[0]||{usableQty:0}).usableQty+1e-8)/usage[id]);})));}catch(e){x.capacity=null;x.capacityReason=e.message;}return x;});
  return responseJSON({success:true,inventoryVersion:4,openingEditVersion:1,materialActualVersion:1,batchRevisionVersion:1,materialWorkflowVersion:2,products:products,recipes:inventoryRecipes_(),production:productionOrders_(),expenses:operatingExpenses_(),spreadsheetUrl:typeof SpreadsheetApp.getActiveSpreadsheet().getUrl==='function'?SpreadsheetApp.getActiveSpreadsheet().getUrl():'',materials:raw,finished:finished,history:state.rows.slice(-30).reverse().filter(function(r){return r[1]!=='Event ID';}).map(function(r){return {date:formatKonsinyasiDateTime_(r[0]),eventId:r[1],kind:r[2],id:r[3],qty:r[4],note:r[5],batchId:r[6]||''};}),valuation:'Harga acuan master saat ini; belum FIFO atau nilai historis pembelian.'});
 }
@@ -3477,13 +3478,13 @@ function saveInventoryItem_(data){
 function inventoryToday_(){var ss=SpreadsheetApp.getActiveSpreadsheet();return Utilities.formatDate(new Date(),ss.getSpreadsheetTimeZone(),'yyyy-MM-dd');}
 function inventoryValidDate_(v,monthAllowed){return typeof v==='string'&&((monthAllowed&&/^\d{4}-(0[1-9]|1[0-2])$/.test(v))||(/^\d{4}-\d{2}-\d{2}$/.test(v)&&!isNaN(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v));}
 function inventoryBatchState_(sheets,state,today){
- var balances={},rows=sheets.batches.getDataRange().getValues(),batches=[];
- state.rows.slice(1).forEach(function(r){if(r[6])balances[String(r[6])]=(balances[String(r[6])]||0)+Number(r[4]||0);});
+ var balances={},openings={},sequence={},rows=sheets.batches.getDataRange().getValues(),batches=[];
+ state.rows.slice(1).forEach(function(r){if(r[6]){var bid=String(r[6]);balances[bid]=(balances[bid]||0)+Number(r[4]||0);if(/^batchOpening(?:Edit)?(?: \||$)/.test(String(r[5])))openings[bid]=(openings[bid]||0)+Number(r[4]||0);}});
  for(var i=1;i<rows.length;i++){
-  var r=rows[i];if(!r[0]||r[4]==='DELETED')continue;var received=r[2] instanceof Date?formatDateValue(r[2]):String(r[2]||''),expiry=r[3] instanceof Date?formatDateValue(r[3]):String(r[3]||''),valid=inventoryValidDate_(received,true)&&(!expiry||inventoryValidDate_(expiry,false)),days=expiry&&valid?Math.round((Date.parse(expiry)-Date.parse(today))/86400000):null;
-  var openingQty=null;state.rows.slice(1).forEach(function(entry){if(String(entry[6])===String(r[0])&&/^batchOpening(?:Edit)?(?: \||$)/.test(String(entry[5])))openingQty=(openingQty===null?0:openingQty)+Number(entry[4]||0);});
+  var r=rows[i];if(!r[0])continue;var materialKey=String(r[1]);sequence[materialKey]=(sequence[materialKey]||0)+1;if(r[4]==='DELETED')continue;var received=r[2] instanceof Date?formatDateValue(r[2]):String(r[2]||''),expiry=r[3] instanceof Date?formatDateValue(r[3]):String(r[3]||''),valid=inventoryValidDate_(received,true)&&(!expiry||inventoryValidDate_(expiry,false)),days=expiry&&valid?Math.round((Date.parse(expiry)-Date.parse(today))/86400000):null;
+  var openingQty=Object.prototype.hasOwnProperty.call(openings,String(r[0]))?openings[String(r[0])]:null;
   var qty=Math.max(0,balances[String(r[0])]||0),quality=String(r[4]||'HOLD'),expired=days!==null&&days<0;
-  batches.push({openingQty:openingQty,batchId:String(r[0]),materialId:String(r[1]),receivedOn:received,expiryDate:expiry,quality:quality,qualityNote:String(r[5]||''),updatedAt:r[6] instanceof Date?r[6].toISOString():String(r[6]||''),qty:qty,daysToExpiry:days,expired:expired,expiringSoon:days!==null&&days>=0&&days<=30,eligible:valid&&quality==='READY'&&!expired&&received.slice(0,10)<=today,ageDays:received.length===10&&valid?Math.max(0,Math.floor((Date.parse(today)-Date.parse(received))/86400000)):null,ageMonths:valid?(Number(today.slice(0,4))-Number(received.slice(0,4)))*12+Number(today.slice(5,7))-Number(received.slice(5,7)):null});
+  batches.push({inputOrder:sequence[materialKey],openingQty:openingQty,batchId:String(r[0]),materialId:String(r[1]),receivedOn:received,expiryDate:expiry,quality:quality,qualityNote:String(r[5]||''),updatedAt:r[6] instanceof Date?r[6].toISOString():String(r[6]||''),qty:qty,daysToExpiry:days,expired:expired,expiringSoon:days!==null&&days>=0&&days<=30,eligible:valid&&quality==='READY'&&!expired&&received.slice(0,10)<=today,ageDays:received.length===10&&valid?Math.max(0,Math.floor((Date.parse(today)-Date.parse(received))/86400000)):null,ageMonths:valid?(Number(today.slice(0,4))-Number(received.slice(0,4)))*12+Number(today.slice(5,7))-Number(received.slice(5,7)):null});
  }
  return batches;
 }

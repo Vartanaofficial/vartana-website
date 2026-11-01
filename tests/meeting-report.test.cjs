@@ -7,5 +7,18 @@ test('stock is explicitly a present-day snapshot and reporting period filters OP
 test('undated orders remain visible for reconciliation without entering a period total',()=>{const r=buildMeetingReport([...orders,{orderSerial:'NO-DATE',status:'SELESAI',subtotalProducts:99999}],products,inventory,'','',true,'CONTOH');assert.equal(r.kpis[0].value,'Rp 100.000');assert.equal(r.sections.find(s=>s.title==='Rekonsiliasi order tanpa tanggal').rows[0][0],'NO-DATE');});
 
 const {selectReportScope}=load('lib/meeting-report.ts');
-test('stock PDF scope excludes sales and P&L while preserving stock snapshot and FEFO',()=>{const full=buildMeetingReport(orders,products,inventory,'','',false,'NOW'),stock=selectReportScope(full,'stock');assert.equal(stock.title,'Laporan persediaan stok');assert.equal(stock.months.length,0);assert.equal(stock.kpis.length,1);assert.ok(stock.sections.some(s=>s.title.includes('FEFO')));assert.ok(!stock.sections.some(s=>s.title.includes('P&L')||s.title==='Daftar penjualan periode'));assert.equal(full.sections.length,11);});
+test('stock PDF scope excludes sales and P&L while preserving stock snapshot and FEFO',()=>{const full=buildMeetingReport(orders,products,inventory,'','',false,'NOW'),stock=selectReportScope(full,'stock');assert.equal(stock.title,'Laporan persediaan stok');assert.equal(stock.months.length,0);assert.equal(stock.kpis.length,4);assert.ok(stock.sections.some(s=>s.title.includes('FEFO')));assert.ok(!stock.sections.some(s=>s.title.includes('P&L')||s.title==='Daftar penjualan periode'));assert.equal(full.sections.length,13);});
 test('sales, profit and combined exports retain their respective sections and completeness limits',()=>{const full=buildMeetingReport(orders,products,inventory,'','',false,'NOW'),sales=selectReportScope(full,'sales'),pnl=selectReportScope(full,'pnl');assert.ok(sales.sections.some(s=>s.title==='Daftar penjualan periode'));assert.ok(!sales.sections.some(s=>s.title==='Biaya operasional periode'));assert.equal(pnl.kpis[2].value,'Belum lengkap');assert.ok(pnl.sections.some(s=>s.title==='Biaya operasional periode'));assert.equal(selectReportScope(full,'all').sections.length,full.sections.length);});
+
+test('stock report separates raw materials and packaging and combines rupiah without mixing units',()=>{
+ const materials=[{id:'RAW',name:'Adas',category:'Bahan baku',qty:200,unit:'gram',unitCost:100,value:20000},{id:'PACK',name:'Pouch',category:'Kemasan',qty:10,unit:'pcs',unitCost:500,value:5000},{id:'SUP',name:'Roll',category:'Perlengkapan',qty:2,unit:'roll',unitCost:1000,value:2000},{id:'UNKNOWN',name:'Jar',category:'Kemasan',qty:null,unit:'pcs',value:null}];
+ const r=selectReportScope(buildMeetingReport([],[],{materials,finished:[{id:'SKU',name:'Teh',qty:3,unit:'pack',unitCost:10000,value:30000}]},'','',false,'NOW'),'stock');
+ assert.deepEqual(r.kpis.map(k=>k.value),['Rp 20.000','Rp 7.000 *','Rp 30.000','Rp 57.000 *']);
+ const summary=r.sections.find(s=>s.title==='Ringkasan persediaan gabungan');assert.equal(summary.rows[0][1],'200 gram');assert.equal(summary.rows[1][1],'10 pcs + 2 roll');
+ assert.equal(r.sections.find(s=>s.title==='Rincian bahan baku').rows.length,1);assert.equal(r.sections.find(s=>s.title==='Rincian kemasan & perlengkapan').rows.length,3);
+});
+test('unknown stock prices remain incomplete while recorded zero stock is valid',()=>{
+ const {inventorySummary}=load('lib/inventory-summary.ts');
+ const groups=inventorySummary([{category:'Bahan baku',qty:5,unit:'gram',unitCost:0,value:0},{category:'Kemasan',qty:0,unit:'pcs',unitCost:0,value:0}],[]);
+ assert.equal(groups[0].incomplete,1);assert.equal(groups[1].incomplete,0);assert.equal(groups[1].quantity,'0 pcs');
+});

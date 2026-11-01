@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { type Product, type ProductVariant } from "@/lib/products";
 import { emptyCatalogProduct } from "@/lib/store-catalog";
 import ProductImage from "@/app/components/ProductImage";
@@ -8,6 +8,7 @@ import Link from "next/link";
 import StorefrontMotion from "@/app/components/StorefrontMotion";
 import AmbientMusic from "@/app/components/AmbientMusic";
 import StorefrontIcon from "@/app/components/StorefrontIcon";
+import ArticlePreview from "@/app/components/ArticlePreview";
 import { BotanicalSprig } from "@/app/checkout/CheckoutVisuals";
 import "./storefront.css";
 import { readCart, writeCart } from "@/lib/cart-storage";
@@ -69,318 +70,260 @@ const BANK_DETAILS = {
 
 
 const content = {
-  id: {
-    nav: {
-      philosophy: "Filosofi",
-      collection: "Katalog",
-      science: "Riset & Khasiat",
-      origin: "Cerita & Esensi",
-      purpose: "Tujuan",
-      journal: "Jurnal",
+  "id": {
+    "nav": {
+      "philosophy": "Filosofi",
+      "collection": "Katalog",
+      "science": "Kenali Rempah",
+      "origin": "Tentang VARTANA",
+      "purpose": "Tujuan",
+      "journal": "Jurnal"
     },
-    hero: {
-      eyebrow: "VARTANA · BOTANICAL WELLNESS",
-      title: "Kebaikan murni dari alam,",
-      accent: "untuk ritual keseharian.",
-      text: "Mengangkat kekayaan botanikal Nusantara dalam racikan otentik yang disajikan dengan dedikasi tinggi pada kualitas bahan, proses, dan keberlanjutan.",
-      primary: "Mulai Belanja",
-      secondary: "Tentang VARTANA",
+    "hero": {
+      "eyebrow": "VARTANA · BOTANICAL WELLNESS",
+      "title": "Seduhan rempah,",
+      "accent": "teman di sela harimu.",
+      "text": "Kenali racikannya, pilih kemasannya, lalu nikmati dengan cara yang kamu suka.",
+      "primary": "Lihat Katalog",
+      "secondary": "Tentang VARTANA"
     },
-    philosophy: {
-      eyebrow: "FILOSOFI VARTANA",
-      title: "Setiap bahan memiliki cerita.",
-      text1: "Sebelum menjadi bagian dari satu cangkir, setiap bahan berasal dari tanaman, tanah, musim, dan tangan yang merawatnya.",
-      text2: "VARTANA membawa cerita itu lebih jauh melalui produk botanikal yang dibuat dengan sederhana, penuh perhatian, dan tetap dekat dengan kekayaan alam Indonesia.",
-      quote: "Rooted in Earth, Built for Growth.",
+    "philosophy": {
+      "eyebrow": "FILOSOFI VARTANA",
+      "title": "Mulai dari bahan yang kita kenal.",
+      "text1": "Jahe, serai, dan kayu manis sudah akrab dalam keseharian kita. Masing-masing punya rasa dan aroma yang berbeda.",
+      "text2": "VARTANA mengajak kamu mengenal bahan dalam racikan yang dipilih. Komposisi dan petunjuk seduh bisa dibaca di setiap detail produk.",
+      "quote": "Rooted in Earth, Built for Growth."
     },
-    collection: {
-      eyebrow: "BOTANICAL COLLECTION",
-      title: "Empat racikan, empat karakter unik.",
-      text: "Formulasi perdana VARTANA diracik secara presisi dari rempah-rempah Nusantara terbaik. Masing-masing memiliki keharmonisan rasa, aroma, dan khasiat tersendiri.",
+    "collection": {
+      "eyebrow": "KATALOG VARTANA",
+      "title": "Pilih racikan yang kamu suka.",
+      "text": "Lihat bahan, pilihan kemasan, dan harga setiap racikan. Informasi produk di bawah mengikuti katalog terbaru."
     },
-    product: {
-      ingredients: "Komposisi Rempah (Klik untuk informasi medis)",
-      weight: "Berat bersih per tea bag",
-      weightValue: "±9 g",
-      taste: "Karakter Rasa",
-      aroma: "Profil Aroma",
-      difference: "Keunggulan Racikan",
-      benefit: "Manfaat Bahan",
-      preparation: "Petunjuk Penyeduhan",
-      preparationText: "1 tea bag · ±9 g · 200 ml air bersih · 90–95°C · 3–5 menit ekstraksi",
-      regularPrice: "Harga Reguler",
-      promoPrice: "Harga Penawaran",
-      pouch: "Format Kemasan",
-      addToCart: "Tambah ke Keranjang",
-      buyNow: "Beli Sekarang",
-      selectQuantity: "Jumlah Pesanan",
+    "product": {
+      "ingredients": "Komposisi Rempah (Klik untuk informasi medis)",
+      "weight": "Berat bersih per tea bag",
+      "weightValue": "±9 g",
+      "taste": "Karakter Rasa",
+      "aroma": "Profil Aroma",
+      "difference": "Keunggulan Racikan",
+      "benefit": "Manfaat Bahan",
+      "preparation": "Petunjuk Penyeduhan",
+      "preparationText": "1 tea bag · ±9 g · 200 ml air bersih · 90–95°C · 3–5 menit ekstraksi",
+      "regularPrice": "Harga Reguler",
+      "promoPrice": "Harga Penawaran",
+      "pouch": "Format Kemasan",
+      "addToCart": "Tambah ke Keranjang",
+      "buyNow": "Beli Sekarang",
+      "selectQuantity": "Jumlah Pesanan"
     },
-    science: {
-      eyebrow: "EVIDENCE-BASED BOTANICAL",
-      title: "Landasan Ilmiah & Khasiat Rempah",
-      text: "Setiap racikan VARTANA mengombinasikan kearifan lokal dengan rujukan penelitian ilmiah klinis terpercaya (PubMed / NCBI). Klik kartu bahan untuk membaca ulasan jurnal terkait.",
-      cardBadge: "BOTANICAL INGREDIENT",
-      cardLink: "Pelajari Jurnal Ilmiah →",
-      modalActive: "Kandungan Aktif Utama:",
-      modalBenefits: "Manfaat Kesehatan Klinis:",
-      modalRelieves: "Membantu Meredakan:",
-      modalJournalHeading: "🔬 Referensi Jurnal Medis (PubMed / NCBI):",
-      modalReadOfficial: "Buka Publikasi Resmi \u2197↗",
-      modalClose: "Tutup Informasi",
+    "science": {
+      "eyebrow": "KENALI BAHANNYA",
+      "title": "Lebih dekat dengan rempah.",
+      "text": "Pilih bahan untuk membaca informasi dan referensi yang tersedia. Penelitian tentang bahan tidak sama dengan pengujian produk VARTANA.",
+      "cardBadge": "BAHAN REMPAH",
+      "cardLink": "Baca tentang bahan",
+      "modalActive": "Kandungan Aktif Utama:",
+      "modalBenefits": "Informasi manfaat bahan:",
+      "modalRelieves": "Informasi penggunaan:",
+      "modalJournalHeading": "Referensi penelitian:",
+      "modalReadOfficial": "Buka publikasi",
+      "modalClose": "Tutup"
     },
-    purpose: {
-      eyebrow: "PRINSIP UTAMA",
-      title: "Tiga komitmen yang kami pegang teguh.",
-      text: "Bagi VARTANA, menyajikan racikan botanikal bukan sekadar menjual produk. Ini adalah komitmen menghargai apa yang kita konsumsi serta dampak positif bagi seluruh rantai nilai.",
-      pillars: [
+    "purpose": {
+      "eyebrow": "PRINSIP UTAMA",
+      "title": "Informasi yang membantu kamu memilih.",
+      "text": "Kami ingin kamu tahu apa yang dipilih dan bagaimana menikmatinya.",
+      "pillars": [
         {
-          number: "01",
-          title: "Kesadaran dalam Memilih",
-          text: "Gaya hidup sehat berawal dari kepedulian terhadap apa yang masuk ke dalam tubuh kita—mengenali kemurnian bahan, rasa alami, dan asal usul sumbernya.",
+          "number": "01",
+          "title": "Kenali bahannya",
+          "text": "Baca komposisi sebelum memilih racikan. Tanyakan kepada kami jika ada bahan yang belum kamu kenal."
         },
         {
-          number: "02",
-          title: "Keberagaman Rasa Alami",
-          text: "Alam menyajikan spektrum rasa yang sangat kaya tanpa memerlukan gula berlebih. Dari kehangatan jahe hingga keharuman serai dan kayu manis.",
+          "number": "02",
+          "title": "Pilih kemasan yang sesuai",
+          "text": "Periksa jumlah tea bag, berat, dan harga pada varian yang kamu pilih."
         },
         {
-          number: "03",
-          title: "Koneksi dengan Sang Pemelihara",
-          text: "Setiap cangkir menyimbolkan dedikasi para petani, kesuburan tanah Nusantara, dan apresiasi kita terhadap warisan botanikal lokal.",
-        },
+          "number": "03",
+          "title": "Seduh sesuai petunjuk",
+          "text": "Ikuti petunjuk pada produk agar takaran air dan waktu seduhnya sesuai."
+        }
       ],
-      closing: "Keseimbangan alami untuk hari Anda. Masa depan yang lebih baik bagi pertanian lokal.",
+      "closing": "Ada yang belum jelas? Tim VARTANA bisa membantu sebelum kamu memesan."
     },
-    origin: {
-      eyebrow: "CERITA & ESENSI VARTANA",
-      title: "Mengapa Memilih Botanikal Murni?",
-      intro: "Ketika Gaya Hidup Modern Menuntut Kesadaran Baru",
-      paragraphs: [
-        "Dalam ritme dinamika harian yang kian cepat, kita kerap kali merindukan sebuah jeda—sebuah momen tenang yang mampu mengembalikan keheningan pikiran dan vitalitas tubuh.",
-        "Di tengah maraknya konsumsi serba instan yang dipenuhi kadar gula tinggi serta pemanis buatan, saatnya kita bertanya dengan arif: *Apa yang sungguh-sungguh dibutuhkan oleh tubuh kita untuk bertumbuh dengan baik?*",
-      ],
-      questions: [
-        '"Apa sesungguhnya esensi zat yang kita masukkan ke dalam tubuh setiap harinya?"',
-        '"Dari manakah sumber kekayaan alam itu berasal dan bagaimana ia dipelihara?"',
-        '"Bisakah kelezatan rasa dan keanggunan aroma hadir secara murni dari kebaikan rempah alami Nusantara?"',
-      ],
-      afterQuestions: ["Perenungan mendalam inilah yang melandasi lahirnya VARTANA Botanical Wellness—sebuah dedikasi untuk mengembalikan ritual keseharian pada kesucian alam."],
-      highlight: "Tanaman. Rempah murni. Warisan kebaikan yang senantiasa relevan melintasi zaman.",
-      simpleTitle: "Kembali pada Kesederhanaan Alam",
-      simpleParagraphs: ["VARTANA merajut kembali memori dan kekayaan rempah Nusantara yang telah menjadi pilar kebugaran leluhur kita sejak ribuan tahun lalu. Tanpa rekayasa sintetis, tanpa kompromi."],
-      simpleHighlight: "Murni dari tanah Nusantara. Diracik dengan jiwa dan kesadaran penuh.",
-      ingredientsStory: [
-        "Kehangatan alami nan mendalam dari Jahe pilihan.",
-        "Keharuman sitrus menenangkan dari Serai segar.",
-        "Karakter manis-rempah yang berkelas dari Kayu Manis berkualitas tinggi.",
-        "Keharmonisan sinergi Cengkeh, Kapulaga, Pala, Kunyit, dan botanikal unggulan Nusantara.",
-      ],
-      simpleClosing: ["Bahan-bahan luhur ini telah teruji oleh Sang Waktu dan tradisi panjang peradaban kita."],
-      finalLine: "Inilah esensi sejati lahirnya VARTANA Botanical Wellness.",
-      notJustTitle: "Lebih dari Sekadar Cangkir Minuman",
-      notJustParagraphs: ["Kami merancang setiap racikan dengan tingkat presisi tinggi agar setiap elemen botanikal memiliki peran fungsional yang nyata bagi daya tahan dan keseimbangan tubuh Anda."],
-      notJustHighlight: "Murni. Elegan. Tanpa bahan sintetis tambahan.",
-      notJustClosing: ["Menghargai kebaikan alam berarti memberikan yang terbaik bagi tubuh tanpa pernah berkompromi."],
-      notJustFinal: "Membawa keanggunan warisan tradisi ke dalam gaya hidup modern Anda.",
-      soilTitle: "Dari Kesuburan Tanah ke Dalam Cangkir Anda",
-      soilParagraphs: ["Setiap cangkir yang Anda seduh adalah bentuk penghormatan tertinggi terhadap bumi Indonesia."],
-      journey: ["Lahir dari kesuburan tanah lokal yang kaya.", "Dipelihara oleh ketulusan tangan para petani lokal.", "Diracik dengan standar mutu dan higienitas tinggi.", "Disajikan utuh untuk menjaga ritual kebaikan harian Anda."],
-      soilClosing: "Satu cangkir sederhana dengan kisah perjalanan yang panjang, jujur, dan berharga.",
-      futureTitle: "Dampak Positif yang Berkelanjutan",
-      futureParagraphs: ["VARTANA berkomitmen untuk terus berdaya bersama komunitas petani lokal melalui kemitraan yang adil, transparan, dan berkelanjutan."],
-      futureClosing: "Setiap cangkir yang Anda nikmati hari ini turut membangun masa depan yang lebih cerah bagi kedaulatan pertanian Indonesia.",
-      label: "FROM SOIL TO CUP · ROOTED IN EARTH",
+    "origin": {
+      "eyebrow": "TENTANG VARTANA",
+      "title": "Cerita di balik seduhan.",
+      "intro": "Kami berangkat dari bahan-bahan yang dekat dengan keseharian. Baca cerita VARTANA dan cara kami mengenalkan racikan rempah.",
+      "button": "Baca cerita VARTANA"
     },
-    journal: {
-      eyebrow: "JURNAL VARTANA",
-      title: "Catatan Seputar Botanikal & Gaya Hidup Sehat",
-      text: "Ruang inspirasi mengenai artikel kesehatan, riset rempah, kisah kemitraan petani, dan perkembangan VARTANA.",
-      button: "BACA ARTIKEL",
-      articles: ["Memahami Peran Rempah Murni dalam Meningkatkan Imunitas", "Kekayaan Botanikal Indonesia di Mata Dunia", "Pentingnya Menjaga Konsumsi Tanpa Gula Berlebih", "Kisah Petani Rempah Lokal di Balik Racikan VARTANA"],
+    "journal": {
+      "eyebrow": "JURNAL VARTANA",
+      "title": "Cerita dan catatan dari kami.",
+      "text": "Tentang bahan, pilihan racikan, dan kabar VARTANA. Setiap artikel punya halaman sendiri yang bisa kamu baca dan bagikan.",
+      "button": "Lihat semua artikel"
     },
-    footer: {
-      tagline: "More Than Wellness. A Better Future for Farmers.",
-      contact: "LAYANAN PELANGGAN",
-      email: "Email Resmi",
-      whatsapp: "WhatsApp Direct",
-      instagram: "Instagram Official",
-      tiktok: "TikTok Official",
-      location: "Kantor Pusat",
-      locationValue: "TANGERANG CITY, INDONESIA",
-      copyright: "© 2026 VARTANA. All rights reserved.",
+    "footer": {
+      "tagline": "Rempah yang akrab, untuk dinikmati sehari-hari.",
+      "contact": "LAYANAN PELANGGAN",
+      "email": "Email Resmi",
+      "whatsapp": "WhatsApp Direct",
+      "instagram": "Instagram Official",
+      "tiktok": "TikTok Official",
+      "location": "Kantor Pusat",
+      "locationValue": "TANGERANG CITY, INDONESIA",
+      "copyright": "© 2026 VARTANA. All rights reserved."
     },
-    cart: {
-      title: "Keranjang Belanja",
-      empty: "Keranjang belanja Anda saat ini masih kosong.",
-      total: "Total Pembayaran",
-      checkoutBtn: "Lanjut ke Data Pengiriman",
-      fillFormTitle: "Informasi Pembeli & Alamat",
-      name: "Nama Lengkap",
-      email: "Alamat Email",
-      phone: "Nomor WhatsApp / HP",
-      province: "Provinsi",
-      city: "Kota / Kabupaten",
-      district: "Kecamatan",
-      addressDetail: "Alamat Lengkap (Nama Jalan, No. Rumah, RT/RW, Kode Pos)",
-      notes: "Catatan Tambahan (Opsional)",
-      payNow: "Lanjut ke Instruksi Transfer",
-      backToCart: "Kembali ke Keranjang",
-      requiredError: "Mohon lengkapi Nama, Email, Nomor WhatsApp, Tanggal Lahir, Provinsi, Kota, Kecamatan, Detail Alamat, dan Pilihan Kurir Pengiriman.",
-      shippingTitle: "Pilih Layanan Pengiriman",
-      transferTitle: "Instruksi Transfer Bank",
-      confirmWa: "Konfirmasi Pesanan via WhatsApp",
-    },
+    "cart": {
+      "title": "Keranjang Belanja",
+      "empty": "Keranjang belanja Anda saat ini masih kosong.",
+      "total": "Total Pembayaran",
+      "checkoutBtn": "Lanjut ke Data Pengiriman",
+      "fillFormTitle": "Informasi Pembeli & Alamat",
+      "name": "Nama Lengkap",
+      "email": "Alamat Email",
+      "phone": "Nomor WhatsApp / HP",
+      "province": "Provinsi",
+      "city": "Kota / Kabupaten",
+      "district": "Kecamatan",
+      "addressDetail": "Alamat Lengkap (Nama Jalan, No. Rumah, RT/RW, Kode Pos)",
+      "notes": "Catatan Tambahan (Opsional)",
+      "payNow": "Lanjut ke Instruksi Transfer",
+      "backToCart": "Kembali ke Keranjang",
+      "requiredError": "Mohon lengkapi Nama, Email, Nomor WhatsApp, Tanggal Lahir, Provinsi, Kota, Kecamatan, Detail Alamat, dan Pilihan Kurir Pengiriman.",
+      "shippingTitle": "Pilih Layanan Pengiriman",
+      "transferTitle": "Instruksi Transfer Bank",
+      "confirmWa": "Konfirmasi Pesanan via WhatsApp"
+    }
   },
-  en: {
-    nav: {
-      philosophy: "Philosophy",
-      collection: "Shop",
-      science: "Spice Benefits",
-      origin: "Story & Essence",
-      purpose: "Purpose",
-      journal: "Journal",
+  "en": {
+    "nav": {
+      "philosophy": "Philosophy",
+      "collection": "Shop",
+      "science": "Explore Spices",
+      "origin": "About VARTANA",
+      "purpose": "Purpose",
+      "journal": "Journal"
     },
-    hero: {
-      eyebrow: "VARTANA · BOTANICAL WELLNESS",
-      title: "Pure goodness of nature,",
-      accent: "for your daily rituals.",
-      text: "Elevating Indonesia's botanical richness into authentic blends crafted with dedication to quality, process, and sustainability.",
-      primary: "Shop Now",
-      secondary: "About VARTANA",
+    "hero": {
+      "eyebrow": "VARTANA · BOTANICAL WELLNESS",
+      "title": "A cup of spices,",
+      "accent": "a moment for yourself.",
+      "text": "Explore the blends, choose a pack, and enjoy a cup your way.",
+      "primary": "Browse Catalog",
+      "secondary": "About VARTANA"
     },
-    philosophy: {
-      eyebrow: "THE VARTANA PHILOSOPHY",
-      title: "Every ingredient holds a story.",
-      text1: "Before reaching your cup, every botanical element originates from fertile soil, seasonal rhythms, and local farming expertise.",
-      text2: "VARTANA brings this heritage forward through elegant botanical blends that stay close to nature's purity.",
-      quote: "Rooted in Earth, Built for Growth.",
+    "philosophy": {
+      "eyebrow": "THE VARTANA PHILOSOPHY",
+      "title": "Start with familiar ingredients.",
+      "text1": "Ginger, lemongrass, and cinnamon are familiar ingredients, each with its own flavour and aroma.",
+      "text2": "Get to know what goes into your chosen blend. Ingredients and brewing instructions are listed in the product details.",
+      "quote": "Rooted in Earth, Built for Growth."
     },
-    collection: {
-      eyebrow: "BOTANICAL COLLECTION",
-      title: "Four blends, four distinct characters.",
-      text: "VARTANA's inaugural blends are precisely crafted from Indonesia's finest spices, each offering balanced taste and purpose.",
+    "collection": {
+      "eyebrow": "VARTANA CATALOG",
+      "title": "Find a blend you enjoy.",
+      "text": "Explore the ingredients, pack sizes, and prices. Product details below reflect the current catalog."
     },
-    product: {
-      ingredients: "Botanical Blend (Click for research references)",
-      weight: "Net weight per tea bag",
-      weightValue: "±9 g",
-      taste: "Taste Profile",
-      aroma: "Aroma Profile",
-      difference: "Blend Distinction",
-      benefit: "Ingredient Benefits",
-      preparation: "Brewing Guide",
-      preparationText: "1 tea bag · ±9 g · 200 ml fresh water · 90–95°C · 3–5 minutes steep time",
-      regularPrice: "Regular Price",
-      promoPrice: "Special Offer",
-      pouch: "Packaging Size",
-      addToCart: "Add to Cart",
-      buyNow: "Buy Now",
-      selectQuantity: "Select Quantity",
+    "product": {
+      "ingredients": "Botanical Blend (Click for research references)",
+      "weight": "Net weight per tea bag",
+      "weightValue": "±9 g",
+      "taste": "Taste Profile",
+      "aroma": "Aroma Profile",
+      "difference": "Blend Distinction",
+      "benefit": "Ingredient Benefits",
+      "preparation": "Brewing Guide",
+      "preparationText": "1 tea bag · ±9 g · 200 ml fresh water · 90–95°C · 3–5 minutes steep time",
+      "regularPrice": "Regular Price",
+      "promoPrice": "Special Offer",
+      "pouch": "Packaging Size",
+      "addToCart": "Add to Cart",
+      "buyNow": "Buy Now",
+      "selectQuantity": "Select Quantity"
     },
-    science: {
-      eyebrow: "EVIDENCE-BASED BOTANICAL",
-      title: "Botanical Research & Benefits",
-      text: "Every VARTANA blend merges traditional wisdom with backed clinical medical research (PubMed / NCBI). Click each card to explore.",
-      cardBadge: "BOTANICAL INGREDIENT",
-      cardLink: "Explore Clinical Study →",
-      modalActive: "Primary Bioactive Compounds:",
-      modalBenefits: "Clinical Health Benefits:",
-      modalRelieves: "Helps Alleviate:",
-      modalJournalHeading: "🔬 Medical Reference (PubMed / NCBI):",
-      modalReadOfficial: "Read Official Publication \u2197↗",
-      modalClose: "Close Details",
+    "science": {
+      "eyebrow": "EXPLORE THE INGREDIENTS",
+      "title": "Get to know the spices.",
+      "text": "Choose an ingredient to read the available information and references. Research on individual ingredients is not a clinical test of VARTANA products.",
+      "cardBadge": "BOTANICAL INGREDIENT",
+      "cardLink": "Read about this ingredient",
+      "modalActive": "Primary Bioactive Compounds:",
+      "modalBenefits": "Ingredient information:",
+      "modalRelieves": "Use information:",
+      "modalJournalHeading": "Research references:",
+      "modalReadOfficial": "Read publication",
+      "modalClose": "Close"
     },
-    purpose: {
-      eyebrow: "OUR PURPOSE",
-      title: "Three guiding principles.",
-      text: "For VARTANA, crafting botanical blends is about conscious consumption, respecting origins, and creating value along the journey.",
-      pillars: [
+    "purpose": {
+      "eyebrow": "OUR PURPOSE",
+      "title": "Clear information for your choice.",
+      "text": "We want you to understand what you choose and how to enjoy it.",
+      "pillars": [
         {
-          number: "01",
-          title: "Mindful Choices",
-          text: "True wellness starts with knowing what enters your body—valuing pure ingredients, natural taste, and authentic sourcing.",
+          "number": "01",
+          "title": "Know the ingredients",
+          "text": "Read the ingredients before choosing a blend. Ask us if anything is unclear."
         },
         {
-          number: "02",
-          title: "Natural Flavour Diversity",
-          text: "Nature offers rich flavor layers without needing excess sugars—from warming ginger to aromatic lemongrass and cinnamon.",
+          "number": "02",
+          "title": "Choose your pack",
+          "text": "Check the tea bag count, weight, and price of the selected pack."
         },
         {
-          number: "03",
-          title: "Connection to Source",
-          text: "Every cup honors the dedication of local farmers, fertile soils, and Indonesia's botanical heritage.",
-        },
+          "number": "03",
+          "title": "Follow the brewing guide",
+          "text": "Use the water quantity and brewing time listed for your product."
+        }
       ],
-      closing: "Natural harmony for your day. Sustainable progress for local agriculture.",
+      "closing": "Have a question? The VARTANA team can help before you order."
     },
-    origin: {
-      eyebrow: "THE VARTANA STORY",
-      title: "Why Choose Pure Botanicals?",
-      intro: "When Modern Living Demands Conscious Mindfulness",
-      paragraphs: ["In our fast-paced daily life, finding moments to pause and restore vitality becomes essential.", "Moving away from sugary artificial beverages, it is time to choose drinks that truly honor our health."],
-      questions: ['"What is really inside our daily cup?"', '"Where do these ingredients originate?"', '"Can authentic taste come directly from pure spices?"'],
-      afterQuestions: ["These questions shaped the creation of VARTANA Botanical Wellness."],
-      highlight: "Pure plants. Authentic spices. Timeless wellness.",
-      simpleTitle: "Return to Natural Simplicity",
-      simpleParagraphs: ["VARTANA reintroduces Indonesia's rich spice heritage, cherished across generations for holistic vitality."],
-      simpleHighlight: "Rooted in Indonesian soil. Crafted with intention and awareness.",
-      ingredientsStory: ["Warming presence of selected Ginger.", "Soothing citrus aroma of fresh Lemongrass.", "Sweet-spicy character of premium Cinnamon.", "Synergy of Clove, Cardamom, Nutmeg, Turmeric, and fine botanicals."],
-      simpleClosing: ["These botanicals have stood the test of time and tradition."],
-      finalLine: "This is the essence of VARTANA Botanical Wellness.",
-      notJustTitle: "More Than Just a Beverage",
-      notJustParagraphs: ["Every blend is formulated so each element serves a clear functional purpose for your well-being."],
-      notJustHighlight: "Pure. Refined. Free from artificial additives.",
-      notJustClosing: ["Respecting nature means giving your body the uncompromised best."],
-      notJustFinal: "Bringing timeless heritage into your modern lifestyle.",
-      soilTitle: "From Indonesian Soil to Your Cup",
-      soilParagraphs: ["Every brew is a tribute to Indonesia's rich earth."],
-      journey: ["From rich local soils.", "Nurtured by dedicated farmers.", "Crafted with unyielding care.", "Served for your daily well-being."],
-      soilClosing: "A simple cup carrying a long, meaningful journey.",
-      futureTitle: "Sustainable Impact",
-      futureParagraphs: ["VARTANA is committed to supporting local farming communities through fair and sustainable partnerships."],
-      futureClosing: "Every cup you enjoy contributes to a brighter future for local agriculture.",
-      label: "FROM SOIL TO CUP · ROOTED IN EARTH",
+    "origin": {
+      "eyebrow": "ABOUT VARTANA",
+      "title": "The story behind the cup.",
+      "intro": "Our starting point is the ingredients we know from everyday life. Read about VARTANA and our approach to spice blends.",
+      "button": "Read our story"
     },
-    journal: {
-      eyebrow: "VARTANA JOURNAL",
-      title: "Insights on Botanicals & Mindful Living",
-      text: "Inspirational articles covering health research, spice science, farming stories, and VARTANA's updates.",
-      button: "READ ARTICLES",
-      articles: ["Understanding Pure Spices in Supporting Daily Immunity", "Indonesia's Botanical Wealth on the World Stage", "The Importance of Choosing Sugar-Free Wellness", "Behind the Blends: Stories of Our Local Farmers"],
+    "journal": {
+      "eyebrow": "VARTANA JOURNAL",
+      "title": "Stories and notes from us.",
+      "text": "Ingredients, choosing a blend, and updates from VARTANA. Open any article to read and share it.",
+      "button": "View all articles"
     },
-    footer: {
-      tagline: "More Than Wellness. A Better Future for Farmers.",
-      contact: "CUSTOMER CARE",
-      email: "Official Email",
-      whatsapp: "Direct WhatsApp",
-      instagram: "Official Instagram",
-      tiktok: "TikTok Official",
-      location: "Headquarters",
-      locationValue: "TANGERANG CITY, INDONESIA",
-      copyright: "© 2026 VARTANA. All rights reserved.",
+    "footer": {
+      "tagline": "Familiar spices, for an everyday cup.",
+      "contact": "CUSTOMER CARE",
+      "email": "Official Email",
+      "whatsapp": "Direct WhatsApp",
+      "instagram": "Official Instagram",
+      "tiktok": "TikTok Official",
+      "location": "Headquarters",
+      "locationValue": "TANGERANG CITY, INDONESIA",
+      "copyright": "© 2026 VARTANA. All rights reserved."
     },
-    cart: {
-      title: "Shopping Cart",
-      empty: "Your shopping cart is currently empty.",
-      total: "Total Payment",
-      checkoutBtn: "Proceed to Delivery Info",
-      fillFormTitle: "Customer & Shipping Details",
-      name: "Full Name",
-      email: "Email Address",
-      phone: "WhatsApp / Mobile Number",
-      province: "Province",
-      city: "City / Regency",
-      district: "District / Kecamatan",
-      addressDetail: "Full Address Details",
-      notes: "Additional Notes (Optional)",
-      payNow: "Proceed to Transfer Instructions",
-      backToCart: "Back to Cart",
-      requiredError: "Please complete Full Name, Email, WhatsApp Number, Date of Birth, Province, City, District, Address Details, and Courier Selection.",
-      shippingTitle: "Select Shipping Option",
-      transferTitle: "Bank Transfer Instructions",
-      confirmWa: "Confirm Order via WhatsApp",
-    },
-  },
+    "cart": {
+      "title": "Shopping Cart",
+      "empty": "Your shopping cart is currently empty.",
+      "total": "Total Payment",
+      "checkoutBtn": "Proceed to Delivery Info",
+      "fillFormTitle": "Customer & Shipping Details",
+      "name": "Full Name",
+      "email": "Email Address",
+      "phone": "WhatsApp / Mobile Number",
+      "province": "Province",
+      "city": "City / Regency",
+      "district": "District / Kecamatan",
+      "addressDetail": "Full Address Details",
+      "notes": "Additional Notes (Optional)",
+      "payNow": "Proceed to Transfer Instructions",
+      "backToCart": "Back to Cart",
+      "requiredError": "Please complete Full Name, Email, WhatsApp Number, Date of Birth, Province, City, District, Address Details, and Courier Selection.",
+      "shippingTitle": "Select Shipping Option",
+      "transferTitle": "Bank Transfer Instructions",
+      "confirmWa": "Confirm Order via WhatsApp"
+    }
+  }
 };
 
 function InfoBlock({ title = "", text = "" }: { title?: string; text?: string }) {
@@ -404,7 +347,7 @@ export default function Home() {
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number>(0);
 
   // MOBILE STORY TAB STATE
-  const [activeStoryTab, setActiveStoryTab] = useState<number>(0);
+  const productLinkApplied = useRef(false);
 
   // CART & CHECKOUT STATES
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -505,6 +448,8 @@ export default function Home() {
         if (!active) return;
         const latest: Product[] = data.products;
         setProducts(latest);
+        if(!productLinkApplied.current){const id=new URLSearchParams(window.location.search).get('produk'),index=latest.findIndex(p=>p.id===id);if(index>=0){setSelectedProduct(index);setSelectedVariantIndex(0);productLinkApplied.current=true;}}
+
         setTranslationAvailable(data.translationAvailable !== false);
         setCatalogError("");
         // Refresh prices and remove products taken down by admin from open carts.
@@ -1063,19 +1008,19 @@ export default function Home() {
             <a href="#philosophy" className="transition hover:text-[#B69245]">
               {t.nav.philosophy}
             </a>
-            <a href="#collection" className="transition hover:text-[#B69245]">
+            <a href="/katalog" className="transition hover:text-[#B69245]">
               {t.nav.collection}
             </a>
             <a href="#science" className="transition hover:text-[#B69245]">
               {t.nav.science}
             </a>
-            <a href="#origin" className="transition hover:text-[#B69245]">
+            <a href="/artikel/cerita-vartana" className="transition hover:text-[#B69245]">
               {t.nav.origin}
             </a>
             <a href="#purpose" className="transition hover:text-[#B69245]">
               {t.nav.purpose}
             </a>
-            <a href="#journal" className="transition hover:text-[#B69245]">
+            <a href="/artikel" className="transition hover:text-[#B69245]">
               {t.nav.journal}
             </a>
           </div>
@@ -1129,7 +1074,7 @@ export default function Home() {
     </svg>
     <span>{language === "en" ? "Track Order" : "Lacak Pesanan"}</span>
   </button>
-  <a href="#collection" className="flex shrink-0 items-center rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
+  <a href="/katalog" className="flex shrink-0 items-center rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
     {t.nav.collection}
   </a>
   <a href="#science" className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
@@ -1139,7 +1084,7 @@ export default function Home() {
     </svg>
     <span>{t.nav.science}</span>
   </a>
-  <a href="#origin" className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
+  <a href="/artikel/cerita-vartana" className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
     <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
       <path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H20v17H7.5A3.5 3.5 0 0 0 4 22z" />
       <path d="M4 5.5V22M8 6h8M8 10h8" />
@@ -1161,7 +1106,7 @@ export default function Home() {
 </span>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Home</span>
           </a>
-          <a href="#collection" className="flex flex-col items-center py-1 text-[#16382A]">
+          <a href="/katalog" className="flex flex-col items-center py-1 text-[#16382A]">
             <StorefrontIcon name="cart"/>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">{t.nav.collection}</span>
           </a>
@@ -1169,9 +1114,9 @@ export default function Home() {
             <StorefrontIcon name="search"/>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Lacak</span>
           </button>
-          <a href="#origin" className="flex flex-col items-center py-1 text-[#16382A]">
+          <a href="/artikel/cerita-vartana" className="flex flex-col items-center py-1 text-[#16382A]">
             <StorefrontIcon name="book"/>
-            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Origin</span>
+            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">{language === 'id' ? 'Tentang' : 'About'}</span>
           </a>
           <button
             onClick={() => {
@@ -1386,11 +1331,11 @@ export default function Home() {
             </h1>
             <p className="mt-6 max-w-xl text-[14px] leading-relaxed text-[#526158] md:mt-8 md:text-[15px] md:leading-[1.8]">{t.hero.text}</p>
             <div className="storefront-hero-actions mt-8 flex flex-wrap gap-4 md:mt-10">
-              <a href="#collection" className="rounded-full bg-[#16382A] px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#F6F2E8] transition duration-300 hover:bg-[#214737] shadow-xs">
+              <a href="/katalog" className="rounded-full bg-[#16382A] px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#F6F2E8] transition duration-300 hover:bg-[#214737] shadow-xs">
                 {t.hero.primary}
               </a>
               <a
-                href="#philosophy"
+                href="/artikel/cerita-vartana"
                 className="rounded-full border border-[#16382A]/20 bg-white/50 px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#16382A] transition duration-300 hover:border-[#B69245] hover:text-[#9E7A32]"
               >
                 {t.hero.secondary}
@@ -1658,153 +1603,7 @@ export default function Home() {
       </section>
 
       {/* VARTANA STORY */}
-      <section id="origin" className="bg-[#FBF9F4] px-6 py-20 md:py-32 border-b border-[#B69245]/20">
-        <div className="mx-auto max-w-5xl">
-          <div className="text-center">
-            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#B69245]">{t.origin.eyebrow}</p>
-            <h2 className="mx-auto mt-4 max-w-3xl font-serif text-3xl leading-[1.15] tracking-tight text-[#16382A] md:mt-5 md:text-6xl">{t.origin.title}</h2>
-            <p className="mt-4 font-serif text-lg italic text-[#8E6E2E] md:mt-6 md:text-2xl">{t.origin.intro}</p>
-            <div className="mx-auto mt-8 h-px w-24 bg-gradient-to-r from-transparent via-[#B69245] to-transparent" />
-          </div>
-
-          <div className="no-scrollbar my-8 flex overflow-x-auto rounded-xl border border-[#B69245]/20 bg-[#F6F2E8] p-1 md:hidden">
-            <button onClick={() => setActiveStoryTab(0)} className={`shrink-0 rounded-lg px-4 py-2 text-[11px] font-bold uppercase transition ${activeStoryTab === 0 ? "bg-[#16382A] text-[#F6F2E8]" : "text-[#526158]"}`}>
-              01. Kesederhanaan
-            </button>
-            <button onClick={() => setActiveStoryTab(1)} className={`shrink-0 rounded-lg px-4 py-2 text-[11px] font-bold uppercase transition ${activeStoryTab === 1 ? "bg-[#16382A] text-[#F6F2E8]" : "text-[#526158]"}`}>
-              02. Esensi Fungsi
-            </button>
-            <button onClick={() => setActiveStoryTab(2)} className={`shrink-0 rounded-lg px-4 py-2 text-[11px] font-bold uppercase transition ${activeStoryTab === 2 ? "bg-[#16382A] text-[#F6F2E8]" : "text-[#526158]"}`}>
-              03. Tanah ke Cangkir
-            </button>
-          </div>
-
-          <div className="mx-auto max-w-3xl space-y-6 text-[15px] leading-relaxed text-[#526158] md:text-[17px] md:leading-[1.9]">
-            {t.origin.paragraphs.map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
-            ))}
-          </div>
-
-          <div className="mx-auto mt-12 max-w-3xl rounded-3xl border border-[#B69245]/30 bg-gradient-to-b from-white to-[#F6F2E8] p-8 shadow-sm md:mt-16 md:p-12">
-            <div className="space-y-6 text-center font-serif text-lg italic leading-relaxed text-[#16382A] md:text-2xl">
-              {t.origin.questions.map((question) => (
-                <p key={question} className="border-b border-[#B69245]/15 pb-4 last:border-b-0 last:pb-0">
-                  {question}
-                </p>
-              ))}
-            </div>
-            <div className="mt-8 text-center text-xs font-semibold uppercase tracking-widest text-[#8E6E2E]">{t.origin.afterQuestions[0]}</div>
-          </div>
-
-          {/* TAB 0 */}
-          <div className={`mt-14 border-t border-[#16382A]/10 pt-12 md:block md:mt-24 md:pt-16 ${activeStoryTab === 0 ? "block" : "hidden md:block"}`}>
-            <div className="mx-auto max-w-3xl">
-              <span className="text-[10px] font-bold tracking-[0.3em] text-[#B69245]">01</span>
-              <h3 className="mt-3 font-serif text-3xl leading-[1.1] tracking-tight text-[#16382A] md:mt-4 md:text-5xl">{t.origin.simpleTitle}</h3>
-
-              <div className="mt-6 space-y-6 text-[15px] leading-relaxed text-[#526158] md:mt-8 md:text-[16px] md:leading-[1.9]">
-                {t.origin.simpleParagraphs.map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
-                ))}
-              </div>
-
-              <div className="my-8 rounded-2xl border-l-4 border-[#B69245] bg-[#F6F2E8] p-6 shadow-xs">
-                <p className="font-serif text-xl font-medium text-[#16382A] md:text-2xl">{t.origin.highlight}</p>
-              </div>
-
-              <div className="mt-8 grid gap-4 sm:grid-cols-2 md:mt-10">
-                {t.origin.ingredientsStory.map((item, idx) => (
-                  <div key={idx} className="flex items-start gap-3 rounded-2xl border border-[#B69245]/25 bg-white p-5 shadow-xs transition hover:border-[#B69245] hover:shadow-md">
-                    <span className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#16382A] text-[10px] font-bold text-[#F6F2E8]">✦</span>
-                    <p className="text-xs font-semibold leading-relaxed text-[#16382A] md:text-sm">{item}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-8 space-y-4 text-[15px] leading-relaxed text-[#526158] md:mt-10 md:text-[16px]">
-                {t.origin.simpleClosing.map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
-                ))}
-              </div>
-
-              <p className="mt-8 font-serif text-2xl italic leading-relaxed text-[#8E6E2E] md:mt-10 md:text-3xl text-center">"{t.origin.finalLine}"</p>
-            </div>
-          </div>
-
-          {/* TAB 1 */}
-          <div className={`relative mt-14 overflow-hidden rounded-3xl border border-[#B69245]/30 bg-[#0D261C] p-8 text-white md:block md:mt-24 md:p-16 shadow-2xl ${activeStoryTab === 1 ? "block" : "hidden md:block"}`}>
-            <div className="relative mx-auto max-w-3xl">
-              <span className="text-[10px] font-bold tracking-[0.3em] text-[#D8C28B]">02</span>
-              <h3 className="mt-3 font-serif text-3xl leading-[1.1] tracking-tight text-white md:mt-4 md:text-5xl">{t.origin.notJustTitle}</h3>
-
-              <div className="mt-6 space-y-6 text-[14px] leading-relaxed text-white/70 md:mt-8 md:text-[16px] md:leading-relaxed">
-                {t.origin.notJustParagraphs.map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
-                ))}
-              </div>
-
-              <div className="my-8 border-y border-[#D8C28B]/25 py-8 text-center">
-                <p className="font-serif text-2xl leading-relaxed text-[#D8C28B] md:text-4xl">{t.origin.notJustHighlight}</p>
-              </div>
-
-              <div className="space-y-4 text-[14px] leading-relaxed text-white/70 md:text-[16px]">
-                {t.origin.notJustClosing.map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
-                ))}
-              </div>
-
-              <p className="mt-8 font-serif text-xl leading-relaxed text-white md:mt-10 md:text-2xl text-center">{t.origin.notJustFinal}</p>
-            </div>
-          </div>
-
-          {/* TAB 2 */}
-          <div className={`mt-14 md:block md:mt-24 ${activeStoryTab === 2 ? "block" : "hidden md:block"}`}>
-            <div className="mx-auto max-w-3xl text-center">
-              <span className="text-[10px] font-bold tracking-[0.3em] text-[#B69245]">03</span>
-              <h3 className="mt-3 font-serif text-3xl leading-[1.1] tracking-tight text-[#16382A] md:mt-4 md:text-5xl">{t.origin.soilTitle}</h3>
-
-              <div className="mt-6 space-y-6 text-[15px] leading-relaxed text-[#526158] md:mt-8 md:text-[16px]">
-                {t.origin.soilParagraphs.map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
-                ))}
-              </div>
-
-              <div className="mt-10 grid gap-4 rounded-3xl border border-[#B69245]/20 bg-[#F6F2E8] p-4 md:mt-12 md:grid-cols-2">
-                {t.origin.journey.map((item, index) => (
-                  <div key={item} className="rounded-2xl border border-[#16382A]/10 bg-white p-7 text-left shadow-xs transition hover:border-[#B69245]">
-                    <span className="font-serif text-3xl text-[#B69245]">0{index + 1}</span>
-                    <p className="mt-3 font-serif text-lg leading-relaxed text-[#16382A] md:text-xl">{item}</p>
-                  </div>
-                ))}
-              </div>
-
-              <p className="mt-8 text-[15px] leading-relaxed text-[#526158] md:mt-12 md:text-[16px]">{t.origin.soilClosing}</p>
-            </div>
-          </div>
-
-          {/* CONTINUOUS IMPACT */}
-          <div className="mt-14 border-t border-[#16382A]/10 pt-12 md:mt-24 md:pt-16">
-            <div className="mx-auto max-w-3xl">
-              <span className="text-[10px] font-bold tracking-[0.3em] text-[#B69245]">04</span>
-              <h3 className="mt-3 font-serif text-3xl leading-[1.1] tracking-tight text-[#16382A] md:mt-4 md:text-5xl">{t.origin.futureTitle}</h3>
-
-              <div className="mt-6 space-y-6 text-[15px] leading-relaxed text-[#526158] md:mt-8 md:text-[16px] md:leading-[1.9]">
-                {t.origin.futureParagraphs.map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
-                ))}
-              </div>
-
-              <div className="mt-8 rounded-2xl border border-[#B69245]/30 bg-[#F6F2E8] p-6 text-center shadow-xs md:mt-10 md:p-8">
-                <p className="font-serif text-xl leading-relaxed text-[#16382A] md:text-2xl">{t.origin.futureClosing}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-12 text-center md:mt-16">
-            <div className="inline-flex rounded-full border border-[#B69245]/40 bg-[#F6F2E8] px-8 py-3.5 text-[10px] font-bold tracking-[0.22em] text-[#8E6E2E] shadow-xs">{t.origin.label}</div>
-          </div>
-        </div>
-      </section>
+      <section id="origin" className="bg-[#FBF9F4] px-6 py-20 md:py-32 border-b border-[#B69245]/20"><div className="storefront-story-preview mx-auto max-w-7xl"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#92773c]">{t.origin.eyebrow}</p><h2 className="mt-4 font-serif text-3xl md:text-5xl">{t.origin.title}</h2><p className="mt-5 text-sm leading-7 text-[#617163]">{t.origin.intro}</p><Link className="mt-6 inline-flex min-h-11 items-center rounded-full bg-[#173d2b] px-6 py-3 text-xs text-white" href="/artikel/cerita-vartana">{t.origin.button}</Link></div><img loading="lazy" src="/vartana-spices-hero.jpg" alt={language==='id'?'Rempah yang akrab dalam keseharian':'Familiar everyday spices'} /></div></section>
 
       {/* PURPOSE */}
       <section id="purpose" className="bg-[#FBF9F4] px-6 py-20 md:py-32">
@@ -1830,30 +1629,7 @@ export default function Home() {
       </section>
 
       {/* JOURNAL */}
-      <section id="journal" className="bg-[#EEE8DB] px-6 py-20 md:py-32">
-        <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#B69245]">{t.journal.eyebrow}</p>
-            <h2 className="mt-4 font-serif text-3xl leading-[1.15] tracking-tight text-[#16382A] md:mt-5 md:text-5xl">{t.journal.title}</h2>
-            <p className="mt-5 text-[14px] leading-relaxed text-[#526158] md:mt-7 md:text-[15px]">{t.journal.text}</p>
-            <button className="mt-8 rounded-full border border-[#16382A]/20 bg-[#FBF9F4]/70 px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#16382A] transition hover:border-[#B69245] hover:text-[#9E7A32]">
-              {t.journal.button}
-            </button>
-          </div>
-
-          <div>
-            {t.journal.articles.map((article, index) => (
-              <div key={article} className="group flex items-center justify-between border-b border-[#16382A]/10 py-6 md:py-8">
-                <div className="flex items-center gap-5 md:gap-7">
-                  <span className="font-serif text-xl text-[#B69245] md:text-2xl">0{index + 1}</span>
-                  <h3 className="font-serif text-lg leading-snug text-[#16382A] md:text-xl">{article}</h3>
-                </div>
-                <span className="text-base text-[#B69245] transition group-hover:translate-x-1 md:text-lg">↗</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <section id="journal" className="bg-[#EEE8DB] px-6 py-20 md:py-32"><div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.8fr_1.2fr]"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#92773c]">{t.journal.eyebrow}</p><h2 className="mt-4 font-serif text-3xl md:text-5xl">{t.journal.title}</h2><p className="mt-5 text-sm leading-7 text-[#617163]">{t.journal.text}</p><Link href="/artikel" className="mt-6 inline-flex min-h-11 items-center rounded-full border border-[#b5c3aa] px-6 py-3 text-xs">{t.journal.button}</Link></div><ArticlePreview english={language==='en'}/></div></section>
 
       {/* FOOTER DENGAN LEGALITAS P-IRT & PB UMKU */}
       <footer className="bg-[#091D15] px-6 py-20 text-white md:py-24">

@@ -1,0 +1,3 @@
+﻿import {createHmac} from 'node:crypto';
+import {requestMasterScript} from './master-products';
+export async function requestArticleAdmin(action:'getAdminArticles'|'saveArticle',payload:Record<string,unknown>={}){const secret=process.env.ADMIN_SESSION_SECRET;if(!secret||secret.length<32)throw Error('Konfigurasi sesi admin belum tersedia.');const authTime=String(Date.now()),authSignature=createHmac('sha256',secret).update(action+'\n'+authTime+'\n'+JSON.stringify(payload.article||null)+'\n'+String(payload.expectedUpdatedAt||'')).digest('hex');return requestMasterScript(action,{...payload,authTime,authSignature});}

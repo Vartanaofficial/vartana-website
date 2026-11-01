@@ -1,0 +1,2 @@
+﻿import Link from 'next/link';
+export default function EditorialHeader(){return <header className="editorial-header"><Link href="/" aria-label="Beranda VARTANA"><img src="/Logo Vartana.png" alt="VARTANA" width="156" height="45"/></Link><nav aria-label="Menu utama"><Link href="/katalog">Katalog</Link><Link href="/artikel/cerita-vartana">Tentang</Link><Link href="/artikel">Jurnal</Link></nav></header>;}

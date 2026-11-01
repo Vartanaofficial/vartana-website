@@ -1,0 +1,29 @@
+﻿// ARTICLE CMS: separate tab; never changes Products or stock.
+function articleSheet_(){var ss=SpreadsheetApp.getActiveSpreadsheet(),headers=['Article ID','Slug','Status','Article JSON','Created At','Updated At'],sh=ss.getSheetByName('Articles');if(!sh){sh=ss.insertSheet('Articles');sh.getRange(1,1,1,6).setValues([headers]);sh.setFrozenRows(1);}if(sh.getRange(1,1,1,6).getValues()[0].join('|')!==headers.join('|'))throw new Error('Header Articles berbeda. Data tidak diubah.');return sh;}
+function readArticles_(){return articleSheet_().getDataRange().getValues().slice(1).filter(function(r){return r[0];}).map(function(r){var a=JSON.parse(String(r[3]));a.id=String(r[0]);a.slug=String(r[1]);a.status=String(r[2]);a.createdAt=r[4] instanceof Date?r[4].toISOString():String(r[4]||'');a.updatedAt=r[5] instanceof Date?r[5].toISOString():String(r[5]||'');return a;});}
+function articleImageValid_(v){return typeof v==='string'&&v.length<=2000&&(!v||(/^\/(?!\/)/.test(v)&&v.indexOf('\\')<0)||(/^https:\/\/[^\s@\\]+$/i.test(v)));}
+function saveArticle_(data){
+ verifyArticleAdmin_(data);
+ var a=data.article;if(!a||typeof a!=='object')return responseJSON({success:false,message:'Artikel tidak valid.'});
+ function text(v,max){return typeof v==='string'&&v.length<=max;}
+ if(!/^ART-[a-zA-Z0-9-]{3,80}$/.test(a.id)||!text(a.slug,100)||!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(a.slug)||!text(a.title,160)||!a.title.trim()||!text(a.excerpt,400)||!text(a.category,40)||!a.category.trim()||['DRAFT','PUBLISHED','ARCHIVED'].indexOf(a.status)<0||!articleImageValid_(a.coverUrl)||!text(a.coverAlt,200)||(a.coverUrl&&!a.coverAlt.trim())||!Array.isArray(a.blocks)||a.blocks.length>80)return responseJSON({success:false,message:'Lengkapi judul, alamat, kategori, ringkasan, dan foto dengan benar.'});
+ for(var b=0;b<a.blocks.length;b++){var x=a.blocks[b];if(!x||['paragraph','heading','image'].indexOf(x.type)<0||(x.type==='image'?(!x.url||!articleImageValid_(x.url)||!text(x.alt,200)||!x.alt.trim()||!text(x.caption||'',400)):(!text(x.text,6000)||!x.text.trim())))return responseJSON({success:false,message:'Isi artikel atau foto belum lengkap.'});}
+ if(a.status==='PUBLISHED'&&(!a.excerpt.trim()||!a.blocks.some(function(b){return b.type==='paragraph';})))return responseJSON({success:false,message:'Artikel terbit membutuhkan ringkasan dan paragraf.'});
+ if(JSON.stringify(a).length>44000)return responseJSON({success:false,message:'Artikel terlalu panjang.'});
+ var lock=LockService.getScriptLock();lock.waitLock(20000);try{
+  var sh=articleSheet_(),all=readArticles_(),row=-1,old=null;for(var i=0;i<all.length;i++){if(all[i].slug===a.slug&&all[i].id!==a.id)return responseJSON({success:false,message:'Alamat artikel sudah dipakai.'});if(all[i].id===a.id){old=all[i];}}
+  var storedRows=sh.getDataRange().getValues();for(var j=1;j<storedRows.length;j++)if(String(storedRows[j][0])===a.id)row=j+1;
+  if(old&&old.slug!==a.slug)return responseJSON({success:false,message:'Alamat artikel yang sudah disimpan tidak dapat diganti. Buat artikel baru jika memerlukan alamat lain.'});
+  if(old&&String(data.expectedUpdatedAt||'')!==old.updatedAt)return responseJSON({success:false,message:'Artikel berubah di perangkat lain. Muat ulang sebelum menyimpan.'});
+  var now=new Date(),clean={id:a.id,slug:a.slug,title:a.title.trim(),excerpt:a.excerpt.trim(),category:a.category.trim(),status:a.status,coverUrl:a.coverUrl,coverAlt:a.coverAlt,blocks:a.blocks,createdAt:old?old.createdAt:now.toISOString(),updatedAt:now.toISOString()},values=[clean.id,clean.slug,clean.status,JSON.stringify(clean),clean.createdAt,clean.updatedAt];
+  if(row>0)sh.getRange(row,1,1,6).setValues([values]);else sh.getRange(sh.getLastRow()+1,1,1,6).setValues([values]);return responseJSON({success:true,articleVersion:1,article:clean});
+ }finally{lock.releaseLock();}
+}
+
+function verifyArticleAdmin_(data){
+ var key=PropertiesService.getScriptProperties().getProperty('VARTANA_ARTICLE_ADMIN_KEY');
+ if(!key||key.length<32)throw new Error('Atur Script property VARTANA_ARTICLE_ADMIN_KEY dengan nilai ADMIN_SESSION_SECRET dari konfigurasi server website.');
+ var timestamp=String(data.authTime||'');if(!/^\d{13}$/.test(timestamp)||Math.abs(Date.now()-Number(timestamp))>300000)throw new Error('Otorisasi artikel kedaluwarsa. Coba simpan lagi.');
+ var message=String(data.action)+'\n'+timestamp+'\n'+JSON.stringify(data.article||null)+'\n'+String(data.expectedUpdatedAt||''),bytes=Utilities.computeHmacSha256Signature(message,key),expected=bytes.map(function(v){return ('0'+((v+256)%256).toString(16)).slice(-2);}).join(''),provided=String(data.authSignature||'');
+ if(provided.length!==expected.length)throw new Error('Otorisasi artikel tidak valid.');var diff=0;for(var i=0;i<expected.length;i++)diff|=expected.charCodeAt(i)^provided.charCodeAt(i);if(diff)throw new Error('Otorisasi artikel tidak valid.');
+}

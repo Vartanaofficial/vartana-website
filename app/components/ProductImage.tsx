@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Props = {
   src: string;
@@ -11,6 +11,8 @@ type Props = {
 };
 
 function ImageContent({ src, alt, className, errorMessage, loading }: Props) {
+  const imageRef = useRef<HTMLImageElement>(null);
+  useEffect(() => { const image=imageRef.current; if(image?.complete&&image.naturalWidth>0)setLoaded(true); }, []);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -23,7 +25,7 @@ function ImageContent({ src, alt, className, errorMessage, loading }: Props) {
   }
   return <div aria-busy={!loaded} className={`${className || ""} relative overflow-hidden`}>
     {!loaded && <span role="status" aria-label={`Memuat gambar ${alt}`} className="absolute inset-0 flex items-center justify-center bg-[#FBF9F4] text-[10px] text-[#657365]">Memuat…</span>}
-    <img key={retrySrc} src={retrySrc} alt={alt} className={`h-full w-full object-contain ${loaded ? "opacity-100" : "opacity-0"}`} loading={loading} referrerPolicy="no-referrer" onLoad={() => setLoaded(true)} onError={() => setFailed(true)} />
+    <img ref={imageRef} key={retrySrc} src={retrySrc} alt={alt} className={`h-full w-full object-contain ${loaded ? "opacity-100" : "opacity-0"}`} loading={loading} referrerPolicy="no-referrer" onLoad={() => setLoaded(true)} onError={() => setFailed(true)} />
   </div>;
 }
 

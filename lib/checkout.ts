@@ -1,10 +1,11 @@
+import {resolvePromoDestination,promoAreaError} from './promo-area';
 import { readMasterProducts, requestMasterScript } from "./master-products";
 import { buildStoreCatalog } from "./store-catalog";
 import { decodeCheckoutPromos, promoInPeriod } from "./checkout-promos";
 import { evaluatePromoStack } from "./promo-stack";
 
 export type CheckoutItem = { sku: string; quantity: number };
-export type CheckoutInput = { items: CheckoutItem[]; promoCode?: string; districtId?: string; provinceName?: string; shippingService?: string };
+export type CheckoutInput = { items: CheckoutItem[]; promoCode?: string; districtId?: string; provinceName?: string; cityName?:string; districtName?:string; shippingService?: string };
 export type ShippingRate = { id: string; name: string; price: number; duration: string; estimated: boolean };
 
 async function shippingRates(districtId: string, provinceName: string, weight: number): Promise<ShippingRate[]> {
@@ -42,16 +43,17 @@ export async function checkoutQuote(input: CheckoutInput) {
   const codes = String(input.promoCode || "").split(/[\s,]+/).filter(Boolean);
   if(codes.length>20)throw new Error("Maksimal 20 kode promo per pesanan.");
   const availableProducts = catalog.flatMap(product=>(product.variants||[]).map(variant=>({sku:variant.sku!,name:product.name,variant:variant.size,image:variant.image||product.image||"",price:variant.priceValue,weight:variant.weightGram||100})));
-  const preliminary = evaluatePromoStack(promos,codes,lines,availableProducts,0);
+  const regional=promos.some(p=>p.area==='jabodetabek'&&promoInPeriod(p)&&(p.automatic||codes.includes(p.code))),destination=regional&&input.districtId?await resolvePromoDestination(input.districtId):undefined;
+  const preliminary = evaluatePromoStack(promos,codes,lines,availableProducts,0,destination);
   const weight = [...lines,...preliminary.rewards].reduce((sum, item) => sum + item.weight * item.quantity, 0);
-  const rates = input.districtId && input.provinceName ? await shippingRates(input.districtId, input.provinceName, weight) : [];
+  const rates = input.districtId && input.provinceName ? await shippingRates(input.districtId, destination?.provinceName||input.provinceName, weight) : [];
   const shipping = rates.find(r => r.id === input.shippingService) || rates[0] || null;
-  const discount = evaluatePromoStack(promos,codes,lines,availableProducts,shipping?.price||0);
-  return { lines, subtotal, shipping, rates, productDiscount: discount.productDiscount, shippingDiscount: discount.shippingDiscount,
+  const discount = evaluatePromoStack(promos,codes,lines,availableProducts,shipping?.price||0,destination);
+  return { destination, lines, subtotal, shipping, rates, productDiscount: discount.productDiscount, shippingDiscount: discount.shippingDiscount,
     total: discount.total, rewardLines: discount.rewards, redeemTotal: discount.redeemTotal, appliedPromos: discount.applied,
     promoCode: discount.applied.map(p=>p.code).join(", "), promoError: discount.errors.join(" "),
-    promos: promos.filter(p => promoInPeriod(p)).map(p => ({ code: p.code, name: p.name, minSpend: p.minSpend, type: p.type, value: p.value, maxDiscount: p.maxDiscount,
-      automatic:!!p.automatic,stackable:p.stackable!==false,buyQty:p.buyQty||1,buyName:availableProducts.find(item=>item.sku===p.buySku)?.name||"produk pilihan",rewardQty:p.rewardQty||1,rewardName:availableProducts.find(item=>item.sku===(p.type==='bogo'?p.buySku:p.rewardSku))?.name||"",redeemPrice:p.redeemPrice||0 })),
+    promos: promos.filter(p => promoInPeriod(p)).map(p => ({ shippingMode:p.shippingMode||'amount',area:p.area||'all',eligibleArea:!promoAreaError(p.area,destination),code: p.code, name: p.name, minSpend: p.minSpend, type: p.type, value: p.value, maxDiscount: p.maxDiscount,
+      automatic:!!p.automatic,stackable:p.stackable!==false,buyQty:p.buyQty||1,buyName:p.buySkus&&p.buySkus.length>1?"produk pilihan (boleh campur varian)":availableProducts.find(item=>item.sku===p.buySku)?.name||"produk pilihan",rewardQty:p.rewardQty||1,rewardName:availableProducts.find(item=>item.sku===(p.type==='bogo'?p.buySku:p.rewardSku))?.name||"",redeemPrice:p.redeemPrice||0 })),
   };
 }
 

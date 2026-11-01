@@ -22,7 +22,8 @@ export async function POST(req: Request) {
     const orderKey = String(body.orderKey);
     const serial = `VRT-${orderKey.replaceAll("-", "").toUpperCase()}`;
     const execute = async () => {
-      const quote = await checkoutQuote({ ...body, districtId: customer.districtId, provinceName: customer.provinceName });
+      const quote = await checkoutQuote({ ...body, districtId: customer.districtId, provinceName: customer.provinceName,cityName:customer.cityName,districtName:customer.districtName });
+      if(quote.destination?.verified){customer.cityName=quote.destination.cityName;customer.provinceName=quote.destination.provinceName;customer.districtName=quote.destination.districtName;}
       if (!quote.shipping || quote.promoError) throw new Error(quote.promoError || "Pilih layanan pengiriman.");
       if (body.expectedTotal !== quote.total || body.shippingService !== quote.shipping.id) throw new Error("Harga atau ongkir berubah. Periksa ringkasan terbaru sebelum melanjutkan.");
       const data = await requestMasterScript("getAdminData");

@@ -127,3 +127,14 @@ PEMBARUAN PERSEDIAAN DAN PRODUKSI V4
 - Laporan Direksi memilih PDF/PPT, dengan penjualan, persediaan, batch/usia, produksi dan P&L tercatat. Isi biaya operasional sebelum menyimpulkan hasil operasional.
 - Tab baru ProductionOrders dan OperatingExpenses dibuat otomatis. Saldo/histori tidak dihapus.
 - Panduan lengkap: deliverables/PANDUAN-PPIC-DAN-LAPORAN.md di repository.
+
+ARTIKEL & JURNAL
+Menu admin /admin/articles: tambah, edit, draf, terbitkan, salin link, hapus/arsipkan dan foto dari URL. Halaman publik /artikel dan /artikel/slug, katalog /katalog.
+Sebelum deploy, atur Apps Script > Project Settings > Script properties: VARTANA_ARTICLE_ADMIN_KEY harus sama dengan ADMIN_SESSION_SECRET pada konfigurasi server website. Jangan menaruh nilai rahasia di spreadsheet atau repository.
+Ganti seluruh kode TXT, Save, lalu Deploy > Manage deployments > Edit > New version. Tab Articles dibuat otomatis. Panduan lengkap ada di deliverables/PANDUAN-ARTIKEL.md.
+
+PROMO CHECKOUT V3
+Pemilik tetap mengatur dan menyalakan/mematikan promo di /admin/promos. Aturan cepat awal NONAKTIF; tidak langsung membuat promo live.
+Gratis ongkir Jabodetabek dapat otomatis tanpa kode setelah alamat diverifikasi, dengan minimum dan batas subsidi pilihan admin. Mengganti alamat menghitung ulang promo. Kepulauan Seribu tidak termasuk cakupan.
+Beli 2 Box gratis 1 Jar mendukung gabungan SKU box yang dicentang; pilih SKU jar hadiah dari master.
+Deploy kode lengkap sebagai New version pada deployment yang sama. Tidak perlu Setup Master. Panduan: deliverables/PANDUAN-PROMO.md.

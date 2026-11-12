@@ -570,6 +570,7 @@ function doPost(e) {
     if(data.action==='retailReconciliation')return retailReconciliation_(data);
     if(data.action==='getRetailStock')return responseJSON(retailStockSnapshot_(String(data.orderKey||'')));
     if(data.action==='saveRetailOrderV3')return saveRetailOrderV3_(data);
+    if(data.action==='adminManagement')return adminManagement_(data);
     if(data.action==='adminMembers')return adminMembers_(data);
     if(data.action==='customerAccount')return customerAccount_(data);
     if(data.action==='customerOrderAccess')return customerOrderAccess_(data);
@@ -3929,6 +3930,111 @@ function orderEmailMark_(eventId,status){var sheet=SpreadsheetApp.getActiveSprea
 
 // Stok is the physical finished-goods ledger; sales are paid orders, excluding free gifts.
 function productStockReport_(){var stock=retailStockSnapshot_(''),sales=retailSalesState_();return responseJSON({success:true,productStockVersion:1,unmappedOrders:sales.unmapped.length,items:stock.items.map(function(x){x.soldQty=sales.sold[x.sku]||0;x.bonusQty=sales.bonus[x.sku]||0;return x;})});}
+
+// Workspace preferences and explicitly confirmed, individually addressed member emails.
+function adminManagement_(data) {
+  puzzleVerify_(data,'adminManagement');
+  var d=data.puzzlePayload||{},op=String(d.operation||'');
+  if(op==='menuRead'||op==='menuSave')return adminMenuOrder_(d);
+  if(['campaignCreate','campaignRead','campaignSend','campaignList'].indexOf(op)<0)throw new Error('Tindakan admin tidak dikenal.');
+  return adminCampaign_(d);
+}
+
+function adminMenuOrder_(d){
+  var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName('AdminPreferences');
+  function read(){
+    var rows=sh?sh.getDataRange().getValues():[];
+    for(var i=1;i<rows.length;i++)if(rows[i][0]==='menuOrder')return {row:i+1,order:JSON.parse(String(rows[i][1])),revision:String(rows[i][2])};
+    return {row:0,order:[],revision:''};
+  }
+  if(d.operation==='menuRead'){var current=read();return responseJSON({success:true,order:current.order,revision:current.revision});}
+  if(!Array.isArray(d.order)||!d.order.length||d.order.length>50||d.order.some(function(h,i,a){return typeof h!=='string'||h.length>150||!/^\/admin\/[a-z0-9/?=&-]+$/i.test(h)||a.indexOf(h)!==i;}))throw new Error('Urutan menu tidak valid.');
+  var lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    var old=read();
+    if(JSON.stringify(d.order)===JSON.stringify(old.order))return responseJSON({success:true,order:old.order,revision:old.revision,duplicate:true});
+    if(String(d.expectedRevision||'')!==old.revision)throw new Error('Urutan menu sudah berubah di perangkat lain. Muat ulang sebelum menyimpan.');
+    if(!sh)sh=inventoryOperationsSheet_('AdminPreferences',['Key','Value JSON','Revision','Updated At']);
+    var revision=Utilities.getUuid();
+    sh.getRange(old.row||sh.getLastRow()+1,1,1,4).setValues([['menuOrder',JSON.stringify(d.order),revision,new Date()]]);
+    return responseJSON({success:true,order:d.order,revision:revision});
+  }finally{lock.releaseLock();}
+}
+
+function adminCampaignSheet_(){return inventoryOperationsSheet_('MemberCampaigns',['Campaign ID','Campaign JSON','Created At']);}
+function adminCampaignFind_(sh,id){
+  var rows=sh.getDataRange().getValues();
+  for(var i=1;i<rows.length;i++)if(String(rows[i][0])===id)return {row:i+1,value:JSON.parse(String(rows[i][1]))};
+  throw new Error('Broadcast tidak ditemukan.');
+}
+function adminCampaignPublic_(campaign){
+  var result=JSON.parse(JSON.stringify(campaign));delete result.fingerprint;
+  result.recipients.forEach(function(r){if(r.status==='SENDING'&&Date.now()-Date.parse(r.attemptedAt)>15*60000)r.status='UNKNOWN';});
+  return result;
+}
+function adminCampaign_(d){
+  if(d.operation==='campaignList'){
+    var history=adminCampaignSheet_().getDataRange().getValues().slice(1).reverse().slice(0,20).map(function(row){
+      var campaign=adminCampaignPublic_(JSON.parse(String(row[1])));
+      return {id:campaign.id,subject:campaign.subject,createdAt:campaign.createdAt,total:campaign.recipients.length,sent:campaign.recipients.filter(function(r){return r.status==='SENT';}).length};
+    });
+    return responseJSON({success:true,campaigns:history});
+  }
+  if(!/^[a-f0-9-]{36}$/i.test(String(d.id||'')))throw new Error('ID broadcast tidak valid.');
+  var sh=adminCampaignSheet_();
+  if(d.operation==='campaignRead')return responseJSON({success:true,campaign:adminCampaignPublic_(adminCampaignFind_(sh,d.id).value)});
+  var lock=LockService.getScriptLock();lock.waitLock(20000);
+  var campaign,row,recipient;
+  try{
+    if(d.operation==='campaignCreate'){
+      var subject=String(d.subject||'').trim(),body=String(d.body||'').trim();
+      if(!subject||subject.length>160||/[\r\n]/.test(subject)||body.length<10||body.length>10000||!Array.isArray(d.members)||!d.members.length||d.members.length>100)throw new Error('Isi subjek, pesan (10–10.000 karakter), dan pilih maksimal 100 member.');
+      var fingerprint=JSON.stringify({subject:subject,body:body,members:d.members});
+      var previous=sh.getDataRange().getValues().filter(function(r){return String(r[0])===d.id;})[0];
+      if(previous){var existing=JSON.parse(String(previous[1]));if(existing.fingerprint!==fingerprint)throw new Error('ID broadcast sudah digunakan untuk pesan berbeda.');return responseJSON({success:true,campaign:adminCampaignPublic_(existing)});}
+      var source=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MEMBERS),rows=source?source.getDataRange().getValues():[],seen={},recipients=[];
+      d.members.forEach(function(m){
+        if(!m||!Number.isInteger(m.row)||m.row<2||m.row>rows.length)throw new Error('Penerima tidak valid.');
+        var r=rows[m.row-1],email=gamesRawEmail_(r[3]);
+        if(String(r[1])!==m.memberId||email!==gamesRawEmail_(m.email))throw new Error('Data penerima berubah. Muat ulang daftar member.');
+        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)throw new Error('Email member tidak valid: '+String(r[1]));
+        var key=gamesEmailKey_(email);if(seen[key])return;seen[key]=true;
+        recipients.push({email:email,name:String(r[2]||''),memberId:String(r[1]),status:'PENDING'});
+      });
+      campaign={id:d.id,subject:subject,body:body,recipients:recipients,createdAt:new Date().toISOString(),fingerprint:fingerprint};
+      if(JSON.stringify(campaign).length>44000)throw new Error('Pesan atau jumlah penerima terlalu besar. Bagi menjadi beberapa broadcast.');
+      sh.appendRow([d.id,JSON.stringify(campaign),new Date()]);
+      return responseJSON({success:true,campaign:adminCampaignPublic_(campaign)});
+    }
+    if(d.confirmed!==true)throw new Error('Tinjau pesan dan penerima sebelum mengirim.');
+    gamesEmailSender_();
+    var found=adminCampaignFind_(sh,d.id);row=found.row;campaign=found.value;
+    recipient=campaign.recipients.filter(function(r){return r.status==='PENDING';})[0];
+    if(!recipient)return responseJSON({success:true,campaign:adminCampaignPublic_(campaign)});
+    if(MailApp.getRemainingDailyQuota()<1)throw new Error('Kuota email hari ini habis. Penerima yang belum terkirim tetap tersimpan.');
+    recipient.status='SENDING';recipient.attemptedAt=new Date().toISOString();
+    sh.getRange(row,2).setValue(JSON.stringify(campaign));
+  }finally{lock.releaseLock();}
+
+  var status='SENT',error='';
+  function escape(value){return String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  var greeting=recipient.name?'Halo '+recipient.name+',':'Halo,';
+  try{
+    MailApp.sendEmail({to:recipient.email,subject:campaign.subject,name:'VARTANA Botanical Wellness',replyTo:GAMES_EMAIL_SENDER,
+      body:greeting+'\n\n'+campaign.body+'\n\nVARTANA Botanical Wellness\nhttps://www.vartana.id',
+      htmlBody:'<div style="background:#f5f2e8;padding:28px;font-family:Arial,sans-serif;color:#173d2b"><div style="max-width:580px;margin:auto;background:#fffdf7;padding:32px;border-radius:18px"><p style="letter-spacing:3px;color:#947538">VARTANA</p><h1 style="font-family:Georgia,serif;font-size:27px">'+escape(campaign.subject)+'</h1><p>'+escape(greeting)+'</p><div style="line-height:1.8;white-space:pre-wrap">'+escape(campaign.body)+'</div><p style="margin-top:30px"><a href="https://www.vartana.id/katalog" style="color:#173d2b">Belanja di VARTANA →</a></p><hr style="border:0;border-top:1px solid #dedfce"><p style="font-size:12px">VARTANA Botanical Wellness<br>Balas email ini untuk menghubungi tim VARTANA.</p></div></div>'});
+  }catch(e){status='UNKNOWN';error=String(e.message||e).slice(0,300);}
+
+  // A reserved recipient is never retried automatically after an ambiguous send.
+  lock.waitLock(20000);
+  try{
+    var latest=adminCampaignFind_(sh,d.id);campaign=latest.value;
+    var target=campaign.recipients.filter(function(r){return r.email===recipient.email;})[0];
+    target.status=status;target.error=error;if(status==='SENT')target.sentAt=new Date().toISOString();
+    sh.getRange(latest.row,2).setValue(JSON.stringify(campaign));
+    return responseJSON({success:true,campaign:adminCampaignPublic_(campaign)});
+  }finally{lock.releaseLock();}
+}
 
 // Administrative member directory; customer credentials and order history stay separate.
 function adminMembers_(data) {

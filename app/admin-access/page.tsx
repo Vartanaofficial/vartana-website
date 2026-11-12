@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import AdminMenuVisual from "./AdminMenuVisual";
+import AdminMenuGrid from "./AdminMenuGrid";
 import "./admin-portal.css";
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
@@ -264,28 +264,7 @@ export default function AdminAccessPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 min-[440px]:grid-cols-2 lg:grid-cols-3">
-                  {menus.map((menu) => (
-                    <Link
-                      key={menu.href}
-                      href={menu.href}
-                      className="admin-menu-card group relative"
-                    >
-                      <AdminMenuVisual href={menu.href}/>
-                      <span className="admin-menu-copy min-w-0 flex-1">
-                        <span className="admin-menu-title block">
-                          {menu.title}
-                        </span>
-                        <span className="admin-menu-description">
-                          {menu.description}
-                        </span>
-                      </span>
-                      <span aria-hidden="true" className="admin-menu-arrow">
-                        →
-                      </span>
-                    </Link>
-                  ))}
-                </div>
+                <AdminMenuGrid menus={menus}/>
 
                 {error && (
                   <p role="alert" className="mt-4 text-sm text-red-300">

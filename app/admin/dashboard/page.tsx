@@ -142,7 +142,7 @@ function AdminDashboardContent() {
       if (result.success) {
         setOrders((prev) => prev.map((ord) => (ord.orderSerial === orderSerial ? { ...ord, status: inputStatus, resiJNT: inputResi } : ord)));
         setEditingSerial(null);
-        alert("Status & Resi berhasil diperbarui!");
+        alert(result.message||"Status & Resi berhasil diperbarui!");
       } else {
         alert("Gagal memperbarui data: " + result.message);
       }

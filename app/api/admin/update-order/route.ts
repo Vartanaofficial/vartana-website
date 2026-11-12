@@ -1,97 +1,31 @@
-import { NextResponse } from "next/server";
+import {NextRequest,NextResponse,after} from 'next/server';
+import {verifyAdminSessionToken} from '@/lib/admin-auth';
+import {sameOriginRequest} from '@/lib/request-origin';
+import {requestMasterScript} from '@/lib/master-products';
+import {signPuzzle} from '@/lib/puzzle-server';
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-
-    const { orderSerial, status, resiJNT } = body;
-
-    // Validasi dasar
-    if (!orderSerial) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Order Serial wajib diisi.",
-        },
-        { status: 400 },
-      );
-    }
-
-    // Google Apps Script URL
-    const GOOGLE_SCRIPT_URL = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || "";
-
-    if (!GOOGLE_SCRIPT_URL) {
-      console.error("NEXT_PUBLIC_GOOGLE_SCRIPT_URL tidak ditemukan.");
-
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Google Script URL tidak ditemukan.",
-        },
-        { status: 500 },
-      );
-    }
-
-    // Kirim request update ke Google Apps Script
-    const response = await fetch(GOOGLE_SCRIPT_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        action: "updateOrder",
-        orderSerial,
-        status,
-        resiJNT,
-      }),
-      cache: "no-store",
-    });
-
-    // Ambil response dari Apps Script
-    const text = await response.text();
-
-    let result;
-
-    try {
-      result = JSON.parse(text);
-    } catch {
-      console.error("Response Google Apps Script bukan JSON:", text);
-
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Google Apps Script memberikan response yang tidak valid.",
-        },
-        { status: 500 },
-      );
-    }
-
-    // Jika Apps Script mengembalikan error
-    if (!result.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: result.message || "Gagal memperbarui data pesanan.",
-        },
-        { status: 500 },
-      );
-    }
-
-    // Berhasil
-    return NextResponse.json({
-      success: true,
-      message: "Status & Resi berhasil diperbarui.",
-      data: result,
-    });
-  } catch (error) {
-    console.error("Error API Update Order:", error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Terjadi kesalahan sistem saat memperbarui.",
-      },
-      { status: 500 },
-    );
-  }
+export const maxDuration=60;
+let capabilitiesUntil=0;
+let checking:Promise<void>|null=null;
+async function verifyBackend(){
+ if(Date.now()<capabilitiesUntil)return;
+ if(!checking)checking=(async()=>{const data=await requestMasterScript('getOrderEmailCapabilities',undefined,{legacyGet:true});if(data.orderEmailVersion!==1)throw new Error('Perbarui Apps Script notifikasi pesanan sebelum menyimpan status.');capabilitiesUntil=Date.now()+300000;})().finally(()=>{checking=null;});
+ await checking;
+}
+export async function POST(req:NextRequest){
+ const secret=process.env.ADMIN_SESSION_SECRET,token=req.cookies.get('vartana_admin_session')?.value;
+ if(!secret||!token||!verifyAdminSessionToken(token,secret))return NextResponse.json({success:false,message:'Silakan login admin.'},{status:401});
+ try{
+  if(!sameOriginRequest(req))throw new Error('Buka pembaruan pesanan dari dashboard VARTANA.');
+  const body=await req.json(),payload={orderSerial:String(body.orderSerial||'').trim(),status:String(body.status||''),resiJNT:String(body.resiJNT||'').trim()};
+  if(!payload.orderSerial||!['MENUNGGU PEMBAYARAN','PEMBAYARAN DITERIMA','PESANAN DISIAPKAN','DIKIRIM','SELESAI'].includes(payload.status))throw new Error('Nomor pesanan atau status tidak valid.');
+  if(payload.status==='DIKIRIM'&&(!payload.resiJNT||payload.resiJNT==='-'))throw new Error('Isi nomor resi J&T sebelum memilih DIKIRIM.');
+  await verifyBackend();
+  const result=await requestMasterScript('updateOrderWithEmail',signPuzzle('updateOrderWithEmail',payload));
+  if(!result.success)throw new Error(result.message||'Pesanan belum tersimpan.');
+  const eventId=result.email?.eventId;
+  if(eventId&&result.email.status==='PENDING')after(async()=>{try{await requestMasterScript('sendOrderCustomerEmail',signPuzzle('sendOrderCustomerEmail',{eventId}));}catch{console.warn('Order customer email pending; inspect OrderEmailNotifications.');}});
+  const emailStatus=result.email?.status,message='Status dan resi tersimpan.'+(emailStatus==='PENDING'?' Email customer sedang dikirim.':emailStatus==='SENT'?' Email tahap ini sudah terkirim.':emailStatus==='SKIPPED'?' Email customer belum tersedia atau tidak valid.':emailStatus?' Status email: '+emailStatus+'.':'');
+  return NextResponse.json({success:true,message,data:result},{headers:{'Cache-Control':'no-store'}});
+ }catch(e){return NextResponse.json({success:false,message:e instanceof Error?e.message:'Pesanan belum tersimpan.'},{status:400});}
 }

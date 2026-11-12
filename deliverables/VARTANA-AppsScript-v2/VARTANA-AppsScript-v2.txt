@@ -565,6 +565,8 @@ function doPost(e) {
 
     var data =
       JSON.parse(e.postData.contents);
+    if(data.action==='updateOrderWithEmail')return updateOrderWithEmail_(data);
+    if(data.action==='sendOrderCustomerEmail')return sendOrderCustomerEmail_(data);
 
     if (data.action === 'puzzleGame' || data.action === 'puzzleVoucher') return puzzleHandle_(data);
     if (data.action === 'games') return gamesHandle_(data);
@@ -573,7 +575,7 @@ function doPost(e) {
     if (data.action === 'getCheckoutContext') return getCheckoutContext_(data);
     // Explicit read RPCs share the same response contracts as GET. They never
     // fall through into order creation when master data is requested via POST.
-    if (['getProducts','getPricing','getPromotions','getStoreCatalog','getIngredients','getAdminData','fetchOrders','getInventory','getInventoryCapabilities','getCatalogTranslations','getRawMaterials','getProductCosting','getArticles'].indexOf(data.action)>=0 || String(data.action||'').indexOf('getKonsinyasi')===0) return doGet({parameter:{action:data.action}});
+    if (['getProductStock','getProducts','getPricing','getPromotions','getStoreCatalog','getIngredients','getAdminData','fetchOrders','getInventory','getInventoryCapabilities','getCatalogTranslations','getRawMaterials','getProductCosting','getArticles'].indexOf(data.action)>=0 || String(data.action||'').indexOf('getKonsinyasi')===0) return doGet({parameter:{action:data.action}});
 
 
     // ========================================================
@@ -891,6 +893,8 @@ function doGet(e) {
         ? e.parameter.action
         : "";
 
+    if(action==='getOrderEmailCapabilities')return responseJSON({success:true,orderEmailVersion:1});
+    if(action==='getProductStock')return productStockReport_();
     if (action === 'getGameCapabilities') return responseJSON({success:true,gamesVersion:3,rewardVersion:1,gameEmailVersion:1,games:['puzzle','numbers','crossword']});
 
 
@@ -3204,6 +3208,7 @@ function vartanaReadOrders_(sheet) {
       paymentMethod: text(row, ['Payment Method']),
       orderKey: text(row, ['Order Key']),
       reconciliationStatus: text(row, ['Status Rekonsiliasi']),
+      customerEmailStatus:text(row,['Customer Email Status']),
       grossSubtotalProducts: money(row, ['Gross Subtotal Products']),
       productDiscount: money(row, ['Product Discount'])
     };
@@ -3842,6 +3847,75 @@ function vartanaProductRows_(sheet){
  var columns=Math.min(26,sheet.getMaxColumns()),values=[[]];
  groups.forEach(function(group){var rows=sheet.getRange(group.start,1,group.end-group.start+1,columns).getValues();rows.forEach(function(row){values.push(row);});});
  return values;
+}
+
+// ORDER CUSTOMER EMAILS V1: durable per-stage queue; mail never holds the stock lock.
+function orderEmailSheet_(){return inventoryOperationsSheet_('OrderEmailNotifications',['Created At','Event ID','Order Serial','Stage','Recipient','Payload JSON','State','Attempts','Delivery ID','Updated At','Sent At','Error']);}
+function orderEmailKey_(serial,status){return 'ORDERMAIL:'+serial+':'+status;}
+function orderEmailQueue_(order,status){
+ var sheet=orderEmailSheet_(),rows=sheet.getDataRange().getValues(),id=orderEmailKey_(order.orderSerial,status);
+ for(var i=1;i<rows.length;i++)if(String(rows[i][1])===id)return {eventId:id,status:String(rows[i][6])};
+ var email=String(order.email||'').trim().toLowerCase(),valid=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),state=valid?'PENDING':'SKIPPED';
+ sheet.appendRow([new Date(),id,order.orderSerial,status,gamesCell_(email),JSON.stringify(order),state,0,'',new Date(),'',valid?'':'Email customer belum tersedia atau tidak valid.']);
+ return {eventId:id,status:state};
+}
+function updateOrderWithEmail_(data){
+ puzzleVerify_(data,'updateOrderWithEmail');var d=data.puzzlePayload||{},statuses=['MENUNGGU PEMBAYARAN','PEMBAYARAN DITERIMA','PESANAN DISIAPKAN','DIKIRIM','SELESAI'];
+ var serial=String(d.orderSerial||'').trim(),status=String(d.status||''),resi=String(d.resiJNT||'').trim();
+ if(!serial||serial.length>150||statuses.indexOf(status)<0||resi.length>100||/[\x00-\x1f]/.test(resi))throw new Error('Nomor pesanan, status, atau resi tidak valid.');
+ if(status==='DIKIRIM'&&(!resi||resi==='-'))throw new Error('Isi nomor resi J&T sebelum menyimpan status DIKIRIM.');
+ var lock=LockService.getScriptLock();lock.waitLock(20000);
+ try{
+  var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS);if(!sheet)throw new Error('Orders tidak ditemukan.');
+  var rows=sheet.getDataRange().getValues(),headers=rows[0]||[],serialCol=headers.indexOf('Order Serial'),statusCol=headers.indexOf('Status'),resiCol=headers.indexOf('No. Resi J&T'),row=-1;
+  if(serialCol<0||statusCol<0||resiCol<0)throw new Error('Header pesanan berbeda. Data tidak diubah.');
+  for(var i=1;i<rows.length;i++)if(String(rows[i][serialCol]).trim().toUpperCase()===serial.toUpperCase()){row=i+1;break;}
+  if(row<0)throw new Error('Pesanan tidak ditemukan.');
+  var order=vartanaReadOrders_(sheet).filter(function(o){return o.orderSerial===String(rows[row-1][serialCol]);})[0];if(!order)throw new Error('Rincian pesanan tidak terbaca.');
+  if(order.recoveredLegacy)throw new Error('Pesanan historis perlu direkonsiliasi sebelum status dan email diperbarui.');
+  if(['PESANAN DISIAPKAN','DIKIRIM','SELESAI'].indexOf(status)>=0)inventoryDispatchOrder_(sheet,row,order.orderSerial);
+  sheet.getRange(row,statusCol+1).setValue(status);sheet.getRange(row,resiCol+1).setValue(resi);
+  var email=null;
+  if(status!=='MENUNGGU PEMBAYARAN'){
+   order.status=status;order.resiJNT=resi;email=orderEmailQueue_(order,status);
+   var cols=checkoutColumns_(sheet,['Customer Email Status','Customer Email Event']);sheet.getRange(row,cols['Customer Email Status']).setValue(email.status);sheet.getRange(row,cols['Customer Email Event']).setValue(email.eventId);
+  }
+  return responseJSON({success:true,orderEmailVersion:1,email:email,message:'Status dan resi tersimpan.'});
+ }finally{lock.releaseLock();}
+}
+function orderEmailMessage_(order){
+ var titles={'PEMBAYARAN DITERIMA':'Pembayaran diterima','PESANAN DISIAPKAN':'Pesanan sedang disiapkan','DIKIRIM':'Pesanan telah dikirim','SELESAI':'Pesanan selesai'},title=titles[order.status]||'Informasi pesanan',serial=String(order.orderSerial),url='https://www.vartana.id/?track=1';
+ var detail=order.status==='DIKIRIM'?'Paketmu telah dikirim melalui J&T. Nomor resi: '+order.resiJNT+'.':order.status==='PEMBAYARAN DITERIMA'?'Tim VARTANA sudah memverifikasi pembayaranmu.':order.status==='PESANAN DISIAPKAN'?'Racikan pilihanmu sedang kami siapkan dan kemas.':'Tim VARTANA telah mengonfirmasi pesananmu selesai. Terima kasih sudah berbelanja.';
+ var money='Rp'+Number(order.grandTotal||0).toLocaleString('id-ID'),text='Halo '+order.customerName+',\n\n'+title+'\nPesanan: '+serial+'\n'+detail+'\n\nProduk: '+order.itemsSummary+'\nTotal: '+money+'\n\nLacak pesanan: '+url+'\nMasukkan nomor pesanan untuk melihat perkembangannya.\n\nVARTANA Botanical Wellness';
+ function esc(v){return String(v||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+ var html='<div style="background:#f6f2e8;padding:28px 16px;color:#173d2b;font-family:Arial,sans-serif"><div style="max-width:560px;margin:auto;background:#fffdf7;border:1px solid #dedbc9;border-radius:20px;overflow:hidden"><div style="padding:25px;background:#173d2b;color:#fffdf7"><small>VARTANA / PESANAN</small><h1 style="font:30px Georgia,serif">'+esc(title)+'</h1></div><div style="padding:25px;line-height:1.8"><p>Halo '+esc(order.customerName)+',</p><p>'+esc(detail)+'</p><p><strong>'+esc(serial)+'</strong><br>'+esc(order.itemsSummary)+'<br>Total: '+esc(money)+'</p><p><a href="'+url+'" style="display:inline-block;background:#173d2b;color:white;text-decoration:none;border-radius:24px;padding:12px 22px">Lacak pesanan</a></p><p style="font-size:12px">Masukkan nomor pesanan untuk melihat perkembangannya. Balas email ini bila membutuhkan bantuan.</p></div></div></div>';
+ return {subject:'[VARTANA] '+title+' — '+serial,body:text,htmlBody:html};
+}
+function sendOrderCustomerEmail_(data){
+ puzzleVerify_(data,'sendOrderCustomerEmail');var id=String((data.puzzlePayload||{}).eventId||'');if(!id||id.length>250)throw new Error('Referensi notifikasi tidak valid.');
+ var lock=LockService.getScriptLock();lock.waitLock(20000);var context;
+ try{
+  var sheet=orderEmailSheet_(),rows=sheet.getDataRange().getValues(),row=-1;for(var i=1;i<rows.length;i++)if(String(rows[i][1])===id)row=i+1;
+  if(row<0)throw new Error('Notifikasi tidak ditemukan.');var entry=rows[row-1];if(entry[6]!=='PENDING'||Number(entry[7])>0)return responseJSON({success:true,status:String(entry[6]),duplicate:true});
+  try{gamesEmailSender_();if(MailApp.getRemainingDailyQuota()<1)throw new Error('Kuota email harian habis.');}catch(e){sheet.getRange(row,7).setValue('BLOCKED');sheet.getRange(row,12).setValue(String(e.message||e).slice(0,400));orderEmailMark_(id,'BLOCKED');return responseJSON({success:true,status:'BLOCKED'});}
+  var delivery=Utilities.getUuid(),order=JSON.parse(String(entry[5]));sheet.getRange(row,7,1,4).setValues([['SENDING',1,delivery,new Date()]]);context={to:gamesRawEmail_(entry[4]),delivery:delivery,message:orderEmailMessage_(order)};
+ }finally{lock.releaseLock();}
+ var sent=false,error='';try{MailApp.sendEmail({to:context.to,subject:context.message.subject,body:context.message.body,htmlBody:context.message.htmlBody,name:'VARTANA Botanical Wellness',replyTo:'vartana@vartanaglobal.com'});sent=true;}catch(e){error=String(e.message||e).slice(0,400);}
+ lock=LockService.getScriptLock();lock.waitLock(20000);
+ try{var sheet=orderEmailSheet_(),rows=sheet.getDataRange().getValues();for(var i=1;i<rows.length;i++)if(String(rows[i][1])===id&&String(rows[i][8])===context.delivery){sheet.getRange(i+1,7).setValue(sent?'SENT':'UNKNOWN');sheet.getRange(i+1,10,1,3).setValues([[new Date(),sent?new Date():'',error]]);orderEmailMark_(id,sent?'SENT':'UNKNOWN');return responseJSON({success:true,status:sent?'SENT':'UNKNOWN'});}throw new Error('Status pengiriman perlu diperiksa admin.');}finally{lock.releaseLock();}
+}
+function orderEmailMark_(eventId,status){var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),rows=sheet.getDataRange().getValues(),headers=rows[0],eventCol=headers.indexOf('Customer Email Event'),stateCol=headers.indexOf('Customer Email Status');if(eventCol<0||stateCol<0)return;for(var i=1;i<rows.length;i++)if(String(rows[i][eventCol])===eventId)sheet.getRange(i+1,stateCol+1).setValue(status);}
+
+// Stok is the physical finished-goods ledger; sales are paid orders, excluding free gifts.
+function productStockReport_(){
+ var state=inventoryState_(inventorySheets_()),sold={},bonuses={},unmapped=0,sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),rows=sheet?sheet.getDataRange().getValues():[],headers=rows[0]||[],inventoryCol=headers.indexOf('Inventory Items'),statusCol=headers.indexOf('Status'),rewardCol=headers.indexOf('Reward Items'),seen={};
+ for(var i=1;i<rows.length;i++){
+  var row=rows[i],serial=String(row[1]||'');if(!serial||seen[serial]||['PEMBAYARAN DITERIMA','PESANAN DISIAPKAN','DIKIRIM','SELESAI'].indexOf(String(row[statusCol]))<0)continue;seen[serial]=true;
+  var items,rewards=[];try{items=JSON.parse(String(row[inventoryCol]||'null'));if(!Array.isArray(items)||!items.length)throw new Error('missing');if(rewardCol>=0&&row[rewardCol])rewards=JSON.parse(String(row[rewardCol]));if(!Array.isArray(rewards))throw new Error('invalid');if(items.some(function(x){return !x||typeof x.sku!=='string'||!Number.isSafeInteger(x.quantity)||x.quantity<1;}))throw new Error('invalid');}catch(e){unmapped++;continue;}
+  var free={};rewards.forEach(function(r){if(r&&r.price===0&&Number.isSafeInteger(r.quantity)&&r.quantity>0)free[r.sku]=(free[r.sku]||0)+r.quantity;});
+  var totals={};items.forEach(function(x){totals[x.sku]=(totals[x.sku]||0)+x.quantity;});Object.keys(totals).forEach(function(sku){var gift=Math.min(totals[sku],free[sku]||0);sold[sku]=(sold[sku]||0)+totals[sku]-gift;bonuses[sku]=(bonuses[sku]||0)+gift;});
+ }
+ return responseJSON({success:true,productStockVersion:1,unmappedOrders:unmapped,items:getProducts().map(function(p){var key='finished:'+p.sku;return {sku:p.sku,qty:Object.prototype.hasOwnProperty.call(state.balances,key)?Math.max(0,state.balances[key]):null,soldQty:sold[p.sku]||0,bonusQty:bonuses[p.sku]||0};})});
 }
 
 // GAMES V3: every attempt gets its own durable row; public contacts are masked here.

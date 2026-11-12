@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Link from "next/link";
 import ProductResearch from "./ProductResearch";
+import CatalogStock from "./CatalogStock";
 import ProductImage from "@/app/components/ProductImage";
 import { productImageUrl } from "@/lib/product-image";
 
@@ -478,6 +479,7 @@ export default function MasterProductPage() {
           </div>
         </div>
 
+        <CatalogStock products={filteredProducts}/>
         <section className="mt-8 rounded-2xl border border-[#e1dccf] bg-white p-5 sm:p-7">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div>

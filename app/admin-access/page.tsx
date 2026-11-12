@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 
 const menus = [
+ {title:'Member',description:'Cari dan edit nama, WhatsApp, serta alamat member.',href:'/admin/members',number:'12',symbol:''},
  {title:'Games',description:'Atur puzzle 20 keping, foto Drive, waktu, hitungan angka, simulasi dan data peserta.',href:'/admin/games',number:'11',symbol:''},
  {title:'Artikel & Jurnal',description:'Tulis, edit, terbitkan dan hapus artikel; foto lewat link dan salin URL artikel.',href:'/admin/articles',number:'10',symbol:''},
  {title:'Produksi / PPIC',description:'Resep, rencana produksi, pemakaian aktual dan hasil kemasan jual.',href:'/admin/production',number:'07',symbol:''},
@@ -178,7 +179,7 @@ export default function AdminAccessPage() {
 
       <div className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-7 sm:px-8 lg:px-12">
         <header className="flex items-center justify-between gap-4 border-b border-white/10 pb-6">
-          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+          <Link href="/" aria-label="Kembali ke beranda VARTANA" className="flex min-w-0 items-center gap-3 sm:gap-4">
             <Image
               src="/Logo%20Vartana%20Bulat.png"
               alt="Logo resmi VARTANA"
@@ -195,10 +196,10 @@ export default function AdminAccessPage() {
                 ROOTED IN EARTH, BUILT FOR GROWTH
               </p>
             </div>
-          </div>
+          </Link>
 
           <div className="hidden rounded-full border border-[#c5a66b]/40 bg-black/20 px-4 py-2 text-[10px] tracking-[0.2em] text-[#e2c77f] sm:block">
-            INTERNAL PORTAL
+            <Link href="/">Kembali ke website ↗</Link>
           </div>
         </header>
 

@@ -570,6 +570,7 @@ function doPost(e) {
     if(data.action==='retailReconciliation')return retailReconciliation_(data);
     if(data.action==='getRetailStock')return responseJSON(retailStockSnapshot_(String(data.orderKey||'')));
     if(data.action==='saveRetailOrderV3')return saveRetailOrderV3_(data);
+    if(data.action==='adminMembers')return adminMembers_(data);
     if(data.action==='customerAccount')return customerAccount_(data);
     if(data.action==='customerOrderAccess')return customerOrderAccess_(data);
     if(data.action==='customerOrderLookup')return customerOrderLookup_(data);
@@ -945,7 +946,7 @@ function doGet(e) {
 
     if (action === 'getArticles') { var articles=readArticles_(); return responseJSON({success:true,articleVersion:1,articles:articles.filter(function(a){return a.status==='PUBLISHED';}),hiddenSlugs:articles.filter(function(a){return a.status!=='PUBLISHED';}).map(function(a){return a.slug;})}); }
 
-    if (action === "getInventoryCapabilities") return responseJSON({inventoryVersion:4,batchRevisionVersion:1,materialActualVersion:1,openingEditVersion:1,materialWorkflowVersion:2});
+    if (action === "getInventoryCapabilities") return responseJSON({inventoryVersion:4,bulkFinishedVersion:1,batchRevisionVersion:1,materialActualVersion:1,openingEditVersion:1,materialWorkflowVersion:2});
     if (action === "getInventory") return inventoryReport_();
     if (action === "getCatalogTranslations") return getCatalogTranslations_();
 
@@ -3386,11 +3387,11 @@ function inventoryReport_(){
  var batchList=inventoryBatchState_(sheets,state,inventoryToday_());
  raw.forEach(function(x){var bs=batchList.filter(function(b){return b.materialId===x.id;});x.batches=bs;x.unassignedQty=Math.max(0,(x.qty||0)-bs.reduce(function(s,b){return s+b.qty;},0));x.usableQty=bs.filter(function(b){return b.eligible;}).reduce(function(s,b){return s+b.qty;},0);});
  var finished=products.map(function(p){var x=item('finished',p.sku,p.productName+' '+p.variantName,'pack',Number(p.hpp)||0);x.sellingPrice=Number(p.sellingPrice)||0;try{var usage=inventoryUsage_(recipes[p.sku]),ids=Object.keys(usage),unknown=ids.some(function(id){return state.balances['material:'+id]===undefined;});x.capacity=unknown?null:Math.max(0,Math.min.apply(null,ids.map(function(id){return Math.floor(((raw.filter(function(m){return m.id===id&&!m.archived;})[0]||{usableQty:0}).usableQty+1e-8)/usage[id]);})));}catch(e){x.capacity=null;x.capacityReason=e.message;}return x;});
- return responseJSON({success:true,inventoryVersion:4,openingEditVersion:1,materialActualVersion:1,batchRevisionVersion:1,materialWorkflowVersion:2,products:products,recipes:inventoryRecipes_(),production:productionOrders_(),expenses:operatingExpenses_(),spreadsheetUrl:typeof SpreadsheetApp.getActiveSpreadsheet().getUrl==='function'?SpreadsheetApp.getActiveSpreadsheet().getUrl():'',materials:raw,finished:finished,history:state.rows.slice(-30).reverse().filter(function(r){return r[1]!=='Event ID';}).map(function(r){return {date:formatKonsinyasiDateTime_(r[0]),eventId:r[1],kind:r[2],id:r[3],qty:r[4],note:r[5],batchId:r[6]||''};}),valuation:'Harga acuan master saat ini; belum FIFO atau nilai historis pembelian.'});
+ return responseJSON({success:true,inventoryVersion:4,bulkFinishedVersion:1,openingEditVersion:1,materialActualVersion:1,batchRevisionVersion:1,materialWorkflowVersion:2,products:products,recipes:inventoryRecipes_(),production:productionOrders_(),expenses:operatingExpenses_(),spreadsheetUrl:typeof SpreadsheetApp.getActiveSpreadsheet().getUrl==='function'?SpreadsheetApp.getActiveSpreadsheet().getUrl():'',materials:raw,finished:finished,history:state.rows.slice(-30).reverse().filter(function(r){return r[1]!=='Event ID';}).map(function(r){return {date:formatKonsinyasiDateTime_(r[0]),eventId:r[1],kind:r[2],id:r[3],qty:r[4],note:r[5],batchId:r[6]||''};}),valuation:'Harga acuan master saat ini; belum FIFO atau nilai historis pembelian.'});
 }
 function inventoryCommit_(sheets,state,eventId,changes,note){
  if(state.rows.some(function(r){return String(r[1])===eventId;}))return {duplicate:true};
- if(sheets.batches)changes=inventoryBatchChanges_(sheets,state,changes);
+ if(sheets.batches&&changes.some(function(change){return change.kind==='material';}))changes=inventoryBatchChanges_(sheets,state,changes);
  var sums={};changes.forEach(function(c){if(['material','finished'].indexOf(c.kind)<0||!c.id||!isFinite(c.qty))throw new Error('Mutasi stok tidak valid.');var key=c.kind+':'+c.id;sums[key]=(sums[key]||0)+c.qty;});
  Object.keys(sums).forEach(function(key){if((state.balances[key]||0)+sums[key]<-1e-7)throw new Error('Stok tidak cukup untuk '+key+'. Periksa stok fisik dan catat penerimaan.');});
  var now=new Date(),rows=changes.map(function(c){return sheets.batches?[now,eventId,c.kind,c.id,c.qty,note,c.batchId||'']:[now,eventId,c.kind,c.id,c.qty,note];});
@@ -3400,6 +3401,7 @@ function inventoryCommit_(sheets,state,eventId,changes,note){
  return {duplicate:false};
 }
 function saveInventory_(data){
+ if(data.operation==='bulkFinishedOpname')return saveFinishedBulk_(data);
  if(['archiveMaterial','archiveMaterials','expenseSave','productionPlan','productionComplete','productionCancel'].indexOf(data.operation)>=0)return saveInventoryOperations_(data);
  if(String(data.operation||'').indexOf('batch')===0)return saveInventoryBatch_(data);
  if(data.operation==='materialActual')return saveMaterialActual_(data);
@@ -3928,6 +3930,118 @@ function orderEmailMark_(eventId,status){var sheet=SpreadsheetApp.getActiveSprea
 // Stok is the physical finished-goods ledger; sales are paid orders, excluding free gifts.
 function productStockReport_(){var stock=retailStockSnapshot_(''),sales=retailSalesState_();return responseJSON({success:true,productStockVersion:1,unmappedOrders:sales.unmapped.length,items:stock.items.map(function(x){x.soldQty=sales.sold[x.sku]||0;x.bonusQty=sales.bonus[x.sku]||0;return x;})});}
 
+// Administrative member directory; customer credentials and order history stay separate.
+function adminMembers_(data) {
+  puzzleVerify_(data, 'adminMembers');
+  var payload = data.puzzlePayload || {};
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MEMBERS);
+  if (!sheet) return responseJSON({success:true, members:[]});
+  function revision(row) {
+    var cells=[];for(var i=0;i<8;i++)cells.push(row[i]===undefined?'':row[i]);
+    return Utilities.computeHmacSha256Signature(JSON.stringify(cells), 'member-row-version').map(function(v){return ('0'+((v+256)%256).toString(16)).slice(-2);}).join('');
+  }
+  function record(row, index) {
+    return {row:index+1, revision:revision(row), memberId:String(row[1]||''), name:String(row[2]||''), email:String(row[3]||''), phone:String(row[4]||''), birthDate:row[5] instanceof Date?formatDateValue(row[5]):String(row[5]||''), address:String(row[6]||''), city:String(row[7]||'')};
+  }
+  if (payload.operation === 'list') {
+    var rows = sheet.getDataRange().getValues();
+    return responseJSON({success:true,members:rows.map(record).slice(1).filter(function(member){return member.memberId;})});
+  }
+  if (payload.operation !== 'save') throw new Error('Tindakan member tidak dikenal.');
+  var member = payload.member;
+  if (!member || !Number.isInteger(member.row) || member.row < 2) throw new Error('Member tidak valid.');
+  ['name','phone','birthDate','address','city'].forEach(function(key){
+    if(typeof member[key]!=='string'||member[key].length>(key==='address'?1000:150))throw new Error('Data member tidak valid.');
+  });
+  if(!member.name.trim()||!customerOrderPhone_(member.phone))throw new Error('Isi nama dan nomor WhatsApp yang valid.');
+  if(member.birthDate&&member.birthDate!=='-'&&!inventoryValidDate_(member.birthDate,false))throw new Error('Tanggal lahir tidak valid.');
+  var lock=LockService.getScriptLock();lock.waitLock(20000);
+  try {
+    if(member.row>sheet.getLastRow())throw new Error('Member tidak ditemukan.');
+    var old=sheet.getRange(member.row,1,1,8).getValues()[0];
+    if(String(old[1])!==member.memberId||revision(old)!==member.revision)throw new Error('Data member berubah. Muat ulang sebelum mengedit.');
+    var values=[old[0],old[1],gamesCell_(member.name.trim()),old[3],customerOrderPhone_(member.phone),member.birthDate,gamesCell_(member.address.trim()),gamesCell_(member.city.trim())];
+    sheet.getRange(member.row,1,1,8).setValues([values]);
+    return responseJSON({success:true,member:record(values,member.row-1)});
+  } finally {lock.releaseLock();}
+}
+
+// Record selected finished-goods counts in one ledger write while holding the stock lock.
+function saveFinishedBulk_(data) {
+  var items = data.items;
+  var note = String(data.note || '').trim().slice(0, 300);
+  var requestId = String(data.requestId || '');
+  var seen = Object.create(null);
+
+  function validQuantity(value) {
+    return Number.isSafeInteger(value) && value >= 0 && value <= 1e12;
+  }
+
+  if (!/^[a-f0-9-]{36}$/i.test(requestId) || !Array.isArray(items) || !items.length || items.length > 100) {
+    return responseJSON({ success: false, message: 'Pilih 1 sampai 100 SKU untuk disimpan sekaligus.' });
+  }
+
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    if (!item || typeof item.id !== 'string' || !item.id || item.id.length > 100 || seen[item.id] ||
+        !validQuantity(item.qty) || (item.expectedQty !== null && !validQuantity(item.expectedQty))) {
+      return responseJSON({ success: false, message: 'SKU, stok fisik, atau saldo pembanding tidak valid. Jumlah pack harus bilangan bulat.' });
+    }
+    seen[item.id] = true;
+  }
+
+  var fingerprintInput = items.map(function (entry) {
+    return { id: entry.id, qty: entry.qty, expectedQty: entry.expectedQty };
+  }).sort(function (a, b) { return a.id.localeCompare(b.id); });
+  var fingerprint = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    JSON.stringify({ items: fingerprintInput, note: note })
+  ).map(function (value) { return ('0' + ((value + 256) % 256).toString(16)).slice(-2); }).join('');
+  var ledgerNote = 'STOK OPNAME MASSAL' + (note ? ' | ' + note : '');
+  var requestPrefix = 'INV-BULK:' + requestId + ':';
+  var eventId = requestPrefix + fingerprint;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+
+  try {
+    var sheets = inventorySheets_();
+    var state = inventoryState_(sheets);
+    var previous = state.rows.filter(function (row) { return String(row[1]).indexOf(requestPrefix) === 0; });
+    if (previous.length) {
+      if (previous.length !== items.length || previous.some(function (row) {
+        return String(row[1]) !== eventId || String(row[2]) !== 'finished';
+      })) throw new Error('Permintaan ini sudah dipakai untuk isian lain. Muat ulang saldo sebelum menyimpan.');
+      return responseJSON({ success: true, duplicate: true, saved: items.length });
+    }
+
+    var products = getProducts();
+    var changes = [];
+    for (var j = 0; j < items.length; j++) {
+      var entry = items[j];
+      if (!products.some(function (product) { return product.sku === entry.id; })) {
+        throw new Error('SKU ' + entry.id + ' sudah tidak tersedia di Master Produk.');
+      }
+      var key = 'finished:' + entry.id;
+      var current = Object.prototype.hasOwnProperty.call(state.balances, key) ? state.balances[key] : null;
+      if ((current === null) !== (entry.expectedQty === null) ||
+          (current !== null && Math.abs(current - entry.expectedQty) > 1e-7)) {
+        throw new Error('Saldo ' + entry.id + ' berubah menjadi ' + (current === null ? 'belum diisi' : current + ' pack') + '. Pilih Muat ulang saldo dan periksa isian kembali.');
+      }
+      if (current !== null && current !== entry.qty && !note) {
+        throw new Error('Isi catatan hasil hitung untuk perubahan stok yang sudah tercatat.');
+      }
+      changes.push({ kind: 'finished', id: entry.id, qty: entry.qty - (current || 0) });
+    }
+
+    var result = inventoryCommit_(sheets, state, eventId, changes, ledgerNote);
+    return responseJSON({ success: true, duplicate: result.duplicate, saved: items.length });
+  } catch (error) {
+    return responseJSON({ success: false, message: error.message });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 // RETAIL STOCK V1: reserve available finished packs under the same lock as Orders.
 function retailReservationMs_(){return 30*60000;}
 function retailItems_(items){if(!Array.isArray(items)||!items.length||items.length>200)throw new Error('Rincian SKU keranjang tidak valid. Muat ulang checkout.');var totals={};items.forEach(function(x){if(!x||typeof x.sku!=='string'||!x.sku||!Number.isSafeInteger(x.quantity)||x.quantity<1||x.quantity>999)throw new Error('Jumlah SKU keranjang tidak valid.');totals[x.sku]=(totals[x.sku]||0)+x.quantity;});return totals;}
@@ -4053,8 +4167,15 @@ function customerAccountPublic_(account){var v=account.values,email=gamesRawEmai
 function customerAccount_(data){
  puzzleVerify_(data,'customerAccount');var d=data.puzzlePayload||{},op=String(d.operation||''),allowed=['requestCode','verifyCode','setPassword','loginBegin','loginFinish','read','logout','saveProfile'];
  if(allowed.indexOf(op)<0)throw new Error('Operasi akun tidak valid.');
- var sheets=customerAccountSheets_(),now=Date.now(),lock=LockService.getScriptLock();
- if(op==='read'){var account=customerAccountSession_(sheets,d.sessionHash);return responseJSON(account?{success:true,customerAccountVersion:1,authenticated:true,account:customerAccountPublic_(account)}:{success:true,customerAccountVersion:1,authenticated:false});}
+ var now=Date.now(),lock=LockService.getScriptLock();
+ if(op==='read'){
+  var spreadsheet=SpreadsheetApp.getActiveSpreadsheet();
+  var accountSheet=spreadsheet.getSheetByName('CustomerAccounts');
+  var sessionSheet=spreadsheet.getSheetByName('CustomerAccountSessions');
+  var account=accountSheet&&sessionSheet?customerAccountSession_({accounts:accountSheet,sessions:sessionSheet},d.sessionHash):null;
+  return responseJSON(account?{success:true,customerAccountVersion:1,authenticated:true,account:customerAccountPublic_(account)}:{success:true,customerAccountVersion:1,authenticated:false});
+ }
+ var sheets=customerAccountSheets_();
  if(op==='logout'||op==='saveProfile'){
   lock.waitLock(20000);try{var account=customerAccountSession_(sheets,d.sessionHash);if(!account){if(op==='logout')return responseJSON({success:true});throw new Error('Sesi akun berakhir. Silakan masuk kembali.');}
    if(op==='logout'){sheets.sessions.getRange(account.sessionRow,6).setValue(new Date());return responseJSON({success:true});}

@@ -6,7 +6,7 @@ Menu **Akun saya** tersedia di beranda, navigasi publik, dan checkout. Customer 
 
 1. Buka `/akun`, masukkan email yang dahulu dipakai belanja, lalu lanjutkan.
 2. Pilih **Kirim kode buat / reset password**.
-3. Masukkan OTP dari email dan tentukan password sendiri (12–128 karakter).
+3. Masukkan OTP dari email dan tentukan password sendiri (6–128 karakter).
 4. Masuk menggunakan email dan password baru. Data lama dicari berdasarkan email terverifikasi; aktivasi akun tidak membuat baris Members baru.
 
 Nomor Members yang tersimpan numerik tanpa nol depan kini dikenali saat checkout dan pembaruan profil member, sehingga Member ID lama dipertahankan. Jika data lama belum mempunyai ID wilayah terstruktur, pilih wilayah sekali saat checkout. Alamat lengkap dari pesanan berhasil berikutnya disimpan untuk pembelian selanjutnya.

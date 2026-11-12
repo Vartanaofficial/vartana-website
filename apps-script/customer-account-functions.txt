@@ -31,8 +31,15 @@ function customerAccountPublic_(account){var v=account.values,email=gamesRawEmai
 function customerAccount_(data){
  puzzleVerify_(data,'customerAccount');var d=data.puzzlePayload||{},op=String(d.operation||''),allowed=['requestCode','verifyCode','setPassword','loginBegin','loginFinish','read','logout','saveProfile'];
  if(allowed.indexOf(op)<0)throw new Error('Operasi akun tidak valid.');
- var sheets=customerAccountSheets_(),now=Date.now(),lock=LockService.getScriptLock();
- if(op==='read'){var account=customerAccountSession_(sheets,d.sessionHash);return responseJSON(account?{success:true,customerAccountVersion:1,authenticated:true,account:customerAccountPublic_(account)}:{success:true,customerAccountVersion:1,authenticated:false});}
+ var now=Date.now(),lock=LockService.getScriptLock();
+ if(op==='read'){
+  var spreadsheet=SpreadsheetApp.getActiveSpreadsheet();
+  var accountSheet=spreadsheet.getSheetByName('CustomerAccounts');
+  var sessionSheet=spreadsheet.getSheetByName('CustomerAccountSessions');
+  var account=accountSheet&&sessionSheet?customerAccountSession_({accounts:accountSheet,sessions:sessionSheet},d.sessionHash):null;
+  return responseJSON(account?{success:true,customerAccountVersion:1,authenticated:true,account:customerAccountPublic_(account)}:{success:true,customerAccountVersion:1,authenticated:false});
+ }
+ var sheets=customerAccountSheets_();
  if(op==='logout'||op==='saveProfile'){
   lock.waitLock(20000);try{var account=customerAccountSession_(sheets,d.sessionHash);if(!account){if(op==='logout')return responseJSON({success:true});throw new Error('Sesi akun berakhir. Silakan masuk kembali.');}
    if(op==='logout'){sheets.sessions.getRange(account.sessionRow,6).setValue(new Date());return responseJSON({success:true});}

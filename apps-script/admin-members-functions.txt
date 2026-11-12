@@ -1,0 +1,35 @@
+// Administrative member directory; customer credentials and order history stay separate.
+function adminMembers_(data) {
+  puzzleVerify_(data, 'adminMembers');
+  var payload = data.puzzlePayload || {};
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MEMBERS);
+  if (!sheet) return responseJSON({success:true, members:[]});
+  function revision(row) {
+    var cells=[];for(var i=0;i<8;i++)cells.push(row[i]===undefined?'':row[i]);
+    return Utilities.computeHmacSha256Signature(JSON.stringify(cells), 'member-row-version').map(function(v){return ('0'+((v+256)%256).toString(16)).slice(-2);}).join('');
+  }
+  function record(row, index) {
+    return {row:index+1, revision:revision(row), memberId:String(row[1]||''), name:String(row[2]||''), email:String(row[3]||''), phone:String(row[4]||''), birthDate:row[5] instanceof Date?formatDateValue(row[5]):String(row[5]||''), address:String(row[6]||''), city:String(row[7]||'')};
+  }
+  if (payload.operation === 'list') {
+    var rows = sheet.getDataRange().getValues();
+    return responseJSON({success:true,members:rows.map(record).slice(1).filter(function(member){return member.memberId;})});
+  }
+  if (payload.operation !== 'save') throw new Error('Tindakan member tidak dikenal.');
+  var member = payload.member;
+  if (!member || !Number.isInteger(member.row) || member.row < 2) throw new Error('Member tidak valid.');
+  ['name','phone','birthDate','address','city'].forEach(function(key){
+    if(typeof member[key]!=='string'||member[key].length>(key==='address'?1000:150))throw new Error('Data member tidak valid.');
+  });
+  if(!member.name.trim()||!customerOrderPhone_(member.phone))throw new Error('Isi nama dan nomor WhatsApp yang valid.');
+  if(member.birthDate&&member.birthDate!=='-'&&!inventoryValidDate_(member.birthDate,false))throw new Error('Tanggal lahir tidak valid.');
+  var lock=LockService.getScriptLock();lock.waitLock(20000);
+  try {
+    if(member.row>sheet.getLastRow())throw new Error('Member tidak ditemukan.');
+    var old=sheet.getRange(member.row,1,1,8).getValues()[0];
+    if(String(old[1])!==member.memberId||revision(old)!==member.revision)throw new Error('Data member berubah. Muat ulang sebelum mengedit.');
+    var values=[old[0],old[1],gamesCell_(member.name.trim()),old[3],customerOrderPhone_(member.phone),member.birthDate,gamesCell_(member.address.trim()),gamesCell_(member.city.trim())];
+    sheet.getRange(member.row,1,1,8).setValues([values]);
+    return responseJSON({success:true,member:record(values,member.row-1)});
+  } finally {lock.releaseLock();}
+}

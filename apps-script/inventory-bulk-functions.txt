@@ -1,0 +1,75 @@
+// Record selected finished-goods counts in one ledger write while holding the stock lock.
+function saveFinishedBulk_(data) {
+  var items = data.items;
+  var note = String(data.note || '').trim().slice(0, 300);
+  var requestId = String(data.requestId || '');
+  var seen = Object.create(null);
+
+  function validQuantity(value) {
+    return Number.isSafeInteger(value) && value >= 0 && value <= 1e12;
+  }
+
+  if (!/^[a-f0-9-]{36}$/i.test(requestId) || !Array.isArray(items) || !items.length || items.length > 100) {
+    return responseJSON({ success: false, message: 'Pilih 1 sampai 100 SKU untuk disimpan sekaligus.' });
+  }
+
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    if (!item || typeof item.id !== 'string' || !item.id || item.id.length > 100 || seen[item.id] ||
+        !validQuantity(item.qty) || (item.expectedQty !== null && !validQuantity(item.expectedQty))) {
+      return responseJSON({ success: false, message: 'SKU, stok fisik, atau saldo pembanding tidak valid. Jumlah pack harus bilangan bulat.' });
+    }
+    seen[item.id] = true;
+  }
+
+  var fingerprintInput = items.map(function (entry) {
+    return { id: entry.id, qty: entry.qty, expectedQty: entry.expectedQty };
+  }).sort(function (a, b) { return a.id.localeCompare(b.id); });
+  var fingerprint = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    JSON.stringify({ items: fingerprintInput, note: note })
+  ).map(function (value) { return ('0' + ((value + 256) % 256).toString(16)).slice(-2); }).join('');
+  var ledgerNote = 'STOK OPNAME MASSAL' + (note ? ' | ' + note : '');
+  var requestPrefix = 'INV-BULK:' + requestId + ':';
+  var eventId = requestPrefix + fingerprint;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+
+  try {
+    var sheets = inventorySheets_();
+    var state = inventoryState_(sheets);
+    var previous = state.rows.filter(function (row) { return String(row[1]).indexOf(requestPrefix) === 0; });
+    if (previous.length) {
+      if (previous.length !== items.length || previous.some(function (row) {
+        return String(row[1]) !== eventId || String(row[2]) !== 'finished';
+      })) throw new Error('Permintaan ini sudah dipakai untuk isian lain. Muat ulang saldo sebelum menyimpan.');
+      return responseJSON({ success: true, duplicate: true, saved: items.length });
+    }
+
+    var products = getProducts();
+    var changes = [];
+    for (var j = 0; j < items.length; j++) {
+      var entry = items[j];
+      if (!products.some(function (product) { return product.sku === entry.id; })) {
+        throw new Error('SKU ' + entry.id + ' sudah tidak tersedia di Master Produk.');
+      }
+      var key = 'finished:' + entry.id;
+      var current = Object.prototype.hasOwnProperty.call(state.balances, key) ? state.balances[key] : null;
+      if ((current === null) !== (entry.expectedQty === null) ||
+          (current !== null && Math.abs(current - entry.expectedQty) > 1e-7)) {
+        throw new Error('Saldo ' + entry.id + ' berubah menjadi ' + (current === null ? 'belum diisi' : current + ' pack') + '. Pilih Muat ulang saldo dan periksa isian kembali.');
+      }
+      if (current !== null && current !== entry.qty && !note) {
+        throw new Error('Isi catatan hasil hitung untuk perubahan stok yang sudah tercatat.');
+      }
+      changes.push({ kind: 'finished', id: entry.id, qty: entry.qty - (current || 0) });
+    }
+
+    var result = inventoryCommit_(sheets, state, eventId, changes, ledgerNote);
+    return responseJSON({ success: true, duplicate: result.duplicate, saved: items.length });
+  } catch (error) {
+    return responseJSON({ success: false, message: error.message });
+  } finally {
+    lock.releaseLock();
+  }
+}

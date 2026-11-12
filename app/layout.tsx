@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "VARTANA · Botanical Wellness",
-  description: "Kebaikan dari alam, untuk keseharian. Produk botanikal pilihan Indonesia.",
+  description: "Teh herbal dari rempah Indonesia. Jelajahi racikan jahe, serai, kunyit, dan pilihan teh herbal VARTANA.",
   icons: {
     icon: "/Logo Vartana Bulat.png",
   },

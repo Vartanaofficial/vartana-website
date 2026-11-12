@@ -10,7 +10,7 @@ import './games.css';
 
 export const metadata: Metadata = {
   title: 'Games | VARTANA',
-  description: 'Ambil jeda, mainkan game rempah VARTANA, dan raih hadiah untuk belanja berikutnya.',
+  description: 'Mainkan tantangan VARTANA dan raih hadiah untuk belanja berikutnya.',
 };
 
 export default function GamesPage() {
@@ -18,8 +18,8 @@ export default function GamesPage() {
     <EditorialHeader/>
     <section className="games-intro">
       <span className="editorial-eyebrow">RUANG BERMAIN VARTANA</span>
-      <h1>Ambil jeda.<br/><em>Yuk, main sebentar.</em></h1>
-      <p>Permainan kecil dengan cerita rempah di dalamnya. Pilih tantanganmu, nikmati prosesnya, dan bawa pulang hadiah untuk seduhan berikutnya.</p>
+      <h1>Uji ketelitian.<br/><em>Raih pencapaian baru.</em></h1>
+      <p>Pilih puzzle, hitungan angka, atau teka-teki silang. Selesaikan tantangan, catat rekor, dan raih hadiah sesuai ketentuan.</p>
     </section>
     <section className="games-list" aria-label="Pilihan game">
       <article className="games-feature">

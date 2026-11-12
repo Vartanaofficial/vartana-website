@@ -85,26 +85,26 @@ const content = {
     },
     "hero": {
       "eyebrow": "VARTANA · BOTANICAL WELLNESS",
-      "title": "Seduhan rempah,",
-      "accent": "teman di sela harimu.",
-      "text": "VARTANA meracik teh herbal dari rempah Indonesia dalam tea bag yang praktis diseduh. Dari bahan yang akrab, kami menghadirkan hangatnya jeda untuk keseharianmu.",
+      "title": "Rempah Indonesia.",
+      "accent": "Rasa yang berkarakter.",
+      "text": "Jahe, serai, dan rempah pilihan diracik menjadi teh herbal dengan karakter rasa yang khas. Praktis diseduh, nikmat dalam setiap cangkir.",
       "primary": "Mulai Belanja",
       "secondary": "Tentang VARTANA"
     },
     "philosophy": {
       "eyebrow": "FILOSOFI VARTANA",
-      "title": "Mulai dari bahan yang kita kenal.",
-      "text1": "Cerita VARTANA berawal dari hal yang dekat: aroma jahe di dapur, serai yang baru dimemarkan, dan hangatnya kayu manis dalam secangkir seduhan. Kami percaya, merawat keseharian bisa dimulai dari jeda sederhana.",
-      "text2": "Kami membawa kebiasaan itu ke dalam racikan teh herbal berbahan rempah Indonesia, dikemas dalam tea bag agar mudah menemani harimu. Di sini kamu bisa mengenal rempahnya, membaca cerita di balik racikan, dan memilih seduhan untuk dibawa pulang.",
+      "title": "Berakar pada rempah Indonesia.",
+      "text1": "Rempah adalah bagian dari keseharian Indonesia. Aroma jahe, kesegaran serai, dan hangatnya kayu manis menyimpan kekayaan rasa yang menjadi dasar setiap racikan VARTANA.",
+      "text2": "Kami meracik bahan-bahan tersebut dalam teh herbal yang mudah diseduh. Setiap racikan dilengkapi informasi komposisi dan petunjuk penyajian, agar Anda dapat memilih dengan yakin.",
       "quote": "Rooted in Earth, Built for Growth."
     },
     "collection": {
-      "eyebrow": "KATALOG VARTANA",
-      "title": "Pilih racikan yang kamu suka.",
-      "text": "Lihat bahan, pilihan kemasan, dan harga setiap racikan. Informasi produk di bawah mengikuti katalog terbaru."
+      "eyebrow": "KOLEKSI VARTANA",
+      "title": "Temukan karakter rasa pilihan Anda.",
+      "text": "Jelajahi komposisi dan karakter setiap racikan, lalu pilih kemasan yang sesuai."
     },
     "product": {
-      "ingredients": "Komposisi Rempah (Klik untuk informasi medis)",
+      "ingredients": "Komposisi rempah & referensi penelitian",
       "weight": "Berat bersih per tea bag",
       "weightValue": "±9 g",
       "taste": "Karakter Rasa",
@@ -158,18 +158,18 @@ const content = {
     },
     "origin": {
       "eyebrow": "TENTANG VARTANA",
-      "title": "Cerita di balik seduhan.",
-      "intro": "Kami berangkat dari bahan-bahan yang dekat dengan keseharian. Baca cerita VARTANA dan cara kami mengenalkan racikan rempah.",
+      "title": "Mengenal VARTANA.",
+      "intro": "Berangkat dari kekayaan rempah Indonesia, VARTANA menghadirkan teh herbal dengan rasa dan aroma yang khas.",
       "button": "Baca cerita VARTANA"
     },
     "journal": {
       "eyebrow": "ARTIKEL VARTANA",
-      "title": "Cerita dan catatan dari kami.",
-      "text": "Tentang bahan, pilihan racikan, dan kabar VARTANA. Setiap artikel punya halaman sendiri yang bisa kamu baca dan bagikan.",
+      "title": "Cerita, rempah, dan pengetahuan.",
+      "text": "Bacaan tentang rempah, racikan, dan cerita di balik VARTANA.",
       "button": "Lihat semua artikel"
     },
     "footer": {
-      "tagline": "Rempah yang akrab, untuk dinikmati sehari-hari.",
+      "tagline": "Kekayaan rempah, dalam setiap seduhan.",
       "contact": "LAYANAN PELANGGAN",
       "email": "Email Resmi",
       "whatsapp": "WhatsApp Direct",
@@ -213,9 +213,9 @@ const content = {
     "hero": {
       "eyebrow": "VARTANA · BOTANICAL WELLNESS",
       "title": "A cup of spices,",
-      "accent": "a moment for yourself.",
-      "text": "VARTANA blends Indonesian spices into herbal tea bags, made for an easy everyday brew. Familiar ingredients, a warm cup, and a little space to pause.",
-      "primary": "Browse Catalog",
+      "accent": "the flavour of Indonesia.",
+      "text": "Ginger, lemongrass, and selected spices blended into distinctive herbal teas. Easy to brew, made to savour.",
+      "primary": "Shop the blends",
       "secondary": "About VARTANA"
     },
     "philosophy": {
@@ -1185,7 +1185,7 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="storefront-trust-bar"><span>Botanical wellness</span><span>Diracik dengan perhatian</span><span>Temukan ritual baikmu</span></div>
+      <div className="storefront-trust-bar"><span>Rempah Indonesia</span><span>Praktis diseduh</span><span>Komposisi tercantum</span></div>
 
       {/* PHILOSOPHY */}
       <section id="philosophy" className="relative bg-[#FBF9F4] px-6 py-20 md:py-32">
@@ -1384,7 +1384,7 @@ export default function Home() {
                 <div className="relative mb-7 overflow-hidden rounded-3xl bg-[#173d2b] px-7 py-9 text-[#faf5e9]">
                   <BotanicalSprig className="pointer-events-none absolute -right-5 -top-12 w-40 rotate-12 text-[#d9c58c] opacity-35"/>
                   <p className="relative text-[10px] font-semibold uppercase tracking-[0.26em] text-[#d9c58c]">VARTANA · BOTANICAL WELLNESS</p>
-                  <h3 className="relative mt-4 max-w-xs font-serif text-3xl leading-tight">{language === "id" ? "Dari alam, untuk ritual harianmu." : "From nature, for your daily ritual."}</h3>
+                  <h3 className="relative mt-4 max-w-xs font-serif text-3xl leading-tight">{language === "id" ? "Pilihan rasa untuk setiap hari." : "Distinctive blends for every day."}</h3>
                 </div>
                 <div className="relative space-y-5">
                   <section className="rounded-3xl border border-[#d6decc] bg-[#fbfcf7] p-6 shadow-sm sm:p-7">

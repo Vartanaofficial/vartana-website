@@ -3,6 +3,8 @@ export type Language = "id" | "en";
 export type LocalizedText = Record<Language, string>;
 
 export type ProductVariant = {
+  stockKnown?: boolean;
+  stockAvailable?: number;
   sku?: string;
   weightGram?: number;
   ingredients?: LocalizedText[];

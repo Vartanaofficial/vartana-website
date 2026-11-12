@@ -565,6 +565,13 @@ function doPost(e) {
 
     var data =
       JSON.parse(e.postData.contents);
+    if(data.action==='updateOrder')throw new Error('Gunakan dashboard pesanan yang sudah diperbarui.');
+    if(['saveInventory','saveRawMaterials','saveProductCosting'].indexOf(data.action)>=0){puzzleVerify_(data,data.action);if(JSON.stringify(data.puzzlePayload)!==JSON.stringify(puzzleOrderProof_(data)))throw new Error('Rincian persediaan tidak sesuai otorisasi.');}
+    if(data.action==='retailReconciliation')return retailReconciliation_(data);
+    if(data.action==='getRetailStock')return responseJSON(retailStockSnapshot_(String(data.orderKey||'')));
+    if(data.action==='saveRetailOrderV3')return saveRetailOrderV3_(data);
+    if(data.action==='customerOrderAccess')return customerOrderAccess_(data);
+    if(data.action==='customerOrderLookup')return customerOrderLookup_(data);
     if(data.action==='updateOrderWithEmail')return updateOrderWithEmail_(data);
     if(data.action==='sendOrderCustomerEmail')return sendOrderCustomerEmail_(data);
 
@@ -572,7 +579,8 @@ function doPost(e) {
     if (data.action === 'games') return gamesHandle_(data);
     if (data.action === 'gamesAdmin') return gamesAdminHandle_(data);
     if (data.action === 'gamesRewardEmail') return gamesRewardEmailHandle_(data);
-    if (data.action === 'getCheckoutContext') return getCheckoutContext_(data);
+    if(data.action==='adminRead'){puzzleVerify_(data,'adminRead');return doGet({parameter:{action:'getAdminData'},internalAdmin:true});}
+    if (data.action === 'getCheckoutContext'){puzzleVerify_(data,'getCheckoutContext');return getCheckoutContext_(data.puzzlePayload);}
     // Explicit read RPCs share the same response contracts as GET. They never
     // fall through into order creation when master data is requested via POST.
     if (['getProductStock','getProducts','getPricing','getPromotions','getStoreCatalog','getIngredients','getAdminData','fetchOrders','getInventory','getInventoryCapabilities','getCatalogTranslations','getRawMaterials','getProductCosting','getArticles'].indexOf(data.action)>=0 || String(data.action||'').indexOf('getKonsinyasi')===0) return doGet({parameter:{action:data.action}});
@@ -859,7 +867,7 @@ function doPost(e) {
 
     if (data.action === "saveProductCosting") return saveProductCosting_(data);
 
-    return saveRetailOrderWithPromo_(data);
+    throw new Error('Gunakan halaman checkout resmi untuk membuat pesanan.');
 
   } catch (err) {
 
@@ -893,6 +901,8 @@ function doGet(e) {
         ? e.parameter.action
         : "";
 
+    if(action==='getRetailStockCapabilities')return responseJSON({success:true,retailStockVersion:1,reservationMinutes:30});
+    if(action==='getCustomerOrdersCapabilities')return responseJSON({success:true,customerOrdersVersion:2,customerAccessVersion:1});
     if(action==='getOrderEmailCapabilities')return responseJSON({success:true,orderEmailVersion:1});
     if(action==='getProductStock')return productStockReport_();
     if (action === 'getGameCapabilities') return responseJSON({success:true,gamesVersion:3,rewardVersion:1,gameEmailVersion:1,games:['puzzle','numbers','crossword']});
@@ -1005,6 +1015,7 @@ function doGet(e) {
       action === "fetchOrders"
     ) {
 
+      if(!e||e.internalAdmin!==true)throw new Error('Otorisasi admin diperlukan.');
       var orders = vartanaReadOrders_(orderSheet);
 
       // ------------------------------------------------------
@@ -3119,6 +3130,8 @@ function saveRetailOrderWithPromo_(data) {
       if(String(values[i][4])!==String(data.phone)||Number(values[i][13])!==total)return responseJSON({status:'error',message:'Nomor pesanan sudah digunakan dengan rincian berbeda.'});
       return responseJSON({status:'success',success:true,duplicate:true,orderSerial:serial});
     }
+    if(data.retailStockVersion===1){puzzleVerify_(data,'saveOrder');if(JSON.stringify(data.puzzlePayload)!==JSON.stringify(puzzleOrderProof_(data)))throw new Error('Rincian stok pesanan tidak sesuai otorisasi server.');retailStockAssert_(data.inventoryItems,orderKey);}
+    var reservationUntil=data.retailStockVersion===1?new Date(Date.now()+retailReservationMs_()):null;
     var row=sheet.getLastRow()+1;
     checkoutColumns_(sheet,vartanaOrderColumnNames_());
     vartanaOrderStatusRule_(sheet,row,1);
@@ -3137,11 +3150,13 @@ function saveRetailOrderWithPromo_(data) {
       data.memberId=memberSaved.memberId;
     }
     // Save redemption and idempotency keys in the same row as the order itself.
-    var atomicCols=checkoutColumns_(sheet,['Order Key','Puzzle Voucher Code']);
+    var atomicCols=checkoutColumns_(sheet,['Order Key','Puzzle Voucher Code','Inventory Items','Stock Reservation Until']);
     var orderRow=[new Date(),serial,data.memberId||'-',data.customerName||'-',String(data.phone),data.email||'-',data.addressDetail||'-',data.sku||'-',data.itemsSummary||'-',subtotal,original,subsidy,shipping,total,'MENUNGGU PEMBAYARAN','-'];
     while(orderRow.length<sheet.getLastColumn())orderRow.push('');
     orderRow[atomicCols['Order Key']-1]=orderKey;
     orderRow[atomicCols['Puzzle Voucher Code']-1]=puzzleCode[0]||'';
+    orderRow[atomicCols['Inventory Items']-1]=Array.isArray(data.inventoryItems)?JSON.stringify(data.inventoryItems):'';
+    orderRow[atomicCols['Stock Reservation Until']-1]=reservationUntil||'';
     sheet.appendRow(orderRow);
     recordCheckoutPromoOnOrder_(sheet,row,data);
     var extraCols=checkoutColumns_(sheet,['Order Key','Notification Email Status','Inventory Items']);
@@ -3149,7 +3164,7 @@ function saveRetailOrderWithPromo_(data) {
     if(orderKey)sheet.getRange(row,extraCols['Order Key']).setValue(orderKey);
     var notification=vartanaNotifyNewOrder_(data,serial,now,timeZone);
     sheet.getRange(row,extraCols['Notification Email Status']).setValue(notification);
-    return responseJSON({status:'success',success:true,orderSerial:serial,subtotalProducts:subtotal});
+    return responseJSON({status:'success',success:true,orderSerial:serial,subtotalProducts:subtotal,reservationUntil:reservationUntil?reservationUntil.toISOString():null});
   }finally{lock.releaseLock();}
 }
 
@@ -3209,6 +3224,7 @@ function vartanaReadOrders_(sheet) {
       orderKey: text(row, ['Order Key']),
       reconciliationStatus: text(row, ['Status Rekonsiliasi']),
       customerEmailStatus:text(row,['Customer Email Status']),
+      reservationUntil:(function(){var v=cell(row,['Stock Reservation Until']);return v&&!isNaN(new Date(v).getTime())?new Date(v).toISOString():null;})(),
       grossSubtotalProducts: money(row, ['Gross Subtotal Products']),
       productDiscount: money(row, ['Product Discount'])
     };
@@ -3832,8 +3848,8 @@ function getCheckoutContext_(data){
  var ss=SpreadsheetApp.getActiveSpreadsheet(),sheet=ss.getSheetByName(SHEET_MEMBERS),members=[];
  if(sheet){var rows=sheet.getDataRange().getValues();for(var i=1;i<rows.length;i++)if(puzzlePhone_(rows[i][4])===phone){var city=String(rows[i][7]||'').split(',');members.push({memberId:String(rows[i][1]||''),name:String(rows[i][2]||''),email:String(rows[i][3]||''),phone:phone,addressDetail:String(rows[i][6]||''),districtName:(city[0]||'').trim(),cityName:(city[1]||'').trim()});break;}}
  var orders=vartanaReadOrders_(ss.getSheetByName(SHEET_ORDERS)).filter(function(order){return order.orderKey===key&&puzzlePhone_(order.phone)===phone;});
- var result={success:true,retailOrderVersion:2,checkoutWorkflowVersion:3,orders:orders,members:members};
- if(data.includeMaster===true&&!orders.length){result.products=getProducts();result.promotions=getPromotions();}
+ var result={success:true,retailOrderVersion:2,checkoutWorkflowVersion:3,retailStockVersion:1,orders:orders,members:members};
+ if(data.includeMaster===true&&!orders.length){result.products=getProducts();result.promotions=getPromotions();result.retailStock=retailStockSnapshot_(key,result.products);}
  return responseJSON(result);
 }
 
@@ -3873,6 +3889,7 @@ function updateOrderWithEmail_(data){
   if(row<0)throw new Error('Pesanan tidak ditemukan.');
   var order=vartanaReadOrders_(sheet).filter(function(o){return o.orderSerial===String(rows[row-1][serialCol]);})[0];if(!order)throw new Error('Rincian pesanan tidak terbaca.');
   if(order.recoveredLegacy)throw new Error('Pesanan historis perlu direkonsiliasi sebelum status dan email diperbarui.');
+  if(['PEMBAYARAN DITERIMA','PESANAN DISIAPKAN','DIKIRIM','SELESAI'].indexOf(status)>=0)retailCheckStatusStock_(sheet,row,order.orderSerial);
   if(['PESANAN DISIAPKAN','DIKIRIM','SELESAI'].indexOf(status)>=0)inventoryDispatchOrder_(sheet,row,order.orderSerial);
   sheet.getRange(row,statusCol+1).setValue(status);sheet.getRange(row,resiCol+1).setValue(resi);
   var email=null;
@@ -3907,15 +3924,115 @@ function sendOrderCustomerEmail_(data){
 function orderEmailMark_(eventId,status){var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),rows=sheet.getDataRange().getValues(),headers=rows[0],eventCol=headers.indexOf('Customer Email Event'),stateCol=headers.indexOf('Customer Email Status');if(eventCol<0||stateCol<0)return;for(var i=1;i<rows.length;i++)if(String(rows[i][eventCol])===eventId)sheet.getRange(i+1,stateCol+1).setValue(status);}
 
 // Stok is the physical finished-goods ledger; sales are paid orders, excluding free gifts.
-function productStockReport_(){
- var state=inventoryState_(inventorySheets_()),sold={},bonuses={},unmapped=0,sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),rows=sheet?sheet.getDataRange().getValues():[],headers=rows[0]||[],inventoryCol=headers.indexOf('Inventory Items'),statusCol=headers.indexOf('Status'),rewardCol=headers.indexOf('Reward Items'),seen={};
+function productStockReport_(){var stock=retailStockSnapshot_(''),sales=retailSalesState_();return responseJSON({success:true,productStockVersion:1,unmappedOrders:sales.unmapped.length,items:stock.items.map(function(x){x.soldQty=sales.sold[x.sku]||0;x.bonusQty=sales.bonus[x.sku]||0;return x;})});}
+
+// RETAIL STOCK V1: reserve available finished packs under the same lock as Orders.
+function retailReservationMs_(){return 30*60000;}
+function retailItems_(items){if(!Array.isArray(items)||!items.length||items.length>200)throw new Error('Rincian SKU keranjang tidak valid. Muat ulang checkout.');var totals={};items.forEach(function(x){if(!x||typeof x.sku!=='string'||!x.sku||!Number.isSafeInteger(x.quantity)||x.quantity<1||x.quantity>999)throw new Error('Jumlah SKU keranjang tidak valid.');totals[x.sku]=(totals[x.sku]||0)+x.quantity;});return totals;}
+function retailStockSnapshot_(excludeKey,products){
+ var sheets=inventorySheets_(),state=inventoryState_(sheets),reserved={},dispatched={},now=Date.now(),sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),rows=sheet?sheet.getDataRange().getValues():[],h=rows[0]||[],itemsCol=h.indexOf('Inventory Items'),keyCol=h.indexOf('Order Key'),statusCol=h.indexOf('Status'),untilCol=h.indexOf('Stock Reservation Until'),seen={};
+ state.rows.slice(1).forEach(function(r){dispatched[String(r[1])]=true;});
  for(var i=1;i<rows.length;i++){
-  var row=rows[i],serial=String(row[1]||'');if(!serial||seen[serial]||['PEMBAYARAN DITERIMA','PESANAN DISIAPKAN','DIKIRIM','SELESAI'].indexOf(String(row[statusCol]))<0)continue;seen[serial]=true;
-  var items,rewards=[];try{items=JSON.parse(String(row[inventoryCol]||'null'));if(!Array.isArray(items)||!items.length)throw new Error('missing');if(rewardCol>=0&&row[rewardCol])rewards=JSON.parse(String(row[rewardCol]));if(!Array.isArray(rewards))throw new Error('invalid');if(items.some(function(x){return !x||typeof x.sku!=='string'||!Number.isSafeInteger(x.quantity)||x.quantity<1;}))throw new Error('invalid');}catch(e){unmapped++;continue;}
-  var free={};rewards.forEach(function(r){if(r&&r.price===0&&Number.isSafeInteger(r.quantity)&&r.quantity>0)free[r.sku]=(free[r.sku]||0)+r.quantity;});
-  var totals={};items.forEach(function(x){totals[x.sku]=(totals[x.sku]||0)+x.quantity;});Object.keys(totals).forEach(function(sku){var gift=Math.min(totals[sku],free[sku]||0);sold[sku]=(sold[sku]||0)+totals[sku]-gift;bonuses[sku]=(bonuses[sku]||0)+gift;});
+  var row=rows[i],serial=String(row[1]||''),status=String(row[statusCol]||'');if(!serial||seen[serial]||dispatched['ORDER:'+serial]||excludeKey&&String(row[keyCol])===excludeKey)continue;seen[serial]=true;
+  if(['MENUNGGU PEMBAYARAN','PEMBAYARAN DITERIMA','PESANAN DISIAPKAN','DIKIRIM','SELESAI'].indexOf(status)<0)continue;
+  if(status==='MENUNGGU PEMBAYARAN'){var until=row[untilCol]?new Date(row[untilCol]).getTime():new Date(row[0]).getTime()+retailReservationMs_();if(!isFinite(until)||until<=now)continue;}
+  try{var totals=retailItems_(JSON.parse(String(row[itemsCol]||'null')));Object.keys(totals).forEach(function(sku){reserved[sku]=(reserved[sku]||0)+totals[sku];});}catch(e){/* Unmapped historical orders remain visible for admin reconciliation. */}
  }
- return responseJSON({success:true,productStockVersion:1,unmappedOrders:unmapped,items:getProducts().map(function(p){var key='finished:'+p.sku;return {sku:p.sku,qty:Object.prototype.hasOwnProperty.call(state.balances,key)?Math.max(0,state.balances[key]):null,soldQty:sold[p.sku]||0,bonusQty:bonuses[p.sku]||0};})});
+ return {success:true,retailStockVersion:1,reservationHours:retailReservationMs_()/3600000,items:(products||getProducts()).map(function(p){var key='finished:'+p.sku,known=Object.prototype.hasOwnProperty.call(state.balances,key),qty=known?Math.max(0,Number(state.balances[key])||0):null;return {sku:p.sku,qty:qty,reservedQty:reserved[p.sku]||0,availableQty:p.active&&known?Math.max(0,qty-(reserved[p.sku]||0)):0};})};
+}
+function retailStockAssert_(items,excludeKey){var totals=retailItems_(items),stock=retailStockSnapshot_(excludeKey),map={};stock.items.forEach(function(x){map[x.sku]=x;});Object.keys(totals).forEach(function(sku){var available=map[sku]?map[sku].availableQty:0;if(totals[sku]>available)throw new Error('Stok '+sku+' tidak cukup. Tersedia '+available+' kemasan. Perbarui keranjang sebelum melanjutkan.');});return stock;}
+function saveRetailOrderV3_(data){puzzleVerify_(data,'saveOrder');if(data.retailStockVersion!==1||JSON.stringify(data.puzzlePayload)!==JSON.stringify(puzzleOrderProof_(data)))throw new Error('Rincian stok pesanan tidak sesuai otorisasi server.');return saveRetailOrderWithPromo_(data);}
+function retailCheckStatusStock_(sheet,row,serial){
+ var data=sheet.getDataRange().getValues(),h=data[0],itemsCol=h.indexOf('Inventory Items'),keyCol=h.indexOf('Order Key');if(itemsCol<0||!data[row-1][itemsCol])throw new Error('Pesanan lama belum memiliki rincian SKU. Rekonsiliasi pesanan sebelum menerima pembayaran atau menyiapkan barang.');
+ var state=inventoryState_(inventorySheets_());if(state.rows.some(function(r){return String(r[1])==='ORDER:'+serial;}))return;
+ retailStockAssert_(JSON.parse(String(data[row-1][itemsCol])),String(data[row-1][keyCol]||''));
+}
+
+// Historical sales mapping is deliberately separate from Inventory Items: it never dispatches old stock.
+function retailSalesState_(){
+ var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),rows=sheet?sheet.getDataRange().getValues():[],h=rows[0]||[],raw={},sold={},bonus={},unmapped=[],seen={};rows.slice(1).forEach(function(r,i){raw[String(r[1])]={row:i+2,values:r};});
+ vartanaReadOrders_(sheet).forEach(function(o){if(seen[o.orderSerial]||['PEMBAYARAN DITERIMA','PESANAN DISIAPKAN','DIKIRIM','SELESAI'].indexOf(o.status)<0)return;seen[o.orderSerial]=true;var source=raw[o.orderSerial],r=source.values,items,rewards=[],mapped=false;
+  try{items=JSON.parse(String(r[h.indexOf('Inventory Items')]||'null'));retailItems_(items);rewards=JSON.parse(String(r[h.indexOf('Reward Items')]||'[]'));if(!Array.isArray(rewards))throw new Error('invalid');}catch(e){try{var manual=JSON.parse(String(r[h.indexOf('Reconciled Sales Items')]||'null'));items=manual.items;retailItems_(items);rewards=items.filter(function(x){return x.kind==='bonus';}).map(function(x){return {sku:x.sku,quantity:x.quantity,price:0};});mapped=true;}catch(ignore){unmapped.push({orderSerial:o.orderSerial,itemsSummary:o.itemsSummary,grandTotal:o.grandTotal,status:o.status,createdAt:o.createdAt,fingerprint:customerAccessHash_(JSON.stringify([o.orderSerial,o.itemsSummary,o.grandTotal,o.status,r[h.indexOf('Reconciled Sales Items')]||'']))});return;}}
+  var totals=retailItems_(items),free={};rewards.forEach(function(x){if(x&&x.price===0&&Number.isSafeInteger(x.quantity)&&x.quantity>0)free[x.sku]=(free[x.sku]||0)+x.quantity;});Object.keys(totals).forEach(function(sku){var gifts=Math.min(totals[sku],free[sku]||0);sold[sku]=(sold[sku]||0)+totals[sku]-gifts;bonus[sku]=(bonus[sku]||0)+gifts;});
+ });return {sold:sold,bonus:bonus,unmapped:unmapped};
+}
+function retailReconciliation_(data){
+ puzzleVerify_(data,'retailReconciliation');var d=data.puzzlePayload||{};
+ if(d.operation==='list')return responseJSON({success:true,rows:retailSalesState_().unmapped,products:getProducts().map(function(p){return {sku:p.sku,name:p.productName+' '+p.variantName};})});
+ if(d.operation!=='save'||!Array.isArray(d.items)||d.items.length>20||!d.items.length||!/^[a-f0-9-]{36}$/i.test(String(d.requestId||'')))throw new Error('Rincian rekonsiliasi tidak valid.');
+ var allowed=getProducts().map(function(p){return p.sku;});d.items.forEach(function(x){if(!x||allowed.indexOf(x.sku)<0||['sold','bonus'].indexOf(x.kind)<0||!Number.isSafeInteger(x.quantity)||x.quantity<1||x.quantity>999)throw new Error('Pilih SKU, jumlah, dan jenis penjualan/bonus yang valid.');});
+ var lock=LockService.getScriptLock();lock.waitLock(20000);try{
+  var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),rows=sh.getDataRange().getValues(),h=rows[0],row=-1;for(var i=1;i<rows.length;i++)if(String(rows[i][1])===d.orderSerial)row=i+1;if(row<0)throw new Error('Order tidak ditemukan.');
+  var requestCol=h.indexOf('Sales Reconciliation Request');if(requestCol>=0&&String(rows[row-1][requestCol])===d.requestId)return responseJSON({success:true,duplicate:true});
+  var current=retailSalesState_().unmapped.filter(function(o){return o.orderSerial===d.orderSerial;})[0];if(!current||current.fingerprint!==d.expectedFingerprint)throw new Error('Order berubah atau sudah direkonsiliasi. Muat ulang daftar.');
+  var cols=checkoutColumns_(sh,['Reconciled Sales Items','Sales Reconciliation Updated At','Sales Reconciliation Request']);sh.getRange(row,cols['Reconciled Sales Items']).setValue(JSON.stringify({items:d.items.map(function(x){return {sku:x.sku,quantity:x.quantity,kind:x.kind};})}));sh.getRange(row,cols['Sales Reconciliation Updated At']).setValue(new Date());sh.getRange(row,cols['Sales Reconciliation Request']).setValue(d.requestId);
+  return responseJSON({success:true,message:'Penjualan lama dipetakan. Stok fisik tidak berubah.'});
+ }finally{lock.releaseLock();}
+}
+
+// CUSTOMER ORDER ACCESS V1: short-lived, rate-limited email verification bound to an HttpOnly browser session.
+function customerAccessSheet_(){return inventoryOperationsSheet_('CustomerOrderAccess',['Challenge ID','Phone','Session Hash','Recipient','Code Hash','Created At','Expires At','Attempts','State','Send State','Delivery ID','Verified Until','Updated At','Error']);}
+function customerAccessHash_(text){var key=PropertiesService.getScriptProperties().getProperty('VARTANA_ARTICLE_ADMIN_KEY');if(!key||key.length<32)throw new Error('Konfigurasi verifikasi belum siap.');return Utilities.computeHmacSha256Signature('ORDER-ACCESS\n'+text,key).map(function(v){return ('0'+((v+256)%256).toString(16)).slice(-2);}).join('');}
+function customerVerifiedPhone_(session){if(!/^[a-f0-9-]{36}$/i.test(String(session||'')))return '';var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CustomerOrderAccess');if(!sh)return '';var rows=sh.getDataRange().getValues(),hash=customerAccessHash_('SESSION:'+session);for(var i=rows.length-1;i>=1;i--)if(rows[i][2]===hash&&rows[i][8]==='VERIFIED'&&new Date(rows[i][11]).getTime()>Date.now())return String(rows[i][1]);return '';}
+function customerChallengePublic_(row){return {success:true,customerOrdersVersion:2,challengeId:String(row[0]),maskedEmail:gamesMaskEmail_(gamesRawEmail_(row[3])),expiresAt:new Date(row[6]).toISOString(),retryAt:new Date(new Date(row[5]).getTime()+60000).toISOString(),deliveryStatus:String(row[9])};}
+function customerOrderAccess_(data){
+ puzzleVerify_(data,'customerOrderAccess');var d=data.puzzlePayload||{},session=String(d.session||''),operation=String(d.operation||'');if(!/^[a-f0-9-]{36}$/i.test(session)||['request','verify'].indexOf(operation)<0)throw new Error('Sesi verifikasi tidak valid. Buka ulang pencarian.');
+ var sessionHash=customerAccessHash_('SESSION:'+session),now=Date.now(),lock=LockService.getScriptLock(),context;
+ if(operation==='request'){
+  var raw=String(d.phone||''),phone=customerOrderPhone_(raw);if(!phone||! /^[+\d\s()-]+$/.test(raw))throw new Error('Nomor WhatsApp tidak valid.');
+  if(customerVerifiedPhone_(session)===phone)return customerOrderHistory_({type:d.type||'phone',query:d.query||phone},phone);
+  var ss=SpreadsheetApp.getActiveSpreadsheet(),orders=vartanaReadOrders_(ss.getSheetByName(SHEET_ORDERS)).filter(function(o){return customerOrderPhone_(o.phone)===phone;}),email='';
+  for(var i=orders.length-1;i>=0;i--)if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(orders[i].email||''))){email=gamesRawEmail_(orders[i].email);break;}
+  if(!email)throw new Error('Kode belum dapat dikirim. Periksa nomor WhatsApp yang digunakan saat belanja atau hubungi VARTANA.');
+  lock.waitLock(20000);
+  try{
+   var sh=customerAccessSheet_(),rows=sh.getDataRange().getValues(),recent=rows.slice(1).filter(function(r){return String(r[1])===phone&&now-new Date(r[5]).getTime()<3600000;});
+   var latest=recent[recent.length-1];if(latest&&now-new Date(latest[5]).getTime()<60000){if(latest[2]===sessionHash&&latest[8]==='OPEN')return responseJSON(customerChallengePublic_(latest));throw new Error('Tunggu 60 detik sebelum meminta kode lagi.');}
+   if(recent.length>=5)throw new Error('Batas permintaan kode tercapai. Coba kembali dalam satu jam.');
+   gamesEmailSender_();if(MailApp.getRemainingDailyQuota()<1)throw new Error('Pengiriman email belum tersedia. Coba lagi sebentar.');
+   var id='HIST-'+Utilities.getUuid(),entropy=customerAccessHash_('CODE:'+id+':'+now),code=String(parseInt(entropy.slice(0,8),16)%1000000).padStart(6,'0'),delivery=Utilities.getUuid(),row=[id,phone,sessionHash,gamesCell_(email),customerAccessHash_(id+':'+code),new Date(now),new Date(now+300000),0,'OPEN','SENDING',delivery,'',new Date(now),''];
+   sh.appendRow(row);context={id:id,code:code,email:email,delivery:delivery};
+  }finally{lock.releaseLock();}
+  var sent=false,error='';try{MailApp.sendEmail({to:context.email,subject:'[VARTANA] Kode verifikasi riwayat pesanan',body:'Kode verifikasi riwayat belanja VARTANA: '+context.code+'\n\nBerlaku 5 menit, hanya untuk browser yang meminta kode. Jangan bagikan kode ini. Jika bukan kamu yang meminta, abaikan email ini.',name:'VARTANA Botanical Wellness',replyTo:'vartana@vartanaglobal.com'});sent=true;}catch(e){error=String(e.message||e).slice(0,300);}
+  lock.waitLock(20000);try{var sh=customerAccessSheet_(),rows=sh.getDataRange().getValues();for(var i=1;i<rows.length;i++)if(rows[i][0]===context.id&&rows[i][10]===context.delivery){rows[i][9]=sent?'SENT':'UNKNOWN';rows[i][12]=new Date();rows[i][13]=error;sh.getRange(i+1,1,1,14).setValues([rows[i].slice(0,14)]);return responseJSON(customerChallengePublic_(rows[i]));}throw new Error('Status kode perlu diperiksa.');}finally{lock.releaseLock();}
+ }
+ if(!/^HIST-[a-f0-9-]{36}$/i.test(String(d.challengeId||''))||!/^\d{6}$/.test(String(d.code||'')))throw new Error('Masukkan 6 digit kode dari email.');
+ lock.waitLock(20000);var phone;
+ try{
+  var sh=customerAccessSheet_(),rows=sh.getDataRange().getValues(),index=-1;for(var i=1;i<rows.length;i++)if(rows[i][0]===d.challengeId&&rows[i][2]===sessionHash)index=i;
+  if(index<0)throw new Error('Kode bukan untuk sesi ini. Minta kode dari browser yang sama.');var row=rows[index];
+  if(row[8]==='VERIFIED'&&new Date(row[11]).getTime()>now)phone=String(row[1]);
+  else{
+   if(row[8]!=='OPEN'||new Date(row[6]).getTime()<=now||Number(row[7])>=5)throw new Error('Kode kedaluwarsa atau batas percobaan tercapai. Minta kode baru.');
+   var expected=customerAccessHash_(row[0]+':'+d.code),diff=0;for(var n=0;n<expected.length;n++)diff|=expected.charCodeAt(n)^String(row[4]).charCodeAt(n);
+   row[7]=Number(row[7])+1;row[12]=new Date(now);if(diff){if(row[7]>=5)row[8]='LOCKED';sh.getRange(index+1,1,1,14).setValues([row.slice(0,14)]);throw new Error('Kode tidak sesuai. Periksa email dan coba lagi.');}
+   rows.slice(1).forEach(function(old,i){if(old[2]===sessionHash&&old[8]==='VERIFIED')sh.getRange(i+2,9).setValue('REVOKED');});
+   row[8]='VERIFIED';row[4]='';row[11]=new Date(now+900000);sh.getRange(index+1,1,1,14).setValues([row.slice(0,14)]);phone=String(row[1]);
+  }
+ }finally{lock.releaseLock();}
+ return customerOrderHistory_({type:d.type||'phone',query:d.query||phone},phone);
+}
+
+// CUSTOMER ORDER LOOKUP V1: read-only, phone matching never expands via Member ID.
+function customerOrderPhone_(value){var digits=String(value||'').replace(/\D/g,'');if(/^8\d{8,11}$/.test(digits))digits='62'+digits;return puzzlePhone_(digits);}
+function customerOrderLookup_(data){
+ puzzleVerify_(data,'customerOrderLookup');var d=data.puzzlePayload||{},allowedPhone=customerVerifiedPhone_(d.session);if(!allowedPhone)throw new Error('Verifikasi email diperlukan sebelum melihat riwayat pesanan.');return customerOrderHistory_(d,allowedPhone);
+}
+function customerOrderHistory_(d,allowedPhone){
+ var type=String(d.type||''),query=String(d.query||'').trim();
+ if(['phone','serial'].indexOf(type)<0||query.length>150)throw new Error('Pilih pencarian WhatsApp atau nomor pesanan.');
+ var phone=type==='phone'?customerOrderPhone_(query):'',serial=type==='serial'?query.toUpperCase():'';
+ if(type==='phone'&&(!/^[+\d\s()-]+$/.test(query)||!phone))throw new Error('Masukkan nomor WhatsApp Indonesia yang valid, misalnya 0812… atau +62812….');
+ if(type==='serial'&&!/^[A-Z0-9][A-Z0-9/-]{2,149}$/.test(serial))throw new Error('Masukkan nomor pesanan yang tercantum pada konfirmasi belanja.');
+ if(type==='phone'&&phone!==allowedPhone)throw new Error('Verifikasi nomor ini terlebih dahulu.');
+ var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),orders=vartanaReadOrders_(sheet),seen={},matches=[];
+ for(var i=orders.length-1;i>=0;i--){var o=orders[i],id=String(o.orderSerial||'').trim();if(customerOrderPhone_(o.phone)!==allowedPhone||(type==='phone'?customerOrderPhone_(o.phone)!==phone:id.toUpperCase()!==serial))continue;if(seen[id.toUpperCase()])continue;seen[id.toUpperCase()]=true;matches.push(o);}
+ var history=matches.slice(0,100).map(function(o){
+  // Checkout notes may contain private data. Only product-related summary segments are returned.
+  var items=String(o.itemsSummary||'').split(/\s*\|\s*/).filter(function(part,index){return index===0||!/^(?:catatan\s*:|kurir\s|promo\s[^:]*:)/i.test(part.trim());}).join(' | ');
+  return {orderSerial:o.orderSerial,createdAt:o.createdAt||'',itemsSummary:items,status:o.status||'MENUNGGU PEMBAYARAN',grandTotal:o.grandTotal===null?null:Number(o.grandTotal),resiJNT:o.resiJNT&&o.resiJNT!=='-'?String(o.resiJNT):''};
+ });
+ return responseJSON({success:true,customerOrdersVersion:2,verified:true,found:history.length>0,history:history,total:matches.length,hasMore:matches.length>100,message:history.length?'Pesanan ditemukan.':'Belum ada pesanan untuk '+(type==='phone'?'nomor WhatsApp':'nomor pesanan')+' ini. Periksa kembali nomor yang digunakan saat belanja.'});
 }
 
 // GAMES V3: every attempt gets its own durable row; public contacts are masked here.

@@ -7,7 +7,7 @@ test('all three earned codes apply through checkout and redeem independently onc
  const call=(operation,extra={})=>f.c.gamesHandle_(f.signed('games',{operation,game:'numbers',session,...extra}));
  for(let i=0;i<3;i++){const a=call('start',{requestId:id(100+i),name:'Ayu',phone:'081234567890',email:'ayu@example.com'});const stored=JSON.parse(f.tables.GameAttempts.rows.at(-1)[14]);f.advance(1000);codes.push(call('finish',{attemptId:a.attempt.id,answers:stored.questions.map(q=>q.answer)}).voucher.code);}
  const old={products:master.readMasterProducts,request:master.requestMasterScript,puzzle:puzzle.puzzleRequest};
- master.readMasterProducts=async()=>[{sku:'TEA',active:true,productName:'Tea',sellingPrice:50000,weightGram:100}];master.requestMasterScript=async()=>({promotions:[]});
+ master.readMasterProducts=async()=>[{sku:'TEA',active:true,productName:'Tea',sellingPrice:50000,weightGram:100}];master.requestMasterScript=async action=>action==='getRetailStock'?{success:true,retailStockVersion:1,items:[{sku:'TEA',qty:100,reservedQty:0,availableQty:100}]}:{promotions:[]};
  puzzle.puzzleRequest=async(action,payload)=>{assert.equal(action,'puzzleVoucher');return {voucher:f.c.puzzleVoucher_(payload.code,payload.phone,payload.orderKey)};};
  const save=input=>f.c.saveRetailOrderWithPromo_({...input,...f.signed('saveOrder',input)});
  try{

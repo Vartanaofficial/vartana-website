@@ -28,9 +28,10 @@ export async function POST(req: Request) {
       const existing = (data.orders || []).find((order: { orderSerial: string; orderKey?: string }) => order.orderKey === orderKey || order.orderSerial === serial);
       if(existing){
         if(normalizeWhatsApp(existing.phone)!==phone)throw new Error('Pesanan ini tercatat untuk nomor lain.');
-        return {serial:existing.orderSerial,total:Number(existing.grandTotal),paymentMethod:existing.paymentMethod||paymentMethod,details:existing};
+        return {serial:existing.orderSerial,total:Number(existing.grandTotal),paymentMethod:existing.paymentMethod||paymentMethod,reservationUntil:existing.reservationUntil,details:existing};
       }
-      const quote = await checkoutQuote({ ...body, phone, districtId: customer.districtId, provinceName: customer.provinceName,cityName:customer.cityName,districtName:customer.districtName },{masterData:Array.isArray(data.products)&&Array.isArray(data.promotions)?{master:data.products,promoData:{promotions:data.promotions}}:undefined});
+      if(data.retailStockVersion!==1)throw new Error("Perbarui backend stok sebelum melanjutkan pembayaran.");
+      const quote = await checkoutQuote({ ...body, phone, districtId: customer.districtId, provinceName: customer.provinceName,cityName:customer.cityName,districtName:customer.districtName },{stock:data.retailStock?.retailStockVersion===1?data.retailStock:undefined,masterData:Array.isArray(data.products)&&Array.isArray(data.promotions)?{master:data.products,promoData:{promotions:data.promotions}}:undefined});
       if(quote.destination?.verified){customer.cityName=quote.destination.cityName;customer.provinceName=quote.destination.provinceName;customer.districtName=quote.destination.districtName;}
       if (!quote.shipping || quote.promoError) throw new Error(quote.promoError || "Pilih layanan pengiriman.");
       if (body.expectedTotal !== quote.total || body.shippingService !== quote.shipping.id) throw new Error("Harga atau ongkir berubah. Periksa ringkasan terbaru sebelum melanjutkan.");
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
       const summary = quote.lines.map(line => `${line.name} [${line.variant}] (${line.quantity}x)`).join(", ");
       const rewardSummary = quote.rewardLines.map(line=>`${line.kind==='redeem'?'TEBUS MURAH':'GRATIS'} ${line.name} [${line.variant}] (${line.quantity}x @Rp${line.price}) [${line.promoCode}]`).join(", ");
       const orderDetails = {
+        retailStockVersion:1,
         ...(profileChanged&&data.checkoutWorkflowVersion===3?{memberProfile}:{}),
         inventoryItems: [...quote.lines,...quote.rewardLines].map(line=>({sku:line.sku,quantity:line.quantity})),
         paymentMethod, orderKey, orderSerial: serial, memberId, customerName: customer.name, phone: customer.phone, email: customer.email,
@@ -60,11 +62,11 @@ export async function POST(req: Request) {
         productDiscount: quote.productDiscount, promoShippingDiscount: quote.shippingDiscount,
         shippingSubsidy: quote.shippingDiscount, customerShippingFee: quote.shipping.price - quote.shippingDiscount, grandTotal: quote.total,
       };
-      const proof = quote.promoCode.startsWith('PUZ-') ? signPuzzle('saveOrder', orderDetails) : {};
-      const result = await requestMasterScript("saveOrder", { ...orderDetails, ...proof });
+      const proof = signPuzzle('saveOrder', orderDetails);
+      const result = await requestMasterScript("saveRetailOrderV3", { ...orderDetails, ...proof });
       if (result.status !== "success" && result.success !== true) throw new Error("Pesanan belum tersimpan.");
       const savedSerial = String(result.orderSerial || serial);
-      return { serial: savedSerial, total: quote.total, paymentMethod, details: { ...orderDetails, orderSerial: savedSerial } };
+      return { serial: savedSerial, total: quote.total, paymentMethod, reservationUntil:result.reservationUntil, details: { ...orderDetails, orderSerial: savedSerial } };
     };
     const pendingKey=serial+':'+phone;
     let task = pending.get(pendingKey);

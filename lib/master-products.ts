@@ -1,5 +1,6 @@
 import type { MasterProduct } from "./store-catalog";
 import {fetchGoogle} from './google-fetch';
+import {createHmac} from 'node:crypto';
 
 export function masterScriptUrl() {
   const raw = process.env.GOOGLE_SCRIPT_URL || process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL;
@@ -10,6 +11,9 @@ export function masterScriptUrl() {
 }
 
 export async function requestMasterScript(action: string, payload?: Record<string, unknown>,options:{legacyGet?:boolean}={}) {
+  if(['saveInventory','saveRawMaterials','saveProductCosting'].includes(action)&&!payload?.authSignature){
+    const key=process.env.ADMIN_SESSION_SECRET;if(!key||key.length<32)throw new Error('Otorisasi persediaan belum dikonfigurasi.');const puzzlePayload=payload||{},authTime=String(Date.now()),authSignature=createHmac('sha256',key).update('VARTANA-PUZZLE\n'+action+'\n'+authTime+'\n'+JSON.stringify(puzzlePayload)).digest('hex');payload={...puzzlePayload,puzzlePayload,authTime,authSignature};
+  }
   const url = masterScriptUrl();
   // Master reads use the explicit read RPC dispatcher. Capability discovery
   // stays a safe legacy GET before invoking a newly deployed feature.

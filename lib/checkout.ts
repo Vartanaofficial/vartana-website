@@ -6,6 +6,7 @@ import { evaluatePromoStack } from "./promo-stack";
 import { puzzleRequest } from './puzzle-server';
 import {gameRewardPromo} from './game-reward';
 import type {MasterProduct} from './store-catalog';
+import {readRetailStock,assertRetailStock,type RetailStockReport} from './retail-stock';
 
 export type CheckoutItem = { sku: string; quantity: number };
 export type CheckoutInput = { items: CheckoutItem[]; promoCode?: string; phone?: string; orderKey?: string; districtId?: string; provinceName?: string; cityName?:string; districtName?:string; shippingService?: string };
@@ -28,9 +29,9 @@ async function shippingRates(districtId: string, provinceName: string, weight: n
   return [{ id: "jnt-ez", name: "J&T EZ", price: price * Math.max(1, Math.ceil(weight / 1000)), duration: "2–5 hari", estimated: true }, { id: "jne-reg", name: "JNE REG", price: (price - 1000) * Math.max(1, Math.ceil(weight / 1000)), duration: "2–5 hari", estimated: true }];
 }
 
-export async function checkoutQuote(input: CheckoutInput,options:{freshMaster?:boolean;masterData?:{master:MasterProduct[];promoData:{promotions:Record<string,unknown>[]}}}={}) {
+export async function checkoutQuote(input: CheckoutInput,options:{freshMaster?:boolean;masterData?:{master:MasterProduct[];promoData:{promotions:Record<string,unknown>[]}};stock?:RetailStockReport}={}) {
   if (!Array.isArray(input.items) || !input.items.length || input.items.length > 100) throw new Error("Keranjang masih kosong atau tidak valid.");
-  const {master,promoData} = options.masterData||await readCheckoutMaster(options.freshMaster!==false);
+  const [{master,promoData},stock] = await Promise.all([options.masterData||readCheckoutMaster(options.freshMaster!==false),options.stock||readRetailStock(input.orderKey)]);
   const catalog = buildStoreCatalog(master);
   const seen = new Set<string>();
   const lines = input.items.map(item => {
@@ -42,6 +43,7 @@ export async function checkoutQuote(input: CheckoutInput,options:{freshMaster?:b
     return { sku: item.sku, quantity: item.quantity, name: product.name, variant: variant.size, image: variant.image || product.image || "", price: variant.priceValue, weight: variant.weightGram || 100 };
   });
   const subtotal = lines.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  assertRetailStock(input.items,stock);
   const promos = decodeCheckoutPromos(promoData.promotions || []);
   const codes = String(input.promoCode || "").split(/[\s,]+/).filter(Boolean);
   const puzzleCodes = codes.filter(code => code.toUpperCase().startsWith('PUZ-'));
@@ -58,11 +60,13 @@ export async function checkoutQuote(input: CheckoutInput,options:{freshMaster?:b
   const availableProducts = catalog.flatMap(product=>(product.variants||[]).map(variant=>({sku:variant.sku!,name:product.name,variant:variant.size,image:variant.image||product.image||"",price:variant.priceValue,weight:variant.weightGram||100})));
   const regional=promos.some(p=>p.area==='jabodetabek'&&promoInPeriod(p)&&(p.automatic||codes.includes(p.code))),destination=regional&&input.districtId?await resolvePromoDestination(input.districtId):undefined;
   const preliminary = evaluatePromoStack(promos,codes,lines,availableProducts,0,destination);
+  assertRetailStock([...lines,...preliminary.rewards],stock);
   const weight = [...lines,...preliminary.rewards].reduce((sum, item) => sum + item.weight * item.quantity, 0);
   const rates = input.districtId && input.provinceName ? await shippingRates(input.districtId, destination?.provinceName||input.provinceName, weight) : [];
   const shipping = rates.find(r => r.id === input.shippingService) || rates[0] || null;
   const discount = evaluatePromoStack(promos,codes,lines,availableProducts,shipping?.price||0,destination);
-  return { destination, lines, subtotal, shipping, rates, productDiscount: discount.productDiscount, shippingDiscount: discount.shippingDiscount,
+  assertRetailStock([...lines,...discount.rewards],stock);
+  return { stock:stock.items.map(x=>({sku:x.sku,availableQty:x.availableQty})),destination, lines, subtotal, shipping, rates, productDiscount: discount.productDiscount, shippingDiscount: discount.shippingDiscount,
     total: discount.total, rewardLines: discount.rewards, redeemTotal: discount.redeemTotal, appliedPromos: discount.applied,
     promoCode: discount.applied.map(p=>p.code).join(", "), promoError: discount.errors.join(" "),
     promos: promos.filter(p => promoInPeriod(p)).map(p => ({ shippingMode:p.shippingMode||'amount',area:p.area||'all',eligibleArea:!promoAreaError(p.area,destination),code: p.code, name: p.name, minSpend: p.minSpend, type: p.type, value: p.value, maxDiscount: p.maxDiscount,

@@ -1,0 +1,42 @@
+// CUSTOMER ORDER ACCESS V1: short-lived, rate-limited email verification bound to an HttpOnly browser session.
+function customerAccessSheet_(){return inventoryOperationsSheet_('CustomerOrderAccess',['Challenge ID','Phone','Session Hash','Recipient','Code Hash','Created At','Expires At','Attempts','State','Send State','Delivery ID','Verified Until','Updated At','Error']);}
+function customerAccessHash_(text){var key=PropertiesService.getScriptProperties().getProperty('VARTANA_ARTICLE_ADMIN_KEY');if(!key||key.length<32)throw new Error('Konfigurasi verifikasi belum siap.');return Utilities.computeHmacSha256Signature('ORDER-ACCESS\n'+text,key).map(function(v){return ('0'+((v+256)%256).toString(16)).slice(-2);}).join('');}
+function customerVerifiedPhone_(session){if(!/^[a-f0-9-]{36}$/i.test(String(session||'')))return '';var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CustomerOrderAccess');if(!sh)return '';var rows=sh.getDataRange().getValues(),hash=customerAccessHash_('SESSION:'+session);for(var i=rows.length-1;i>=1;i--)if(rows[i][2]===hash&&rows[i][8]==='VERIFIED'&&new Date(rows[i][11]).getTime()>Date.now())return String(rows[i][1]);return '';}
+function customerChallengePublic_(row){return {success:true,customerOrdersVersion:2,challengeId:String(row[0]),maskedEmail:gamesMaskEmail_(gamesRawEmail_(row[3])),expiresAt:new Date(row[6]).toISOString(),retryAt:new Date(new Date(row[5]).getTime()+60000).toISOString(),deliveryStatus:String(row[9])};}
+function customerOrderAccess_(data){
+ puzzleVerify_(data,'customerOrderAccess');var d=data.puzzlePayload||{},session=String(d.session||''),operation=String(d.operation||'');if(!/^[a-f0-9-]{36}$/i.test(session)||['request','verify'].indexOf(operation)<0)throw new Error('Sesi verifikasi tidak valid. Buka ulang pencarian.');
+ var sessionHash=customerAccessHash_('SESSION:'+session),now=Date.now(),lock=LockService.getScriptLock(),context;
+ if(operation==='request'){
+  var raw=String(d.phone||''),phone=customerOrderPhone_(raw);if(!phone||! /^[+\d\s()-]+$/.test(raw))throw new Error('Nomor WhatsApp tidak valid.');
+  if(customerVerifiedPhone_(session)===phone)return customerOrderHistory_({type:d.type||'phone',query:d.query||phone},phone);
+  var ss=SpreadsheetApp.getActiveSpreadsheet(),orders=vartanaReadOrders_(ss.getSheetByName(SHEET_ORDERS)).filter(function(o){return customerOrderPhone_(o.phone)===phone;}),email='';
+  for(var i=orders.length-1;i>=0;i--)if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(orders[i].email||''))){email=gamesRawEmail_(orders[i].email);break;}
+  if(!email)throw new Error('Kode belum dapat dikirim. Periksa nomor WhatsApp yang digunakan saat belanja atau hubungi VARTANA.');
+  lock.waitLock(20000);
+  try{
+   var sh=customerAccessSheet_(),rows=sh.getDataRange().getValues(),recent=rows.slice(1).filter(function(r){return String(r[1])===phone&&now-new Date(r[5]).getTime()<3600000;});
+   var latest=recent[recent.length-1];if(latest&&now-new Date(latest[5]).getTime()<60000){if(latest[2]===sessionHash&&latest[8]==='OPEN')return responseJSON(customerChallengePublic_(latest));throw new Error('Tunggu 60 detik sebelum meminta kode lagi.');}
+   if(recent.length>=5)throw new Error('Batas permintaan kode tercapai. Coba kembali dalam satu jam.');
+   gamesEmailSender_();if(MailApp.getRemainingDailyQuota()<1)throw new Error('Pengiriman email belum tersedia. Coba lagi sebentar.');
+   var id='HIST-'+Utilities.getUuid(),entropy=customerAccessHash_('CODE:'+id+':'+now),code=String(parseInt(entropy.slice(0,8),16)%1000000).padStart(6,'0'),delivery=Utilities.getUuid(),row=[id,phone,sessionHash,gamesCell_(email),customerAccessHash_(id+':'+code),new Date(now),new Date(now+300000),0,'OPEN','SENDING',delivery,'',new Date(now),''];
+   sh.appendRow(row);context={id:id,code:code,email:email,delivery:delivery};
+  }finally{lock.releaseLock();}
+  var sent=false,error='';try{MailApp.sendEmail({to:context.email,subject:'[VARTANA] Kode verifikasi riwayat pesanan',body:'Kode verifikasi riwayat belanja VARTANA: '+context.code+'\n\nBerlaku 5 menit, hanya untuk browser yang meminta kode. Jangan bagikan kode ini. Jika bukan kamu yang meminta, abaikan email ini.',name:'VARTANA Botanical Wellness',replyTo:'vartana@vartanaglobal.com'});sent=true;}catch(e){error=String(e.message||e).slice(0,300);}
+  lock.waitLock(20000);try{var sh=customerAccessSheet_(),rows=sh.getDataRange().getValues();for(var i=1;i<rows.length;i++)if(rows[i][0]===context.id&&rows[i][10]===context.delivery){rows[i][9]=sent?'SENT':'UNKNOWN';rows[i][12]=new Date();rows[i][13]=error;sh.getRange(i+1,1,1,14).setValues([rows[i].slice(0,14)]);return responseJSON(customerChallengePublic_(rows[i]));}throw new Error('Status kode perlu diperiksa.');}finally{lock.releaseLock();}
+ }
+ if(!/^HIST-[a-f0-9-]{36}$/i.test(String(d.challengeId||''))||!/^\d{6}$/.test(String(d.code||'')))throw new Error('Masukkan 6 digit kode dari email.');
+ lock.waitLock(20000);var phone;
+ try{
+  var sh=customerAccessSheet_(),rows=sh.getDataRange().getValues(),index=-1;for(var i=1;i<rows.length;i++)if(rows[i][0]===d.challengeId&&rows[i][2]===sessionHash)index=i;
+  if(index<0)throw new Error('Kode bukan untuk sesi ini. Minta kode dari browser yang sama.');var row=rows[index];
+  if(row[8]==='VERIFIED'&&new Date(row[11]).getTime()>now)phone=String(row[1]);
+  else{
+   if(row[8]!=='OPEN'||new Date(row[6]).getTime()<=now||Number(row[7])>=5)throw new Error('Kode kedaluwarsa atau batas percobaan tercapai. Minta kode baru.');
+   var expected=customerAccessHash_(row[0]+':'+d.code),diff=0;for(var n=0;n<expected.length;n++)diff|=expected.charCodeAt(n)^String(row[4]).charCodeAt(n);
+   row[7]=Number(row[7])+1;row[12]=new Date(now);if(diff){if(row[7]>=5)row[8]='LOCKED';sh.getRange(index+1,1,1,14).setValues([row.slice(0,14)]);throw new Error('Kode tidak sesuai. Periksa email dan coba lagi.');}
+   rows.slice(1).forEach(function(old,i){if(old[2]===sessionHash&&old[8]==='VERIFIED')sh.getRange(i+2,9).setValue('REVOKED');});
+   row[8]='VERIFIED';row[4]='';row[11]=new Date(now+900000);sh.getRange(index+1,1,1,14).setValues([row.slice(0,14)]);phone=String(row[1]);
+  }
+ }finally{lock.releaseLock();}
+ return customerOrderHistory_({type:d.type||'phone',query:d.query||phone},phone);
+}

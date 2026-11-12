@@ -28,7 +28,7 @@ test('missing recipient does not block status changes; uncertain provider result
 });
 test('empty daily quota records BLOCKED without losing the saved order status',()=>{const f=orderFixture(),pending=f.update('PEMBAYARAN DITERIMA');f.c.MailApp.getRemainingDailyQuota=()=>0;assert.equal(f.send(pending.email.eventId).status,'BLOCKED');assert.equal(f.sent.length,0);assert.equal(f.tables.Orders.rows[1][14],'PEMBAYARAN DITERIMA');assert.equal(f.tables.OrderEmailNotifications.rows[1][7],0);});
 test('product stock report separates paid sales, free rewards, unknown stock and unmapped historical orders',()=>{
- const f=orderFixture();f.c.getProducts=()=>[{sku:'TEA'},{sku:'NEW'}];const sh=f.tables.Orders,cols=f.c.checkoutColumns_(sh,['Reward Items']);sh.getRange(2,cols['Reward Items']).setValue(JSON.stringify([{sku:'TEA',quantity:1,price:0}]));
+ const f=orderFixture();f.c.getProducts=()=>[{sku:'TEA',active:true},{sku:'NEW',active:true}];const sh=f.tables.Orders,cols=f.c.checkoutColumns_(sh,['Reward Items']);sh.getRange(2,cols['Reward Items']).setValue(JSON.stringify([{sku:'TEA',quantity:1,price:0}]));
  assert.equal(f.c.productStockReport_().items[0].soldQty,0);f.update('PEMBAYARAN DITERIMA');let report=f.c.productStockReport_();assert.equal(report.items[0].soldQty,1);assert.equal(report.items[0].bonusQty,1);assert.equal(report.items[0].qty,5);assert.equal(report.items[1].qty,null);
  f.update('PESANAN DISIAPKAN');report=f.c.productStockReport_();assert.equal(report.items[0].soldQty,1);assert.equal(report.items[0].qty,3);
  sh.appendRow(['','OLD','M','Old','0812','','','TEA','Tea',0,0,0,0,0,'SELESAI','']);report=f.c.productStockReport_();assert.equal(report.unmappedOrders,1);assert.equal(report.items[0].soldQty,1);

@@ -5,7 +5,7 @@ export type ConfirmationDetails = {
   customerShippingFee?:number|null;shippingSubsidy?:number|null;productDiscount?:number|null;
   grossSubtotalProducts?:number|null;paymentMethod?:string;grandTotal?:number;orderSerial?:string;
 };
-export type CheckoutReceipt = {serial:string;total:number;paymentMethod?:string;waOpened?:boolean;details?:ConfirmationDetails};
+export type CheckoutReceipt = {serial:string;total:number;paymentMethod?:string;waOpened?:boolean;reservationUntil?:string|null;details?:ConfirmationDetails};
 const text=(s:unknown)=>String(s||"-").replace(/[\r\n]+/g," ").trim();
 const money=(v:number)=>"Rp"+v.toLocaleString("id-ID",{maximumFractionDigits:0});
 const known=(v:unknown):v is number=>typeof v==="number"&&Number.isFinite(v)&&v>=0;

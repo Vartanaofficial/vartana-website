@@ -1,0 +1,21 @@
+// RETAIL STOCK V1: reserve available finished packs under the same lock as Orders.
+function retailReservationMs_(){return 30*60000;}
+function retailItems_(items){if(!Array.isArray(items)||!items.length||items.length>200)throw new Error('Rincian SKU keranjang tidak valid. Muat ulang checkout.');var totals={};items.forEach(function(x){if(!x||typeof x.sku!=='string'||!x.sku||!Number.isSafeInteger(x.quantity)||x.quantity<1||x.quantity>999)throw new Error('Jumlah SKU keranjang tidak valid.');totals[x.sku]=(totals[x.sku]||0)+x.quantity;});return totals;}
+function retailStockSnapshot_(excludeKey,products){
+ var sheets=inventorySheets_(),state=inventoryState_(sheets),reserved={},dispatched={},now=Date.now(),sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),rows=sheet?sheet.getDataRange().getValues():[],h=rows[0]||[],itemsCol=h.indexOf('Inventory Items'),keyCol=h.indexOf('Order Key'),statusCol=h.indexOf('Status'),untilCol=h.indexOf('Stock Reservation Until'),seen={};
+ state.rows.slice(1).forEach(function(r){dispatched[String(r[1])]=true;});
+ for(var i=1;i<rows.length;i++){
+  var row=rows[i],serial=String(row[1]||''),status=String(row[statusCol]||'');if(!serial||seen[serial]||dispatched['ORDER:'+serial]||excludeKey&&String(row[keyCol])===excludeKey)continue;seen[serial]=true;
+  if(['MENUNGGU PEMBAYARAN','PEMBAYARAN DITERIMA','PESANAN DISIAPKAN','DIKIRIM','SELESAI'].indexOf(status)<0)continue;
+  if(status==='MENUNGGU PEMBAYARAN'){var until=row[untilCol]?new Date(row[untilCol]).getTime():new Date(row[0]).getTime()+retailReservationMs_();if(!isFinite(until)||until<=now)continue;}
+  try{var totals=retailItems_(JSON.parse(String(row[itemsCol]||'null')));Object.keys(totals).forEach(function(sku){reserved[sku]=(reserved[sku]||0)+totals[sku];});}catch(e){/* Unmapped historical orders remain visible for admin reconciliation. */}
+ }
+ return {success:true,retailStockVersion:1,reservationHours:retailReservationMs_()/3600000,items:(products||getProducts()).map(function(p){var key='finished:'+p.sku,known=Object.prototype.hasOwnProperty.call(state.balances,key),qty=known?Math.max(0,Number(state.balances[key])||0):null;return {sku:p.sku,qty:qty,reservedQty:reserved[p.sku]||0,availableQty:p.active&&known?Math.max(0,qty-(reserved[p.sku]||0)):0};})};
+}
+function retailStockAssert_(items,excludeKey){var totals=retailItems_(items),stock=retailStockSnapshot_(excludeKey),map={};stock.items.forEach(function(x){map[x.sku]=x;});Object.keys(totals).forEach(function(sku){var available=map[sku]?map[sku].availableQty:0;if(totals[sku]>available)throw new Error('Stok '+sku+' tidak cukup. Tersedia '+available+' kemasan. Perbarui keranjang sebelum melanjutkan.');});return stock;}
+function saveRetailOrderV3_(data){puzzleVerify_(data,'saveOrder');if(data.retailStockVersion!==1||JSON.stringify(data.puzzlePayload)!==JSON.stringify(puzzleOrderProof_(data)))throw new Error('Rincian stok pesanan tidak sesuai otorisasi server.');return saveRetailOrderWithPromo_(data);}
+function retailCheckStatusStock_(sheet,row,serial){
+ var data=sheet.getDataRange().getValues(),h=data[0],itemsCol=h.indexOf('Inventory Items'),keyCol=h.indexOf('Order Key');if(itemsCol<0||!data[row-1][itemsCol])throw new Error('Pesanan lama belum memiliki rincian SKU. Rekonsiliasi pesanan sebelum menerima pembayaran atau menyiapkan barang.');
+ var state=inventoryState_(inventorySheets_());if(state.rows.some(function(r){return String(r[1])==='ORDER:'+serial;}))return;
+ retailStockAssert_(JSON.parse(String(data[row-1][itemsCol])),String(data[row-1][keyCol]||''));
+}

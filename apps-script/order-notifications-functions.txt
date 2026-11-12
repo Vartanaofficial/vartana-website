@@ -22,6 +22,7 @@ function updateOrderWithEmail_(data){
   if(row<0)throw new Error('Pesanan tidak ditemukan.');
   var order=vartanaReadOrders_(sheet).filter(function(o){return o.orderSerial===String(rows[row-1][serialCol]);})[0];if(!order)throw new Error('Rincian pesanan tidak terbaca.');
   if(order.recoveredLegacy)throw new Error('Pesanan historis perlu direkonsiliasi sebelum status dan email diperbarui.');
+  if(['PEMBAYARAN DITERIMA','PESANAN DISIAPKAN','DIKIRIM','SELESAI'].indexOf(status)>=0)retailCheckStatusStock_(sheet,row,order.orderSerial);
   if(['PESANAN DISIAPKAN','DIKIRIM','SELESAI'].indexOf(status)>=0)inventoryDispatchOrder_(sheet,row,order.orderSerial);
   sheet.getRange(row,statusCol+1).setValue(status);sheet.getRange(row,resiCol+1).setValue(resi);
   var email=null;
@@ -56,13 +57,4 @@ function sendOrderCustomerEmail_(data){
 function orderEmailMark_(eventId,status){var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),rows=sheet.getDataRange().getValues(),headers=rows[0],eventCol=headers.indexOf('Customer Email Event'),stateCol=headers.indexOf('Customer Email Status');if(eventCol<0||stateCol<0)return;for(var i=1;i<rows.length;i++)if(String(rows[i][eventCol])===eventId)sheet.getRange(i+1,stateCol+1).setValue(status);}
 
 // Stok is the physical finished-goods ledger; sales are paid orders, excluding free gifts.
-function productStockReport_(){
- var state=inventoryState_(inventorySheets_()),sold={},bonuses={},unmapped=0,sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),rows=sheet?sheet.getDataRange().getValues():[],headers=rows[0]||[],inventoryCol=headers.indexOf('Inventory Items'),statusCol=headers.indexOf('Status'),rewardCol=headers.indexOf('Reward Items'),seen={};
- for(var i=1;i<rows.length;i++){
-  var row=rows[i],serial=String(row[1]||'');if(!serial||seen[serial]||['PEMBAYARAN DITERIMA','PESANAN DISIAPKAN','DIKIRIM','SELESAI'].indexOf(String(row[statusCol]))<0)continue;seen[serial]=true;
-  var items,rewards=[];try{items=JSON.parse(String(row[inventoryCol]||'null'));if(!Array.isArray(items)||!items.length)throw new Error('missing');if(rewardCol>=0&&row[rewardCol])rewards=JSON.parse(String(row[rewardCol]));if(!Array.isArray(rewards))throw new Error('invalid');if(items.some(function(x){return !x||typeof x.sku!=='string'||!Number.isSafeInteger(x.quantity)||x.quantity<1;}))throw new Error('invalid');}catch(e){unmapped++;continue;}
-  var free={};rewards.forEach(function(r){if(r&&r.price===0&&Number.isSafeInteger(r.quantity)&&r.quantity>0)free[r.sku]=(free[r.sku]||0)+r.quantity;});
-  var totals={};items.forEach(function(x){totals[x.sku]=(totals[x.sku]||0)+x.quantity;});Object.keys(totals).forEach(function(sku){var gift=Math.min(totals[sku],free[sku]||0);sold[sku]=(sold[sku]||0)+totals[sku]-gift;bonuses[sku]=(bonuses[sku]||0)+gift;});
- }
- return responseJSON({success:true,productStockVersion:1,unmappedOrders:unmapped,items:getProducts().map(function(p){var key='finished:'+p.sku;return {sku:p.sku,qty:Object.prototype.hasOwnProperty.call(state.balances,key)?Math.max(0,state.balances[key]):null,soldQty:sold[p.sku]||0,bonusQty:bonuses[p.sku]||0};})});
-}
+function productStockReport_(){var stock=retailStockSnapshot_(''),sales=retailSalesState_();return responseJSON({success:true,productStockVersion:1,unmappedOrders:sales.unmapped.length,items:stock.items.map(function(x){x.soldQty=sales.sold[x.sku]||0;x.bonusQty=sales.bonus[x.sku]||0;return x;})});}

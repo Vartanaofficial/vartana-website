@@ -1,0 +1,21 @@
+// Historical sales mapping is deliberately separate from Inventory Items: it never dispatches old stock.
+function retailSalesState_(){
+ var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),rows=sheet?sheet.getDataRange().getValues():[],h=rows[0]||[],raw={},sold={},bonus={},unmapped=[],seen={};rows.slice(1).forEach(function(r,i){raw[String(r[1])]={row:i+2,values:r};});
+ vartanaReadOrders_(sheet).forEach(function(o){if(seen[o.orderSerial]||['PEMBAYARAN DITERIMA','PESANAN DISIAPKAN','DIKIRIM','SELESAI'].indexOf(o.status)<0)return;seen[o.orderSerial]=true;var source=raw[o.orderSerial],r=source.values,items,rewards=[],mapped=false;
+  try{items=JSON.parse(String(r[h.indexOf('Inventory Items')]||'null'));retailItems_(items);rewards=JSON.parse(String(r[h.indexOf('Reward Items')]||'[]'));if(!Array.isArray(rewards))throw new Error('invalid');}catch(e){try{var manual=JSON.parse(String(r[h.indexOf('Reconciled Sales Items')]||'null'));items=manual.items;retailItems_(items);rewards=items.filter(function(x){return x.kind==='bonus';}).map(function(x){return {sku:x.sku,quantity:x.quantity,price:0};});mapped=true;}catch(ignore){unmapped.push({orderSerial:o.orderSerial,itemsSummary:o.itemsSummary,grandTotal:o.grandTotal,status:o.status,createdAt:o.createdAt,fingerprint:customerAccessHash_(JSON.stringify([o.orderSerial,o.itemsSummary,o.grandTotal,o.status,r[h.indexOf('Reconciled Sales Items')]||'']))});return;}}
+  var totals=retailItems_(items),free={};rewards.forEach(function(x){if(x&&x.price===0&&Number.isSafeInteger(x.quantity)&&x.quantity>0)free[x.sku]=(free[x.sku]||0)+x.quantity;});Object.keys(totals).forEach(function(sku){var gifts=Math.min(totals[sku],free[sku]||0);sold[sku]=(sold[sku]||0)+totals[sku]-gifts;bonus[sku]=(bonus[sku]||0)+gifts;});
+ });return {sold:sold,bonus:bonus,unmapped:unmapped};
+}
+function retailReconciliation_(data){
+ puzzleVerify_(data,'retailReconciliation');var d=data.puzzlePayload||{};
+ if(d.operation==='list')return responseJSON({success:true,rows:retailSalesState_().unmapped,products:getProducts().map(function(p){return {sku:p.sku,name:p.productName+' '+p.variantName};})});
+ if(d.operation!=='save'||!Array.isArray(d.items)||d.items.length>20||!d.items.length||!/^[a-f0-9-]{36}$/i.test(String(d.requestId||'')))throw new Error('Rincian rekonsiliasi tidak valid.');
+ var allowed=getProducts().map(function(p){return p.sku;});d.items.forEach(function(x){if(!x||allowed.indexOf(x.sku)<0||['sold','bonus'].indexOf(x.kind)<0||!Number.isSafeInteger(x.quantity)||x.quantity<1||x.quantity>999)throw new Error('Pilih SKU, jumlah, dan jenis penjualan/bonus yang valid.');});
+ var lock=LockService.getScriptLock();lock.waitLock(20000);try{
+  var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),rows=sh.getDataRange().getValues(),h=rows[0],row=-1;for(var i=1;i<rows.length;i++)if(String(rows[i][1])===d.orderSerial)row=i+1;if(row<0)throw new Error('Order tidak ditemukan.');
+  var requestCol=h.indexOf('Sales Reconciliation Request');if(requestCol>=0&&String(rows[row-1][requestCol])===d.requestId)return responseJSON({success:true,duplicate:true});
+  var current=retailSalesState_().unmapped.filter(function(o){return o.orderSerial===d.orderSerial;})[0];if(!current||current.fingerprint!==d.expectedFingerprint)throw new Error('Order berubah atau sudah direkonsiliasi. Muat ulang daftar.');
+  var cols=checkoutColumns_(sh,['Reconciled Sales Items','Sales Reconciliation Updated At','Sales Reconciliation Request']);sh.getRange(row,cols['Reconciled Sales Items']).setValue(JSON.stringify({items:d.items.map(function(x){return {sku:x.sku,quantity:x.quantity,kind:x.kind};})}));sh.getRange(row,cols['Sales Reconciliation Updated At']).setValue(new Date());sh.getRange(row,cols['Sales Reconciliation Request']).setValue(d.requestId);
+  return responseJSON({success:true,message:'Penjualan lama dipetakan. Stok fisik tidak berubah.'});
+ }finally{lock.releaseLock();}
+}

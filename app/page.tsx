@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { type Product, type ProductVariant } from "@/lib/products";
 import { emptyCatalogProduct } from "@/lib/store-catalog";
 import ProductImage from "@/app/components/ProductImage";
@@ -8,6 +8,7 @@ import Link from "next/link";
 import StorefrontMotion from "@/app/components/StorefrontMotion";
 import StorefrontIcon from "@/app/components/StorefrontIcon";
 import ArticlePreview from "@/app/components/ArticlePreview";
+import CustomerOrdersModal from "@/app/components/CustomerOrdersModal";
 import { BotanicalSprig } from "@/app/checkout/CheckoutVisuals";
 import "./storefront.css";
 import {readClientJson} from '@/lib/client-reads';
@@ -361,14 +362,7 @@ export default function Home() {
   // TRACKING & HISTORY MODAL STATES
   const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
   useEffect(()=>{if(new URLSearchParams(location.search).get("track")==="1")setIsTrackModalOpen(true);},[]);
-  const [searchSerial, setSearchSerial] = useState("");
-  const [trackingResult, setTrackingResult] = useState<any>(null);
-  const [trackingLoading, setTrackingLoading] = useState(false);
-
-  // HISTORY MEMBER STATES
-  const [memberSearchQuery, setMemberSearchQuery] = useState("");
-  const [memberHistoryResult, setMemberHistoryResult] = useState<any[]>([]);
-  const [memberHistoryLoading, setMemberHistoryLoading] = useState(false);
+  const closeTracking=useCallback(()=>setIsTrackModalOpen(false),[]);
 
   // AUTO-FILL LOADING STATE
   const [autoFillLoading, setAutoFillLoading] = useState(false);
@@ -785,6 +779,7 @@ export default function Home() {
     if (item.status !== "READY STOCK" || qty <= 0) return;
     const variantToSave = item.variants?.[selectedVariantIndex] || item.variants?.[0];
     if (!variantToSave || catalogLoading || catalogError) return;
+    const inCart=cart.filter(ci=>ci.selectedVariant.sku===variantToSave.sku).reduce((sum,ci)=>sum+ci.quantity,0);if(inCart+qty>(variantToSave.stockAvailable||0)){setFormError("Stok kemasan ini tidak cukup. Periksa stok terbaru di katalog.");setIsCartOpen(true);return;}
 
     setCart((prev) => {
       const existing = prev.find((ci) => ci.product.id === item.id && ci.selectedVariant.size === variantToSave.size);
@@ -802,7 +797,8 @@ export default function Home() {
       prev
         .map((ci) => {
           if (ci.product.id === id && ci.selectedVariant.size === variantSize) {
-            const newQty = ci.quantity + delta;
+            const available=products.flatMap(p=>p.variants||[]).find(v=>v.sku===ci.selectedVariant.sku)?.stockAvailable||0;
+            const newQty = delta>0?Math.min(ci.quantity+delta,available):ci.quantity+delta;
             return newQty > 0 ? { ...ci, quantity: newQty } : null;
           }
           return ci;
@@ -815,57 +811,6 @@ export default function Home() {
   const subtotalPrice = cart.reduce((sum, item) => sum + item.selectedVariant.priceValue * item.quantity, 0);
   const shippingCost = selectedShipping ? selectedShipping.rate : 0;
   const grandTotal = subtotalPrice + shippingCost;
-
-  // LACAK PESANAN BY SERIAL
-  const handleTrackOrder = async () => {
-    if (!searchSerial) return;
-    setTrackingLoading(true);
-    setTrackingResult(null);
-
-    try {
-      const res = await fetch(`/api/track?serial=${encodeURIComponent(searchSerial)}`);
-      const data = await res.json();
-      setTrackingResult(data);
-    } catch (err) {
-      console.error("Gagal lacak pesanan:", err);
-    } finally {
-      setTrackingLoading(false);
-    }
-  };
-
-  // CARI HISTORI BY MEMBER ID / WA
-  const handleFetchMemberHistory = async () => {
-    if (!memberSearchQuery) return;
-    setMemberHistoryLoading(true);
-    setMemberHistoryResult([]);
-
-    try {
-      const res = await fetch(`/api/track?memberId=${encodeURIComponent(memberSearchQuery)}`);
-      const data = await res.json();
-      if (data.found && data.history) {
-        setMemberHistoryResult(data.history);
-        if (data.memberId) {
-          alert(`✅ Ditemukan Member ID: ${data.memberId}`);
-        }
-      } else {
-        alert(data.message || "Data riwayat tidak ditemukan.");
-      }
-    } catch (err) {
-      console.error("Gagal load history member:", err);
-    } finally {
-      setMemberHistoryLoading(false);
-    }
-  };
-
-  const STEPS = ["PEMBAYARAN DITERIMA", "PESANAN DISIAPKAN", "DIKIRIM", "SELESAI"];
-
-  const getStepIndex = (status: string) => {
-    const s = status.toUpperCase();
-    if (s.includes("SELESAI")) return 3;
-    if (s.includes("KIRIM") || s.includes("DIKIRIM")) return 2;
-    if (s.includes("SIAP") || s.includes("DISIAPKAN")) return 1;
-    return 0;
-  };
 
   // PROSES PAYMENT & SIMPAN DATA KE SPREADSHEET (DENGAN LOCK ANTI DOUBLE SUBMIT)
   const handleProceedToPayment = async () => {
@@ -1133,115 +1078,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* MODAL LACAK PESANAN & RIWAYAT MEMBER */}
-      {isTrackModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0D261C]/60 p-4 backdrop-blur-xs">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-[#FBF9F4] p-6 shadow-2xl border border-[#B69245]/30">
-            <div className="flex items-center justify-between border-b border-[#16382A]/10 pb-3">
-              <h3 className="font-serif text-xl font-bold text-[#16382A]">🔍 Lacak & Riwayat Belanja</h3>
-              <button onClick={() => setIsTrackModalOpen(false)} className="rounded-full bg-[#16382A]/5 px-2.5 py-1 text-xs font-bold text-[#16382A]">
-                ×
-              </button>
-            </div>
-
-            <div className="mt-5 space-y-6">
-              {/* OPSI 1: LACAK SINGLE ORDER BY SERIAL */}
-              <div className="rounded-2xl border border-[#16382A]/10 bg-white p-4 shadow-xs">
-                <p className="font-bold uppercase tracking-wider text-[#16382A] text-xs mb-2">1. Lacak Pesanan (No. Seri):</p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Contoh: VRT-20260823-1234"
-                    value={searchSerial}
-                    onChange={(e) => setSearchSerial(e.target.value)}
-                    className="w-full rounded-xl border border-[#16382A]/20 bg-white p-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#B69245]"
-                  />
-                  <button onClick={handleTrackOrder} disabled={trackingLoading} className="rounded-xl bg-[#16382A] px-4 py-2.5 text-xs font-bold text-white uppercase tracking-wider">
-                    {trackingLoading ? "..." : "Cari"}
-                  </button>
-                </div>
-
-                {trackingResult && (
-                  <div className="mt-4 rounded-xl bg-[#F6F2E8] p-3.5 text-xs border border-[#B69245]/30">
-                    {!trackingResult.found ? (
-                      <p className="text-center font-semibold text-red-600 py-1">{trackingResult.message}</p>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                          <span className="font-bold text-[#8E6E2E]">{trackingResult.orderSerial}</span>
-                          <span className="font-semibold text-[10px] bg-white px-2 py-0.5 rounded-full border">{trackingResult.status}</span>
-                        </div>
-                        <p className="text-[11px] text-[#526158]">
-                          Pemesan: <span className="font-bold text-[#16382A]">{trackingResult.customerName}</span>
-                        </p>
-
-                        {/* STEPPER PROGRESS */}
-                        <div>
-                          <p className="font-bold text-[9px] uppercase tracking-wider text-[#16382A] my-2">Status Perjalanan Paket:</p>
-                          <div className="grid grid-cols-4 gap-1 text-center">
-                            {STEPS.map((step, idx) => {
-                              const currentIdx = getStepIndex(trackingResult.status);
-                              const isPassed = idx <= currentIdx;
-                              return (
-                                <div key={step} className={`p-1.5 rounded-lg border text-[8px] font-bold uppercase ${isPassed ? "bg-[#16382A] text-white border-[#16382A]" : "bg-gray-100 text-gray-400"}`}>
-                                  {step === "PEMBAYARAN DITERIMA" ? "1. Terbayar" : step === "PESANAN DISIAPKAN" ? "2. Racik" : step === "DIKIRIM" ? "3. Kirim" : "4. Selesai"}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {trackingResult.resiJNT && trackingResult.resiJNT !== "-" && (
-                          <div className="mt-3 rounded-lg bg-white p-2.5 border text-center">
-                            <p className="text-[9px] font-bold text-[#8E6E2E] uppercase">Resi J&T Express:</p>
-                            <p className="font-mono text-sm font-extrabold text-[#16382A]">{trackingResult.resiJNT}</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* OPSI 2: BUKA SEMUA RIWAYAT BY NO WA */}
-              <div className="rounded-2xl border border-[#B69245]/30 bg-[#FFFDF9] p-4 shadow-xs">
-                <p className="font-bold uppercase tracking-wider text-[#8E6E2E] text-xs mb-2">2. Cek Semua Riwayat Belanja (No. WA):</p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Masukkan No. WhatsApp (Contoh: 085777...)"
-                    value={memberSearchQuery}
-                    onChange={(e) => setMemberSearchQuery(e.target.value)}
-                    className="w-full rounded-xl border border-[#16382A]/20 bg-white p-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#B69245]"
-                  />
-                  <button onClick={handleFetchMemberHistory} disabled={memberHistoryLoading} className="rounded-xl bg-[#B69245] px-4 py-2.5 text-xs font-bold text-[#0D261C] uppercase tracking-wider">
-                    {memberHistoryLoading ? "..." : "Cek"}
-                  </button>
-                </div>
-
-                {memberHistoryResult.length > 0 && (
-                  <div className="mt-4 space-y-2.5 max-h-60 overflow-y-auto pr-1">
-                    <p className="text-[10px] font-bold text-[#526158] uppercase tracking-wider">Ditemukan {memberHistoryResult.length} Pesanan:</p>
-                    {memberHistoryResult.map((ord, i) => (
-                      <div key={i} className="rounded-xl border border-gray-200 bg-white p-3 text-xs">
-                        <div className="flex justify-between font-bold text-[#16382A]">
-                          <span>{ord.orderSerial}</span>
-                          <span className="text-[10px] text-[#8E6E2E] bg-[#F6F2E8] px-2 py-0.5 rounded-full">{ord.status}</span>
-                        </div>
-                        <p className="text-[10px] text-gray-500 mt-1">{ord.itemsSummary}</p>
-                        <div className="mt-2 flex justify-between items-center text-[10px]">
-                          <span className="font-bold text-[#16382A]">Total: {formatRupiah(Number(ord.grandTotal))}</span>
-                          {ord.resiJNT && ord.resiJNT !== "-" && <span className="font-mono text-green-700 font-bold">Resi: {ord.resiJNT}</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {isTrackModalOpen&&<CustomerOrdersModal onClose={closeTracking}/>}
 
       {/* CART DRAWER */}
       {isCartOpen && (
@@ -1490,7 +1327,7 @@ export default function Home() {
                               -
                             </button>
                             <span className="w-6 text-center font-bold text-white text-sm">{productQuantity}</span>
-                            <button onClick={() => setProductQuantity((q) => q + 1)} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-base font-bold text-white transition hover:bg-white/20">
+                            <button onClick={() => setProductQuantity((q) => Math.min(q+1,currentVariant.stockAvailable||1))} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-base font-bold text-white transition hover:bg-white/20">
                               +
                             </button>
                           </div>
@@ -1498,15 +1335,17 @@ export default function Home() {
 
                         <button
                           onClick={() => addToCart(product, productQuantity)}
+                          disabled={(currentVariant.stockAvailable||0)<productQuantity+cart.filter(ci=>ci.selectedVariant.sku===currentVariant.sku).reduce((sum,ci)=>sum+ci.quantity,0)}
                           className="flex w-full items-center justify-center gap-2 rounded-full bg-[#B69245] px-8 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-[#0D261C] transition hover:bg-[#c9a352] shadow-md"
                         >
-                          🛒 {t.product.addToCart} ({productQuantity})
+                          {(currentVariant.stockAvailable||0)<=0?"Stok habis":`🛒 ${t.product.addToCart} (${productQuantity})`}
                         </button>
                       </div>
                     </div>
                   )}
 
                   <div className="mt-8 flex items-center gap-4">
+                    <span className="text-xs text-[#D8C28B]">{(currentVariant.stockAvailable||0)>0?`Tersedia ${currentVariant.stockAvailable} kemasan`:'Stok kemasan ini belum tersedia'}</span>
                     <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#D8C28B]">{t.product.weight}</span>
                     <span className="rounded-full border border-white/15 bg-white/[0.03] px-4 py-1.5 text-[11px] text-white/80">{currentVariant.weightGram ? `${currentVariant.bagCount ? `${currentVariant.bagCount} Tea Bags / ` : ""}${currentVariant.weightGram} g` : product.quantityInfo}</span>
                   </div>

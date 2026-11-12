@@ -1,0 +1,21 @@
+// CUSTOMER ORDER LOOKUP V1: read-only, phone matching never expands via Member ID.
+function customerOrderPhone_(value){var digits=String(value||'').replace(/\D/g,'');if(/^8\d{8,11}$/.test(digits))digits='62'+digits;return puzzlePhone_(digits);}
+function customerOrderLookup_(data){
+ puzzleVerify_(data,'customerOrderLookup');var d=data.puzzlePayload||{},allowedPhone=customerVerifiedPhone_(d.session);if(!allowedPhone)throw new Error('Verifikasi email diperlukan sebelum melihat riwayat pesanan.');return customerOrderHistory_(d,allowedPhone);
+}
+function customerOrderHistory_(d,allowedPhone){
+ var type=String(d.type||''),query=String(d.query||'').trim();
+ if(['phone','serial'].indexOf(type)<0||query.length>150)throw new Error('Pilih pencarian WhatsApp atau nomor pesanan.');
+ var phone=type==='phone'?customerOrderPhone_(query):'',serial=type==='serial'?query.toUpperCase():'';
+ if(type==='phone'&&(!/^[+\d\s()-]+$/.test(query)||!phone))throw new Error('Masukkan nomor WhatsApp Indonesia yang valid, misalnya 0812… atau +62812….');
+ if(type==='serial'&&!/^[A-Z0-9][A-Z0-9/-]{2,149}$/.test(serial))throw new Error('Masukkan nomor pesanan yang tercantum pada konfirmasi belanja.');
+ if(type==='phone'&&phone!==allowedPhone)throw new Error('Verifikasi nomor ini terlebih dahulu.');
+ var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),orders=vartanaReadOrders_(sheet),seen={},matches=[];
+ for(var i=orders.length-1;i>=0;i--){var o=orders[i],id=String(o.orderSerial||'').trim();if(customerOrderPhone_(o.phone)!==allowedPhone||(type==='phone'?customerOrderPhone_(o.phone)!==phone:id.toUpperCase()!==serial))continue;if(seen[id.toUpperCase()])continue;seen[id.toUpperCase()]=true;matches.push(o);}
+ var history=matches.slice(0,100).map(function(o){
+  // Checkout notes may contain private data. Only product-related summary segments are returned.
+  var items=String(o.itemsSummary||'').split(/\s*\|\s*/).filter(function(part,index){return index===0||!/^(?:catatan\s*:|kurir\s|promo\s[^:]*:)/i.test(part.trim());}).join(' | ');
+  return {orderSerial:o.orderSerial,createdAt:o.createdAt||'',itemsSummary:items,status:o.status||'MENUNGGU PEMBAYARAN',grandTotal:o.grandTotal===null?null:Number(o.grandTotal),resiJNT:o.resiJNT&&o.resiJNT!=='-'?String(o.resiJNT):''};
+ });
+ return responseJSON({success:true,customerOrdersVersion:2,verified:true,found:history.length>0,history:history,total:matches.length,hasMore:matches.length>100,message:history.length?'Pesanan ditemukan.':'Belum ada pesanan untuk '+(type==='phone'?'nomor WhatsApp':'nomor pesanan')+' ini. Periksa kembali nomor yang digunakan saat belanja.'});
+}

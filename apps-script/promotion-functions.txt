@@ -139,6 +139,8 @@ function saveRetailOrderWithPromo_(data) {
       if(String(values[i][4])!==String(data.phone)||Number(values[i][13])!==total)return responseJSON({status:'error',message:'Nomor pesanan sudah digunakan dengan rincian berbeda.'});
       return responseJSON({status:'success',success:true,duplicate:true,orderSerial:serial});
     }
+    if(data.retailStockVersion===1){puzzleVerify_(data,'saveOrder');if(JSON.stringify(data.puzzlePayload)!==JSON.stringify(puzzleOrderProof_(data)))throw new Error('Rincian stok pesanan tidak sesuai otorisasi server.');retailStockAssert_(data.inventoryItems,orderKey);}
+    var reservationUntil=data.retailStockVersion===1?new Date(Date.now()+retailReservationMs_()):null;
     var row=sheet.getLastRow()+1;
     checkoutColumns_(sheet,vartanaOrderColumnNames_());
     vartanaOrderStatusRule_(sheet,row,1);
@@ -157,11 +159,13 @@ function saveRetailOrderWithPromo_(data) {
       data.memberId=memberSaved.memberId;
     }
     // Save redemption and idempotency keys in the same row as the order itself.
-    var atomicCols=checkoutColumns_(sheet,['Order Key','Puzzle Voucher Code']);
+    var atomicCols=checkoutColumns_(sheet,['Order Key','Puzzle Voucher Code','Inventory Items','Stock Reservation Until']);
     var orderRow=[new Date(),serial,data.memberId||'-',data.customerName||'-',String(data.phone),data.email||'-',data.addressDetail||'-',data.sku||'-',data.itemsSummary||'-',subtotal,original,subsidy,shipping,total,'MENUNGGU PEMBAYARAN','-'];
     while(orderRow.length<sheet.getLastColumn())orderRow.push('');
     orderRow[atomicCols['Order Key']-1]=orderKey;
     orderRow[atomicCols['Puzzle Voucher Code']-1]=puzzleCode[0]||'';
+    orderRow[atomicCols['Inventory Items']-1]=Array.isArray(data.inventoryItems)?JSON.stringify(data.inventoryItems):'';
+    orderRow[atomicCols['Stock Reservation Until']-1]=reservationUntil||'';
     sheet.appendRow(orderRow);
     recordCheckoutPromoOnOrder_(sheet,row,data);
     var extraCols=checkoutColumns_(sheet,['Order Key','Notification Email Status','Inventory Items']);
@@ -169,6 +173,6 @@ function saveRetailOrderWithPromo_(data) {
     if(orderKey)sheet.getRange(row,extraCols['Order Key']).setValue(orderKey);
     var notification=vartanaNotifyNewOrder_(data,serial,now,timeZone);
     sheet.getRange(row,extraCols['Notification Email Status']).setValue(notification);
-    return responseJSON({status:'success',success:true,orderSerial:serial,subtotalProducts:subtotal});
+    return responseJSON({status:'success',success:true,orderSerial:serial,subtotalProducts:subtotal,reservationUntil:reservationUntil?reservationUntil.toISOString():null});
   }finally{lock.releaseLock();}
 }

@@ -570,6 +570,7 @@ function doPost(e) {
     if(data.action==='retailReconciliation')return retailReconciliation_(data);
     if(data.action==='getRetailStock')return responseJSON(retailStockSnapshot_(String(data.orderKey||'')));
     if(data.action==='saveRetailOrderV3')return saveRetailOrderV3_(data);
+    if(data.action==='customerAccount')return customerAccount_(data);
     if(data.action==='customerOrderAccess')return customerOrderAccess_(data);
     if(data.action==='customerOrderLookup')return customerOrderLookup_(data);
     if(data.action==='updateOrderWithEmail')return updateOrderWithEmail_(data);
@@ -886,6 +887,7 @@ function doPost(e) {
 function doGet(e) {
 
   try {
+    if(e&&e.parameter&&e.parameter.action==='getCustomerAccountCapabilities')return responseJSON({success:true,customerAccountVersion:1});
 
     var ss =
       SpreadsheetApp.getActiveSpreadsheet();
@@ -3832,9 +3834,9 @@ function vartanaSaveMember_(data,alreadyLocked){
   var ss=SpreadsheetApp.getActiveSpreadsheet(),sheet=ss.getSheetByName(SHEET_MEMBERS)||ss.insertSheet(SHEET_MEMBERS);
   if(!sheet.getLastRow())sheet.getRange(1,1,1,8).setValues([['Timestamp','Member ID','Nama','Email','No. WA','Tgl Lahir','Alamat','Kecamatan/Kota']]);
   var rows=sheet.getDataRange().getValues(),row=-1,old=[];
-  for(var i=1;i<rows.length;i++)if(puzzlePhone_(rows[i][4])===phone){row=i+1;old=rows[i];break;}
+  for(var i=1;i<rows.length;i++)if(customerOrderPhone_(rows[i][4])===phone){row=i+1;old=rows[i];break;}
   var memberId=row>0?String(old[1]||'VRT-'+phone):String(data.memberId||'VRT-'+phone);
-  if(row<0&&rows.slice(1).some(function(r){return String(r[1])===memberId&&puzzlePhone_(r[4])!==phone;}))throw new Error('Member ID sudah dipakai nomor lain.');
+  if(row<0&&rows.slice(1).some(function(r){return String(r[1])===memberId&&customerOrderPhone_(r[4])!==phone;}))throw new Error('Member ID sudah dipakai nomor lain.');
   function field(value,previous){if(value===undefined||value===null||String(value).trim()===''||value==='-')return previous||'-';var text=String(value).trim();return /^[=+@-]/.test(text)?"'"+text:text;}
   var city=data.districtName||data.cityName?String(data.districtName||'')+', '+String(data.cityName||''):old[7];
   var values=[row>0?old[0]:new Date(),memberId,field(data.name,old[2]),field(data.email,old[3]),phone,field(data.birthDate,old[5]),field(data.addressDetail,old[6]),field(city,old[7])];
@@ -3846,8 +3848,8 @@ function getCheckoutContext_(data){
  var phone=puzzlePhone_(data.phone),key=String(data.orderKey||'');
  if(!phone||!/^[a-f0-9-]{36}$/i.test(key))throw new Error('Konteks checkout tidak valid.');
  var ss=SpreadsheetApp.getActiveSpreadsheet(),sheet=ss.getSheetByName(SHEET_MEMBERS),members=[];
- if(sheet){var rows=sheet.getDataRange().getValues();for(var i=1;i<rows.length;i++)if(puzzlePhone_(rows[i][4])===phone){var city=String(rows[i][7]||'').split(',');members.push({memberId:String(rows[i][1]||''),name:String(rows[i][2]||''),email:String(rows[i][3]||''),phone:phone,addressDetail:String(rows[i][6]||''),districtName:(city[0]||'').trim(),cityName:(city[1]||'').trim()});break;}}
- var orders=vartanaReadOrders_(ss.getSheetByName(SHEET_ORDERS)).filter(function(order){return order.orderKey===key&&puzzlePhone_(order.phone)===phone;});
+ if(sheet){var rows=sheet.getDataRange().getValues();for(var i=1;i<rows.length;i++)if(customerOrderPhone_(rows[i][4])===phone){var city=String(rows[i][7]||'').split(',');members.push({memberId:String(rows[i][1]||''),name:String(rows[i][2]||''),email:String(rows[i][3]||''),phone:phone,addressDetail:String(rows[i][6]||''),districtName:(city[0]||'').trim(),cityName:(city[1]||'').trim()});break;}}
+ var orders=vartanaReadOrders_(ss.getSheetByName(SHEET_ORDERS)).filter(function(order){return order.orderKey===key&&customerOrderPhone_(order.phone)===phone;});
  var result={success:true,retailOrderVersion:2,checkoutWorkflowVersion:3,retailStockVersion:1,orders:orders,members:members};
  if(data.includeMaster===true&&!orders.length){result.products=getProducts();result.promotions=getPromotions();result.retailStock=retailStockSnapshot_(key,result.products);}
  return responseJSON(result);
@@ -4016,6 +4018,113 @@ function customerOrderAccess_(data){
   }
  }finally{lock.releaseLock();}
  return customerOrderHistory_({type:d.type||'phone',query:d.query||phone},phone);
+}
+
+// CUSTOMER ACCOUNTS V1: signed server RPC only. Password KDF runs on Node, never in browser or Apps Script.
+function customerAccountSheets_(){var setupLock=LockService.getScriptLock();setupLock.waitLock(20000);try{return {
+ accounts:inventoryOperationsSheet_('CustomerAccounts',['Account ID','Email','Password Hash','Profile JSON','Version','Created At','Updated At']),
+ sessions:inventoryOperationsSheet_('CustomerAccountSessions',['Session Hash','Account ID','Expires At','Version','Created At','Revoked At']),
+ codes:inventoryOperationsSheet_('CustomerAccountCodes',['Challenge ID','Email','Browser Hash','Client Hash','Code Hash','Created At','Expires At','Attempts','State','Send State','Delivery ID','Error']),
+ attempts:inventoryOperationsSheet_('CustomerAccountLogins',['Attempt ID','Email','Client Hash','Browser Hash','Created At','State','Account ID','Version'])
+};}finally{setupLock.releaseLock();}}
+function customerAccountEmail_(value){var email=gamesRawEmail_(value);if(email.length>254||!/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(email))throw new Error('Masukkan alamat email yang valid.');return email;}
+function customerAccountHash_(value){return customerAccessHash_('ACCOUNT:'+value);}
+function customerAccountProfile_(profile,email){
+ var out={email:email},limits={name:120,phone:25,address:700,provinceId:2,provinceName:100,cityId:4,cityName:100,districtId:7,districtName:100,postalCode:5};
+ Object.keys(limits).forEach(function(key){var value=profile&&profile[key]!==undefined?profile[key]:'';if(typeof value!=='string'||value.length>limits[key])throw new Error('Data profil terlalu panjang atau tidak valid.');out[key]=value.trim();});
+ if(out.phone){out.phone=customerOrderPhone_(out.phone);if(!out.phone)throw new Error('Nomor WhatsApp tidak valid.');}
+ [['provinceId',2],['cityId',4],['districtId',7],['postalCode',5]].forEach(function(spec){if(out[spec[0]]&&!new RegExp('^\\d{'+spec[1]+'}$').test(out[spec[0]]))throw new Error('Kode wilayah atau kode pos tidak valid.');});
+ if((out.cityId&&(!out.provinceId||out.cityId.slice(0,2)!==out.provinceId))||(out.districtId&&(!out.cityId||out.districtId.slice(0,4)!==out.cityId)))throw new Error('Wilayah pengiriman tidak sesuai. Pilih kembali alamat.');
+ return out;
+}
+function customerAccountLegacyProfile_(email){
+ var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName(SHEET_MEMBERS),profile={};
+ if(sh){var rows=sh.getDataRange().getValues();for(var i=rows.length-1;i>=1;i--)if(gamesRawEmail_(rows[i][3])===email){var city=String(rows[i][7]||'').split(',');profile={name:String(rows[i][2]||'').slice(0,120),phone:customerOrderPhone_(rows[i][4]),address:String(rows[i][6]||'').slice(0,700),districtName:String(city[0]||'').trim().slice(0,100),cityName:String(city[1]||'').trim().slice(0,100)};break;}}
+ if(!profile.name){var orders=vartanaReadOrders_(ss.getSheetByName(SHEET_ORDERS));for(var j=orders.length-1;j>=0;j--)if(gamesRawEmail_(orders[j].email)===email){profile={name:orders[j].customerName.slice(0,120),phone:customerOrderPhone_(orders[j].phone),address:orders[j].addressDetail.slice(0,700)};break;}}
+ return customerAccountProfile_(profile,email);
+}
+function customerAccountFind_(sheets,email){var rows=sheets.accounts.getDataRange().getValues();for(var i=1;i<rows.length;i++)if(gamesRawEmail_(rows[i][1])===email)return {row:i+1,values:rows[i]};return null;}
+function customerAccountSession_(sheets,hash){
+ if(!/^[a-f0-9]{64}$/.test(String(hash||'')))return null;var sessions=sheets.sessions.getDataRange().getValues(),accounts=sheets.accounts.getDataRange().getValues(),now=Date.now();
+ for(var i=sessions.length-1;i>=1;i--)if(sessions[i][0]===hash&&!sessions[i][5]&&new Date(sessions[i][2]).getTime()>now){for(var a=1;a<accounts.length;a++)if(accounts[a][0]===sessions[i][1]&&Number(accounts[a][4])===Number(sessions[i][3]))return {row:a+1,values:accounts[a],sessionRow:i+1,expiresAt:new Date(sessions[i][2]).toISOString()};}
+ return null;
+}
+function customerAccountPublic_(account){var v=account.values,email=gamesRawEmail_(v[1]),profile;try{profile=customerAccountProfile_(JSON.parse(String(v[3]||'{}')),email);}catch(e){throw new Error('Data profil perlu diperiksa admin.');}return {accountId:String(v[0]),email:email,profile:profile,expiresAt:account.expiresAt};}
+function customerAccount_(data){
+ puzzleVerify_(data,'customerAccount');var d=data.puzzlePayload||{},op=String(d.operation||''),allowed=['requestCode','verifyCode','setPassword','loginBegin','loginFinish','read','logout','saveProfile'];
+ if(allowed.indexOf(op)<0)throw new Error('Operasi akun tidak valid.');
+ var sheets=customerAccountSheets_(),now=Date.now(),lock=LockService.getScriptLock();
+ if(op==='read'){var account=customerAccountSession_(sheets,d.sessionHash);return responseJSON(account?{success:true,customerAccountVersion:1,authenticated:true,account:customerAccountPublic_(account)}:{success:true,customerAccountVersion:1,authenticated:false});}
+ if(op==='logout'||op==='saveProfile'){
+  lock.waitLock(20000);try{var account=customerAccountSession_(sheets,d.sessionHash);if(!account){if(op==='logout')return responseJSON({success:true});throw new Error('Sesi akun berakhir. Silakan masuk kembali.');}
+   if(op==='logout'){sheets.sessions.getRange(account.sessionRow,6).setValue(new Date());return responseJSON({success:true});}
+   var email=gamesRawEmail_(account.values[1]),profile=customerAccountProfile_(d.profile,email);if(!profile.name||!profile.phone)throw new Error('Lengkapi nama dan WhatsApp.');
+   sheets.accounts.getRange(account.row,4).setValue(JSON.stringify(profile));sheets.accounts.getRange(account.row,7).setValue(new Date());return responseJSON({success:true,profile:profile});
+  }finally{lock.releaseLock();}
+ }
+ if(!/^[a-f0-9]{64}$/.test(String(d.browserHash||''))||! /^[a-f0-9]{64}$/.test(String(d.clientHash||'')))throw new Error('Sesi browser tidak valid. Muat ulang halaman akun.');
+ if(op==='requestCode'){
+  var email=customerAccountEmail_(d.email),context;
+  lock.waitLock(20000);try{
+   var codes=sheets.codes.getDataRange().getValues(),recent=codes.slice(1).filter(function(r){return now-new Date(r[5]).getTime()<3600000;}),same=recent.filter(function(r){return gamesRawEmail_(r[1])===email;}),last=same[same.length-1];
+   if(last&&now-new Date(last[5]).getTime()<60000){if(last[2]===d.browserHash&&last[8]==='OPEN')return responseJSON({success:true,challengeId:last[0],expiresAt:new Date(last[6]).toISOString(),retryAt:new Date(new Date(last[5]).getTime()+60000).toISOString(),deliveryStatus:String(last[9])});throw new Error('Tunggu 60 detik sebelum meminta kode lagi.');}
+   if(same.length>=5||recent.filter(function(r){return r[3]===d.clientHash;}).length>=30)throw new Error('Batas permintaan kode tercapai. Coba kembali dalam satu jam.');
+   gamesEmailSender_();if(MailApp.getRemainingDailyQuota()<1)throw new Error('Pengiriman kode belum tersedia. Coba lagi sebentar.');
+   var id='ACC-'+Utilities.getUuid(),code=String(parseInt(customerAccountHash_('CODE:'+id+':'+now).slice(0,8),16)%1000000).padStart(6,'0'),delivery=Utilities.getUuid();
+   sheets.codes.appendRow([id,gamesCell_(email),d.browserHash,d.clientHash,customerAccountHash_(id+':'+code),new Date(now),new Date(now+600000),0,'OPEN','SENDING',delivery,'']);context={id:id,email:email,code:code,delivery:delivery};
+  }finally{lock.releaseLock();}
+  var sent=false,error='';try{MailApp.sendEmail({to:context.email,subject:'[VARTANA] Kode untuk mengatur password akun',name:'VARTANA Botanical Wellness',replyTo:'vartana@vartanaglobal.com',body:'Kode verifikasi akun VARTANA: '+context.code+'\n\nGunakan kode ini untuk membuat atau mengatur ulang password di halaman akun yang memintanya. Berlaku 10 menit dan hanya dapat digunakan sekali.\nJangan bagikan kode ini kepada siapa pun. VARTANA tidak akan meminta password atau kode melalui chat.\n\nJika bukan kamu yang meminta, abaikan email ini. Password tidak berubah sampai kode diverifikasi.\n\nVARTANA Botanical Wellness'});sent=true;}catch(e){error=String(e.message||e).slice(0,300);}
+  lock.waitLock(20000);try{var rows=sheets.codes.getDataRange().getValues();for(var r=1;r<rows.length;r++)if(rows[r][0]===context.id&&rows[r][10]===context.delivery){sheets.codes.getRange(r+1,10).setValue(sent?'SENT':'UNKNOWN');sheets.codes.getRange(r+1,12).setValue(error);break;}}finally{lock.releaseLock();}
+  return responseJSON({success:true,challengeId:context.id,expiresAt:new Date(now+600000).toISOString(),retryAt:new Date(now+60000).toISOString(),deliveryStatus:sent?'SENT':'UNKNOWN'});
+ }
+ if(op==='verifyCode'){
+  if(!/^ACC-[a-f0-9-]{36}$/i.test(String(d.challengeId||''))||!/^\d{6}$/.test(String(d.code||'')))throw new Error('Kode belum valid.');
+  lock.waitLock(20000);try{
+   var rows=sheets.codes.getDataRange().getValues(),idx=-1;for(var i=1;i<rows.length;i++)if(rows[i][0]===d.challengeId&&rows[i][2]===d.browserHash)idx=i;
+   if(idx<0)throw new Error('Kode tidak sesuai sesi browser. Minta kode baru.');var row=rows[idx];
+   if(row[8]!=='OPEN'||new Date(row[6]).getTime()<=now||Number(row[7])>=5)throw new Error('Kode kedaluwarsa atau sudah digunakan. Minta kode baru.');
+   var provided=customerAccountHash_(row[0]+':'+d.code),diff=0;for(var k=0;k<provided.length;k++)diff|=provided.charCodeAt(k)^String(row[4]).charCodeAt(k);
+   row[7]=Number(row[7])+1;if(diff){if(row[7]>=5)row[8]='LOCKED';sheets.codes.getRange(idx+1,1,1,12).setValues([row.slice(0,12)]);throw new Error('Kode tidak sesuai. Periksa email dan coba lagi.');}
+   var grant=Utilities.getUuid()+'-'+Utilities.getUuid();row[8]='VERIFIED';row[4]=customerAccountHash_('GRANT:'+grant);row[6]=new Date(now+120000);sheets.codes.getRange(idx+1,1,1,12).setValues([row.slice(0,12)]);
+   return responseJSON({success:true,grant:grant});
+  }finally{lock.releaseLock();}
+ }
+ if(op==='setPassword'){
+  if(!/^ACC-[a-f0-9-]{36}$/i.test(String(d.challengeId||''))||! /^[a-f0-9-]{73}$/i.test(String(d.grant||''))||!/^scrypt-v1\$[a-f0-9]{32}\$[a-f0-9]{128}$/.test(String(d.passwordHash||'')))throw new Error('Password belum valid.');
+  lock.waitLock(20000);try{
+   var rows=sheets.codes.getDataRange().getValues(),idx=-1;for(var i=1;i<rows.length;i++)if(rows[i][0]===d.challengeId&&rows[i][2]===d.browserHash)idx=i;
+   if(idx<0)throw new Error('Verifikasi password tidak ditemukan.');var row=rows[idx];
+   if(row[8]!=='VERIFIED'||new Date(row[6]).getTime()<=now||row[4]!==customerAccountHash_('GRANT:'+d.grant))throw new Error('Verifikasi password kedaluwarsa. Minta kode baru.');
+   var email=gamesRawEmail_(row[1]),found=customerAccountFind_(sheets,email),profile=found?String(found.values[3]):JSON.stringify(customerAccountLegacyProfile_(email)),version=found?Number(found.values[4])+1:1;
+   // Consume first: a partial Sheets failure must never leave a reusable reset code.
+   row[8]='USED';row[4]='';sheets.codes.getRange(idx+1,1,1,12).setValues([row.slice(0,12)]);
+   for(var r=1;r<rows.length;r++)if(r!==idx&&gamesRawEmail_(rows[r][1])===email&&['OPEN','VERIFIED'].indexOf(rows[r][8])>=0){sheets.codes.getRange(r+1,9).setValue('REVOKED');sheets.codes.getRange(r+1,5).setValue('');}
+   var values=[found?found.values[0]:'CUST-'+Utilities.getUuid(),gamesCell_(email),d.passwordHash,profile,version,found?found.values[5]:new Date(now),new Date(now)];
+   sheets.accounts.getRange(found?found.row:sheets.accounts.getLastRow()+1,1,1,7).setValues([values]);
+   return responseJSON({success:true,message:'Password berhasil disimpan. Silakan masuk dengan password baru.'});
+  }finally{lock.releaseLock();}
+ }
+ if(op==='loginBegin'){
+  var email=customerAccountEmail_(d.email);
+  lock.waitLock(20000);try{
+   var found=customerAccountFind_(sheets,email),version=found?Number(found.values[4]):0,attempts=sheets.attempts.getDataRange().getValues().slice(1).filter(function(r){return now-new Date(r[4]).getTime()<900000;});
+   if(attempts.filter(function(r){return gamesRawEmail_(r[1])===email&&Number(r[7])===version;}).length>=10||attempts.filter(function(r){return r[2]===d.clientHash;}).length>=50)throw new Error('Terlalu banyak percobaan masuk. Coba kembali dalam 15 menit.');
+   var id='LOGIN-'+Utilities.getUuid();sheets.attempts.appendRow([id,gamesCell_(email),d.clientHash,d.browserHash,new Date(now),'PENDING',found?found.values[0]:'',version]);
+   return responseJSON({success:true,attemptId:id,passwordHash:found?String(found.values[2]):''});
+  }finally{lock.releaseLock();}
+ }
+ if(op==='loginFinish'){
+  if(!/^LOGIN-[a-f0-9-]{36}$/i.test(String(d.attemptId||''))||! /^[a-f0-9]{64}$/.test(String(d.sessionHash||'')))throw new Error('Sesi masuk tidak valid.');
+  lock.waitLock(20000);try{
+   var rows=sheets.attempts.getDataRange().getValues(),idx=-1;for(var i=1;i<rows.length;i++)if(rows[i][0]===d.attemptId&&rows[i][3]===d.browserHash&&rows[i][2]===d.clientHash)idx=i;
+   if(idx<0||rows[idx][5]!=='PENDING'||now-new Date(rows[idx][4]).getTime()>120000)throw new Error('Percobaan masuk kedaluwarsa. Coba lagi.');
+   var attempt=rows[idx],found=customerAccountFind_(sheets,gamesRawEmail_(attempt[1])),ok=d.passwordValid===true&&found&&found.values[0]===attempt[6]&&Number(found.values[4])===Number(attempt[7]);
+   sheets.attempts.getRange(idx+1,6).setValue(ok?'SUCCESS':'FAILED');if(!ok)return responseJSON({success:true,authenticated:false});
+   var expiresAt=new Date(now+(d.remember===true?2592000000:28800000));sheets.sessions.appendRow([d.sessionHash,found.values[0],expiresAt,found.values[4],new Date(now),'']);found.expiresAt=expiresAt.toISOString();
+   return responseJSON({success:true,customerAccountVersion:1,authenticated:true,account:customerAccountPublic_(found)});
+  }finally{lock.releaseLock();}
+ }
+ throw new Error('Operasi akun tidak dikenal.');
 }
 
 // CUSTOMER ORDER LOOKUP V1: read-only, phone matching never expands via Member ID.

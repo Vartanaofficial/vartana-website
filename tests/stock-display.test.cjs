@@ -1,0 +1,5 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),load=require('./load-ts.cjs'),{withRetailStock}=load('lib/retail-stock.ts'),{stockDisplay}=load('lib/stock-display.ts');
+test('product readiness follows available SKU balances, including holds, unknown inventory and mixed variants',()=>{
+ const products=[{id:'EMPTY',status:'READY STOCK',variants:[{sku:'A'}]},{id:'UNKNOWN',status:'READY STOCK',variants:[{sku:'B'}]},{id:'MIXED',status:'READY STOCK',variants:[{sku:'C'},{sku:'D'}]}],stock={items:[{sku:'A',qty:5,availableQty:0},{sku:'B',qty:null,availableQty:999},{sku:'C',qty:0,availableQty:0},{sku:'D',qty:2,availableQty:2}]};
+ const p=withRetailStock(products,stock);assert.equal(p[0].status,'STOK HABIS');assert.equal(p[1].status,'STOK HABIS');assert.equal(p[1].variants[0].stockAvailable,0);assert.equal(p[2].status,'READY STOCK');assert.equal(stockDisplay(p[0]),'Stok habis');assert.equal(stockDisplay(p[2]),'Tersedia');assert.equal(stockDisplay(p[2].variants[0]),'Stok habis');assert.equal(stockDisplay(p[2].variants[1],'en'),'In stock');
+});

@@ -27,7 +27,7 @@ export type Product = {
   number: string;
   name: string;
   subtitle: string;
-  status: "READY STOCK" | "COMING SOON";
+  status: "READY STOCK" | "COMING SOON" | "STOK HABIS";
   image?: string;
   variants?: ProductVariant[];
   priceValue: number;

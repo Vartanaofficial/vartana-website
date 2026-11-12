@@ -1,0 +1,41 @@
+.customer-account-page{min-height:100vh;background:radial-gradient(ellipse at 5% 20%,#e2ead8,transparent 55%),#f8f6ef;color:#173d2b}
+.ca-main{max-width:1160px;margin:auto;display:grid;grid-template-columns:1fr 1fr;gap:76px;align-items:start;padding:64px 30px 90px}
+.ca-story{padding:34px 0;position:sticky;top:128px}
+.ca-eyebrow{font-size:10px;font-weight:700;letter-spacing:.15em;color:#91743c;line-height:1.7}
+.ca-story h1{font:400 clamp(40px,4.8vw,60px)/1.12 Georgia,serif;letter-spacing:-.035em;margin:24px 0}
+.ca-story h1 em{font-weight:400;color:#9a7938}
+.ca-story>p{max-width:410px;font-size:14px;line-height:1.9;color:#5d7056}
+.ca-benefits{display:grid;gap:24px;margin-top:40px;max-width:430px}
+.ca-benefits>div{display:flex;align-items:start;gap:16px}
+.ca-benefits b{display:grid;place-items:center;flex-shrink:0;width:34px;height:34px;border:1px solid #b8c8a9;border-radius:50%;font-size:10px;color:#87703b}
+.ca-benefits span{font-size:13px;font-weight:600;line-height:1.6}.ca-benefits small{display:block;font-size:12px;color:#61745a;font-weight:400;margin-top:4px;line-height:1.7}
+.ca-story-signature{font:italic 17px Georgia,serif;color:#7f8c72;margin-top:48px;padding-top:24px;border-top:1px solid #cad5bd}
+.ca-card{background:#fffef9;border:1px solid #d4dfc9;border-radius:26px;box-shadow:0 16px 50px #173d2b09;padding:34px;min-width:0}
+.ca-card-heading h2{font:400 33px/1.2 Georgia,serif;letter-spacing:-.025em;margin:14px 0;color:#173d2b;overflow-wrap:anywhere}
+.ca-card-heading p{font-size:13px;line-height:1.85;color:#64765c;overflow-wrap:anywhere;margin:0 0 24px}
+.ca-form{display:grid;gap:19px}
+.ca-form label{display:grid;gap:9px;font-size:12px;font-weight:600;line-height:1.6;color:#314f37}
+.ca-form input:not([type=checkbox]),.ca-form textarea{width:100%;min-width:0;min-height:48px;border:1px solid #c8d5bc;border-radius:11px;padding:13px 14px;background:white;color:#173d2b;font-size:15px;outline:0;transition:border-color .2s,box-shadow .2s}
+.ca-form input:focus,.ca-form textarea:focus{border-color:#a38548;box-shadow:0 0 0 3px #b9a16a1c}.ca-form textarea{resize:vertical;line-height:1.7}
+.ca-form label>small,.ca-check small{font-weight:400;font-size:11px;line-height:1.7;color:#6d7b62}
+.customer-account-page button{cursor:pointer}.customer-account-page button:disabled{opacity:.5;cursor:default}
+.customer-account-page :is(button,a):focus-visible{outline:2px solid #a38548;outline-offset:4px}
+.ca-primary,.ca-secondary{display:flex;align-items:center;justify-content:center;text-align:center;min-height:49px;border-radius:28px;font-size:13px;font-weight:600;padding:14px 18px;transition:background .2s,transform .2s;line-height:1.5;width:100%}
+.ca-primary{background:#173d2b;color:#fffdf5;border:1px solid #173d2b}.ca-primary:not(:disabled):hover{background:#2c563b;transform:translateY(-1px)}
+.ca-secondary{background:#fafbf4;color:#35573a;border:1px solid #bacbac}.ca-secondary:not(:disabled):hover{background:#eaf1e0}
+.ca-note{font-size:11px;line-height:1.85;color:#69785f;margin:0}
+.ca-email-chip{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #dce3d1;background:#f3f6ec;border-radius:12px;margin-bottom:24px;font-size:12px}
+.ca-email-chip span{overflow-wrap:anywhere;min-width:0}.ca-email-chip button{flex-shrink:0;font-size:11px;color:#806834;text-decoration:underline;text-underline-offset:4px;padding:4px}
+.ca-password-field{position:relative}.ca-form .ca-password-field input{padding-right:94px}.ca-password-field>button{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:#6a795d;min-height:32px;padding:4px}
+.ca-form .ca-check{display:flex;align-items:flex-start;gap:10px;font-size:12px;cursor:pointer}.ca-check input{accent-color:#173d2b;width:16px;height:16px;margin-top:3px}.ca-check small{display:block;margin-top:3px}
+.ca-divider{display:flex;align-items:center;gap:12px;margin:24px 0;font-size:10px;line-height:1.7;color:#78826b;text-align:center}.ca-divider:before,.ca-divider:after{content:'';height:1px;background:#dfe5d6;flex:1}
+.ca-text-button{display:block;width:100%;padding:13px;text-align:center;color:#88703d;font-size:12px;text-underline-offset:4px}.ca-text-button:hover{text-decoration:underline}
+.ca-error,.ca-success{font-size:12px;line-height:1.8;padding:14px 16px;border-radius:12px;margin:20px 0 0;overflow-wrap:anywhere}.ca-error{background:#fbeee3;color:#954b30;border:1px solid #efdbc9}.ca-success{background:#edf4e3;color:#3f6536;border:1px solid #d5e3c6}
+.ca-card-footer{border-top:1px solid #dfe5d6;padding-top:22px;margin-top:26px;display:grid;gap:14px}.ca-card-footer>a{font-size:12px;color:#49643b;text-decoration:underline;text-underline-offset:4px}.ca-card-footer small{font-size:10px;line-height:1.8;color:#79856d}
+.ca-loading{padding:36px 0;text-align:center;color:#65795b;font-size:13px;line-height:1.8}
+.ca-profile-form{margin-top:28px;padding-top:25px;border-top:1px solid #dfe5d6}.ca-profile-form h3{font:24px Georgia,serif;margin:0}.ca-address-summary{padding:15px;border:1px solid #d9e3ce;background:#f2f6e9;border-radius:12px}.ca-address-summary small{font-size:10px;color:#788769}.ca-address-summary p{font-size:12px;line-height:1.8;margin-top:6px}
+.customer-account-link{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:10px 13px;border:1px solid #173d2b22;border-radius:30px;background:#fffdfa;font-size:11px;font-weight:600;white-space:nowrap;color:#173d2b}
+.checkout-account-panel{padding:18px 20px;border:1px solid #d3dfc5;border-radius:16px;background:#f0f5e8;margin-bottom:22px}.checkout-account-panel h3{font:22px Georgia,serif;color:#173d2b;margin:0}.checkout-account-panel p{font-size:12px;line-height:1.8;color:#627357;margin:8px 0}.checkout-account-panel a,.checkout-account-panel button{display:inline-flex;align-items:center;font-size:12px;font-weight:600;color:#284e32;text-decoration:underline;text-underline-offset:4px;min-height:35px}.checkout-account-panel small{display:block;font-size:10px;line-height:1.8;color:#7a846e}
+@media(max-width:1000px){.ca-main{gap:36px;padding:42px 24px 80px}.ca-story h1{font-size:45px}.ca-card{padding:28px}.customer-account-link>span{display:none}}
+@media(max-width:760px){.ca-main{grid-template-columns:1fr;gap:26px;padding:30px 20px 90px}.ca-story{position:static;padding:0}.ca-story h1{font-size:37px;margin:17px 0}.ca-story h1 br:last-of-type{display:none}.ca-story>p{max-width:none;font-size:13px}.ca-benefits{display:none}.ca-story-signature{display:none}.ca-card{padding:27px 22px;border-radius:22px}.ca-card-heading h2{font-size:29px}.ca-form input:not([type=checkbox]),.ca-form textarea{font-size:16px}.ca-card-footer{margin-top:24px}.customer-account-link{width:40px;height:40px;min-height:40px;padding:8px}}
+@media(prefers-reduced-motion:reduce){.customer-account-page *{transition:none!important}}

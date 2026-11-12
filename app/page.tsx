@@ -5,6 +5,9 @@ import { type Product, type ProductVariant } from "@/lib/products";
 import { emptyCatalogProduct } from "@/lib/store-catalog";
 import ProductImage from "@/app/components/ProductImage";
 import Link from "next/link";
+import CustomerAccountLink from "./components/CustomerAccountLink";
+import "./akun/customer-account.css";
+import {stockDisplay} from "@/lib/stock-display";
 import StorefrontMotion from "@/app/components/StorefrontMotion";
 import StorefrontIcon from "@/app/components/StorefrontIcon";
 import ArticlePreview from "@/app/components/ArticlePreview";
@@ -970,7 +973,7 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="storefront-header-actions flex items-center gap-2 sm:gap-3">
+          <div className="storefront-header-actions flex items-center gap-2 sm:gap-3"><CustomerAccountLink/>
             {/* BUTTON LACAK PESANAN */}
             <button
               aria-label={language === "en" ? "Track order" : "Lacak pesanan"}
@@ -1227,7 +1230,7 @@ export default function Home() {
                 aria-pressed={product.id === item.id}
                 onClick={() => {
                   setSelectedProduct(index);
-                  setSelectedVariantIndex(0);
+                  setSelectedVariantIndex(Math.max(0,item.variants?.findIndex(v=>(v.stockAvailable||0)>0)??0));
                   setProductQuantity(1);
                 }}
                 className={`group shrink-0 w-[270px] rounded-2xl border p-6 text-left transition duration-300 md:w-auto md:p-7 ${selectedProduct === index ? "border-[#D8C28B]/70 bg-white/[0.08]" : "border-white/10 bg-white/[0.025] hover:border-[#D8C28B]/40"}`}
@@ -1247,7 +1250,7 @@ export default function Home() {
                   <span
                     className={`inline-flex rounded-full border px-3 py-1 text-[8px] font-semibold uppercase tracking-[0.18em] ${item.status === "READY STOCK" ? "border-[#D8C28B]/50 bg-[#D8C28B]/10 text-[#D8C28B]" : "border-white/10 bg-white/[0.03] text-white/40"}`}
                   >
-                    {item.status}
+                    {stockDisplay(item,language)}
                   </span>
                 </div>
                 <div className="mt-5 md:mt-6">
@@ -1266,9 +1269,9 @@ export default function Home() {
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#D8C28B]">BOTANICAL SERIES · {product.number}</p>
                     <span
-                      className={`rounded-full border px-3 py-1.5 text-[8px] font-semibold uppercase tracking-[0.18em] ${product.status === "READY STOCK" ? "border-[#D8C28B]/50 bg-[#D8C28B]/10 text-[#D8C28B]" : "border-white/10 bg-white/[0.04] text-white/40"}`}
+                      className={`rounded-full border px-3 py-1.5 text-[8px] font-semibold uppercase tracking-[0.18em] ${(currentVariant.stockAvailable||0)>0 ? "border-[#D8C28B]/50 bg-[#D8C28B]/10 text-[#D8C28B]" : "border-white/10 bg-white/[0.04] text-white/40"}`}
                     >
-                      {product.status}
+                      {stockDisplay(currentVariant,language)}
                     </span>
                   </div>
 
@@ -1281,7 +1284,7 @@ export default function Home() {
                     </div>
                   )}
 
-                  {product.status === "READY STOCK" && (
+                  {product.status !== "COMING SOON" && (
                     <div className="mt-8 border-t border-white/10 pt-7">
                       {product.variants && (
 

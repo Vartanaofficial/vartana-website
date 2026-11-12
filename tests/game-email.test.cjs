@@ -24,13 +24,13 @@ test('three wins earn three distinct vouchers; retries and later wins never send
 });
 
 test('email, WhatsApp and Gmail aliases share the cap and cannot redirect a claimed recipient',()=>{
- const f=emailFixture(),won=f.win({email:'first.last@gmail.com'});assert.throws(()=>f.start({phone:'081299999999',email:'firstlast+extra@googlemail.com'}),/terikat/);assert.throws(()=>f.start({email:'new@example.com'}),/terikat/);
+ const f=emailFixture(),won=f.win({email:'first.last@gmail.com'});assert.throws(()=>f.start({email:'new@example.com'}),/terikat/);
  const again=f.win({email:'firstlast+extra@gmail.com'});assert.notEqual(again.voucher.code,won.voucher.code);f.deliver(again.attempt.id);assert.equal(f.sent[0].to,'first.last@gmail.com');const third=f.win({email:'firstlast@gmail.com'});assert.ok(third.voucher);assert.equal(f.win({email:'firstlast+last@googlemail.com'}).voucher,null);assert.equal(f.tables.PuzzleVouchers.rows.length,4);
 });
 test('unverified sender or quota blocks mail without silently using a different from address',()=>{
  const f=emailFixture(),won=f.win();f.configure({effective:'other@example.com'});assert.equal(f.deliver(won.attempt.id).email.status,'BLOCKED');assert.equal(f.sent.length,0);assert.equal(f.call('status').voucher.email.sendCount,0);
- const q=emailFixture(),w=q.win();q.configure({effective:'other@example.com',aliases:['vartana@vartanaglobal.com'],quota:0});assert.equal(q.deliver(w.attempt.id).email.status,'BLOCKED');assert.equal(q.sent.length,0);
- const alias=emailFixture(),a=alias.win();alias.configure({effective:'other@example.com',aliases:['vartana@vartanaglobal.com']});assert.equal(alias.deliver(a.attempt.id).email.status,'SENT');assert.equal(alias.sent[0].from,'vartana@vartanaglobal.com');
+ const q=emailFixture(),w=q.win();q.configure({quota:0});assert.equal(q.deliver(w.attempt.id).email.status,'BLOCKED');assert.equal(q.sent.length,0);
+ const alias=emailFixture(),a=alias.win();alias.configure({effective:'other@example.com',aliases:['vartana@vartanaglobal.com']});assert.equal(alias.deliver(a.attempt.id).email.status,'BLOCKED');assert.equal(alias.sent.length,0);
 });
 
 test('uncertain provider results consume one send slot and are never automatically retried',()=>{
@@ -43,4 +43,15 @@ test('expired or redeemed codes are not emailed, and another session cannot trig
 });
 test('legacy winners receive their original code and expiry with email metadata backfilled, not a fresh seven days',()=>{
  const f=emailFixture(),won=f.win(),sheet=f.tables.PuzzleVouchers,oldExpiry=new Date(Date.parse(won.voucher.expiresAt)-4*86400000);sheet.rows=[sheet.rows[0].slice(0,5),sheet.rows[1].slice(0,5)];sheet.rows[1][4]=oldExpiry;const current=f.call('status');assert.equal(current.voucher.code,won.voucher.code);assert.equal(current.voucher.expiresAt,oldExpiry.toISOString());assert.equal(current.voucher.email.status,'PENDING');f.deliver(won.attempt.id);assert.equal(f.sent.length,1);assert.equal(f.call('status').voucher.expiresAt,oldExpiry.toISOString());
+});
+
+test('signed admin recovery sends existing legacy codes once without issuing or extending rewards',()=>{
+ const f=emailFixture(),won=f.win(),sheet=f.tables.PuzzleVouchers,code=won.voucher.code,expiry=won.voucher.expiresAt;sheet.rows=[sheet.rows[0].slice(0,5),sheet.rows[1].slice(0,5)];
+ const recover=()=>f.c.gamesAdminHandle_(f.signed('gamesAdmin',{operation:'recoverRewardEmails'}));assert.equal(recover().recovery.sent,1);assert.equal(f.sent.length,1);assert.ok(f.sent[0].body.includes(code));assert.equal(sheet.rows.length,2);assert.equal(new Date(sheet.rows[1][4]).toISOString(),expiry);assert.equal(recover().recovery.sent,0);assert.equal(f.sent.length,1);
+});
+
+test('different phone numbers with the same email share three vouchers and recover their own legacy emails',()=>{
+ const f=emailFixture(),first=f.win(),second=f.win({phone:'081299999999'});assert.notEqual(first.voucher.code,second.voucher.code);const sheet=f.tables.PuzzleVouchers;sheet.rows=sheet.rows.map(row=>row.slice(0,6));
+ const recovered=f.c.gamesAdminHandle_(f.signed('gamesAdmin',{operation:'recoverRewardEmails'}));assert.equal(recovered.recovery.sent,2);assert.equal(f.sent.length,2);assert.ok(f.sent.every(m=>m.to==='ayu@example.com'));assert.equal(f.tables.PuzzleVouchers.rows.length,3);
+ const third=f.win({phone:'081288888888'});assert.equal(third.rewardLimit.earned,3);f.deliver(third.attempt.id);assert.equal(f.win({phone:'081277777777'}).voucher,null);assert.equal(f.sent.length,3);
 });

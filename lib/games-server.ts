@@ -13,6 +13,8 @@ export async function verifyGamesBackend() {
 }
 export async function sendGamesRewardEmail(session:string,attemptId:string,resend=false){
  await verifyGamesBackend();
+ // Refresh a previously unavailable capability immediately after a backend update.
+ if(!emailReady){verifiedUntil=0;await verifyGamesBackend();}
  if(!emailReady)throw new Error('Pengiriman email hadiah belum diaktifkan admin. Kode hadiah tetap tersimpan.');
  return puzzleRequest('gamesRewardEmail',{session,attemptId,resend});
 }

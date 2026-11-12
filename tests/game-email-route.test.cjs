@@ -13,5 +13,5 @@ test('public resend is rejected and never sends or schedules mail',async()=>{con
 test('old Apps Script deployments are checked before sending an unrecognized email action',async()=>{
  const master=load('lib/master-products.ts'),puzzle=load('lib/puzzle-server.ts'),server=load('lib/games-server.ts'),oldMaster=master.requestMasterScript,oldPuzzle=puzzle.puzzleRequest,oldNow=Date.now;let ready=false,calls=0;
  master.requestMasterScript=async()=>({gamesVersion:3,...(ready?{gameEmailVersion:1}:{})});puzzle.puzzleRequest=async(action,payload)=>{calls++;assert.equal(action,'gamesRewardEmail');assert.equal(payload.resend,false);return {success:true};};
- try{await assert.rejects(server.sendGamesRewardEmail('session','attempt'),/belum diaktifkan/);assert.equal(calls,0);ready=true;const now=oldNow();Date.now=()=>now+301000;await server.sendGamesRewardEmail('session','attempt');assert.equal(calls,1);}finally{master.requestMasterScript=oldMaster;puzzle.puzzleRequest=oldPuzzle;Date.now=oldNow;}
+ try{await assert.rejects(server.sendGamesRewardEmail('session','attempt'),/belum diaktifkan/);assert.equal(calls,0);ready=true;await server.sendGamesRewardEmail('session','attempt');assert.equal(calls,1);}finally{master.requestMasterScript=oldMaster;puzzle.puzzleRequest=oldPuzzle;Date.now=oldNow;}
 });

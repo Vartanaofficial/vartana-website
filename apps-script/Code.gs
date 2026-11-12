@@ -3982,7 +3982,8 @@ function gamesValidateSettings_(game,raw){
 }
 function gamesAdminHandle_(data){
  puzzleVerify_(data,'gamesAdmin');var d=data.puzzlePayload;
- if(!d||['settings','saveSettings','catalogHealth'].indexOf(d.operation)<0)throw new Error('Operasi admin game tidak valid.');
+ if(!d||['settings','saveSettings','catalogHealth','recoverRewardEmails'].indexOf(d.operation)<0)throw new Error('Operasi admin game tidak valid.');
+ if(d.operation==='recoverRewardEmails')return gamesRecoverRewardEmails_();
  if(d.operation==='catalogHealth'){
   var productSheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PRODUCTS);
   return responseJSON({success:true,gamesVersion:3,health:productSheet?{maxRows:productSheet.getMaxRows(),maxColumns:productSheet.getMaxColumns()}:null});
@@ -4071,7 +4072,7 @@ function gamesFindRewards_(rows,cols,a,history){
  for(var i=1;i<rows.length;i++){
   var row=rows[i],email=gamesRawEmail_(row[cols.Email-1])||gamesLegacyVoucherEmail_(row,history),emailKey=gamesEmailKey_(email),owner=String(row[1])===a.phone||String(row[2])===a.playerId;
   if(owner||key&&emailKey===key){
-   if(String(row[1])!==a.phone||emailKey&&key&&emailKey!==key)throw new Error('Hadiah sudah terikat ke email dan WhatsApp yang terdaftar. Gunakan identitas yang sama atau hubungi admin untuk koreksi.');
+   if(owner&&emailKey&&key&&emailKey!==key)throw new Error('Hadiah sudah terikat ke email dan WhatsApp yang terdaftar. Gunakan identitas yang sama atau hubungi admin untuk koreksi.');
    matches.push({row:i+1,values:row,email:email});
   }
  }
@@ -4082,13 +4083,11 @@ function gamesRewardLimit_(a,history){var sheet=puzzleSheets_().vouchers,cols=ga
 function gamesEmailSender_(){
  var effective=gamesRawEmail_(Session.getEffectiveUser().getEmail());
  if(effective===GAMES_EMAIL_SENDER)return {primary:true};
- var aliases=GmailApp.getAliases().map(gamesRawEmail_);
- if(aliases.indexOf(GAMES_EMAIL_SENDER)>=0)return {primary:false};
- throw new Error('Alamat vartana@vartanaglobal.com harus menjadi akun pemilik Apps Script atau alias Gmail terverifikasi.');
+ throw new Error('Deploy Web app menggunakan akun vartana@vartanaglobal.com agar email dikirim dari alamat VARTANA.');
 }
 function setupGamesRewardEmail(){
  var sender=gamesEmailSender_();
- return 'Pengirim siap: '+GAMES_EMAIL_SENDER+' ('+(sender.primary?'akun utama':'alias')+'). Kuota penerima tersisa: '+MailApp.getRemainingDailyQuota()+'. Tidak ada email yang dikirim oleh pemeriksaan ini.';
+ return 'Pengirim siap: '+GAMES_EMAIL_SENDER+' ('+'akun utama'+'). Kuota penerima tersisa: '+MailApp.getRemainingDailyQuota()+'. Tidak ada email yang dikirim oleh pemeriksaan ini.';
 }
 function gamesRewardEmailBody_(row,cols){
  var reward=row[5]?JSON.parse(String(row[5])):gamesDefaultReward_(),code=String(row[0]),expiry=Utilities.formatDate(new Date(row[4]),'Asia/Jakarta','dd MMMM yyyy HH:mm')+' WIB';
@@ -4100,7 +4099,10 @@ function gamesRewardEmailBody_(row,cols){
  return {subject:'Hadiah VARTANA Games: '+label,text:text,html:html};
 }
 function gamesRewardEmailHandle_(data){
- puzzleVerify_(data,'gamesRewardEmail');var d=data.puzzlePayload||{};if(d.resend)throw new Error('Setiap voucher dikirim otomatis satu kali. Pengiriman ulang otomatis tidak tersedia.');
+ puzzleVerify_(data,'gamesRewardEmail');return gamesDeliverRewardEmail_(data.puzzlePayload||{});
+}
+function gamesDeliverRewardEmail_(d){
+ if(d.resend)throw new Error('Setiap voucher dikirim otomatis satu kali. Pengiriman ulang otomatis tidak tersedia.');
  if(!/^[a-f0-9-]{36}$/i.test(String(d.session||''))||typeof d.attemptId!=='string')throw new Error('Sesi email hadiah tidak valid.');
  var lock=LockService.getScriptLock();lock.waitLock(20000);var context;
  try{
@@ -4123,7 +4125,7 @@ function gamesRewardEmailHandle_(data){
   context={rowNumber:found.row,code:String(row[0]),email:found.email,deliveryId:deliveryId,cols:cols,sender:sender,message:gamesRewardEmailBody_(row,cols)};
  }finally{lock.releaseLock();}
  var sent=false,failure='';
- try{var options={name:'VARTANA Botanical Wellness',replyTo:GAMES_EMAIL_SENDER,htmlBody:context.message.html};if(context.sender.primary)MailApp.sendEmail(Object.assign({to:context.email,subject:context.message.subject,body:context.message.text},options));else{options.from=GAMES_EMAIL_SENDER;GmailApp.sendEmail(context.email,context.message.subject,context.message.text,options);}sent=true;}catch(error){failure=String(error.message||error).slice(0,500);}
+ try{var options={name:'VARTANA Botanical Wellness',replyTo:GAMES_EMAIL_SENDER,htmlBody:context.message.html};MailApp.sendEmail(Object.assign({to:context.email,subject:context.message.subject,body:context.message.text},options));sent=true;}catch(error){failure=String(error.message||error).slice(0,500);}
  lock=LockService.getScriptLock();lock.waitLock(20000);
  try{
   var sheet=puzzleSheets_().vouchers,cols=gamesVoucherColumns_(sheet),rows=sheet.getDataRange().getValues(),rowNumber=-1;
@@ -4138,6 +4140,29 @@ function gamesAdminEmailOverview_(){
  var ready=false,message='';try{gamesEmailSender_();ready=true;}catch(error){message=String(error.message||error).slice(0,300);}
  var sheet=puzzleSheets_().vouchers,cols=gamesVoucherColumns_(sheet),rows=sheet.getDataRange().getValues();
  return {sender:GAMES_EMAIL_SENDER,ready:ready,message:message,maxSends:GAMES_EMAIL_MAX_SENDS,deliveries:rows.slice(1).filter(function(r){return r[0];}).slice(-100).reverse().map(function(r){return {code:String(r[0]),email:gamesRawEmail_(r[cols.Email-1]),status:String(r[cols['Email Status']-1]||'BELUM DIANTREKAN'),sendCount:Number(r[cols['Email Send Count']-1])||0,expiresAt:new Date(r[4]).toISOString(),sentAt:r[cols['Email Sent At']-1]?new Date(r[cols['Email Sent At']-1]).toISOString():'',error:String(r[cols['Email Error']-1]||'')};})};
+}
+
+// Signed admin recovery for existing, never-sent rewards. Does not mint rewards,
+// extend expiry, or retry ambiguous provider attempts. Provider calls stay outside the lock.
+function gamesRecoverRewardEmails_(){
+ var lock=LockService.getScriptLock();lock.waitLock(20000);var pending=[];
+ try{
+  var history=gamesRead_(gamesSheets_().attempts),sheet=puzzleSheets_().vouchers,cols=gamesVoucherColumns_(sheet),rows=sheet.getDataRange().getValues();
+  for(var i=1;i<rows.length&&pending.length<10;i++){
+   var row=rows[i],status=String(row[cols['Email Status']-1]||'');
+   if(!row[0]||new Date(row[4]).getTime()<=Date.now()||Number(row[cols['Email Send Count']-1])>0||status&&status!=='PENDING')continue;
+   var bound=String(row[cols['Attempt ID']-1]||''),a=history.map(function(x){return x.value;}).filter(function(a){return a.status==='WON'&&(bound?a.id===bound:a.phone===String(row[1])||a.playerId===String(row[2]));}).sort(function(a,b){return a.finishedAt-b.finishedAt;})[0];
+   if(!a||!a.email||!a.session)continue;
+   // Bind only this pre-existing row. No call to the reward issuer is needed.
+   var email=gamesRawEmail_(row[cols.Email-1])||gamesLegacyVoucherEmail_(row,history)||gamesRawEmail_(a.email);
+   row[cols['Attempt ID']-1]=a.id;row[cols.Email-1]=gamesCell_(email);row[cols['Email Key']-1]=gamesCell_(gamesEmailKey_(email));row[cols['Email Status']-1]='PENDING';
+   sheet.getRange(i+1,1,1,sheet.getLastColumn()).setValues([Array.from({length:sheet.getLastColumn()},function(_,n){return row[n]===undefined?'':row[n];})]);
+   pending.push({session:a.session,attemptId:a.id});
+  }
+ }finally{lock.releaseLock();}
+ var counts={sent:0,blocked:0,skipped:0,unknown:0,errors:[]};
+ pending.forEach(function(d){try{var result=gamesDeliverRewardEmail_(d),data=result&&result.getContent?JSON.parse(result.getContent()):result,status=data.email&&data.email.status;if(status==='SENT')counts.sent++;else if(status==='BLOCKED')counts.blocked++;else if(status==='UNKNOWN')counts.unknown++;else counts.skipped++;}catch(e){counts.skipped++;counts.errors.push(String(e.message||e).slice(0,300));}});
+ return responseJSON({success:true,gamesVersion:3,recovery:counts});
 }
 
 // CROSSWORD ENGINE (generated from lib/crossword.ts)

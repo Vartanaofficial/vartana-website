@@ -136,7 +136,8 @@ function gamesValidateSettings_(game,raw){
 }
 function gamesAdminHandle_(data){
  puzzleVerify_(data,'gamesAdmin');var d=data.puzzlePayload;
- if(!d||['settings','saveSettings','catalogHealth'].indexOf(d.operation)<0)throw new Error('Operasi admin game tidak valid.');
+ if(!d||['settings','saveSettings','catalogHealth','recoverRewardEmails'].indexOf(d.operation)<0)throw new Error('Operasi admin game tidak valid.');
+ if(d.operation==='recoverRewardEmails')return gamesRecoverRewardEmails_();
  if(d.operation==='catalogHealth'){
   var productSheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PRODUCTS);
   return responseJSON({success:true,gamesVersion:3,health:productSheet?{maxRows:productSheet.getMaxRows(),maxColumns:productSheet.getMaxColumns()}:null});

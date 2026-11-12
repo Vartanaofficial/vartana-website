@@ -1,11 +1,12 @@
 import {resolvePromoDestination,promoAreaError} from './promo-area';
-import { readMasterProducts, requestMasterScript } from "./master-products";
+import {readCheckoutMaster} from './checkout-master';
 import { buildStoreCatalog } from "./store-catalog";
 import { decodeCheckoutPromos, promoInPeriod } from "./checkout-promos";
 import { evaluatePromoStack } from "./promo-stack";
+import { puzzleRequest } from './puzzle-server';
 
 export type CheckoutItem = { sku: string; quantity: number };
-export type CheckoutInput = { items: CheckoutItem[]; promoCode?: string; districtId?: string; provinceName?: string; cityName?:string; districtName?:string; shippingService?: string };
+export type CheckoutInput = { items: CheckoutItem[]; promoCode?: string; phone?: string; orderKey?: string; districtId?: string; provinceName?: string; cityName?:string; districtName?:string; shippingService?: string };
 export type ShippingRate = { id: string; name: string; price: number; duration: string; estimated: boolean };
 
 async function shippingRates(districtId: string, provinceName: string, weight: number): Promise<ShippingRate[]> {
@@ -25,9 +26,9 @@ async function shippingRates(districtId: string, provinceName: string, weight: n
   return [{ id: "jnt-ez", name: "J&T EZ", price: price * Math.max(1, Math.ceil(weight / 1000)), duration: "2–5 hari", estimated: true }, { id: "jne-reg", name: "JNE REG", price: (price - 1000) * Math.max(1, Math.ceil(weight / 1000)), duration: "2–5 hari", estimated: true }];
 }
 
-export async function checkoutQuote(input: CheckoutInput) {
+export async function checkoutQuote(input: CheckoutInput,options:{freshMaster?:boolean}={}) {
   if (!Array.isArray(input.items) || !input.items.length || input.items.length > 100) throw new Error("Keranjang masih kosong atau tidak valid.");
-  const [master, promoData] = await Promise.all([readMasterProducts(), requestMasterScript("getPromotions")]);
+  const {master,promoData} = await readCheckoutMaster(options.freshMaster!==false);
   const catalog = buildStoreCatalog(master);
   const seen = new Set<string>();
   const lines = input.items.map(item => {
@@ -41,6 +42,16 @@ export async function checkoutQuote(input: CheckoutInput) {
   const subtotal = lines.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const promos = decodeCheckoutPromos(promoData.promotions || []);
   const codes = String(input.promoCode || "").split(/[\s,]+/).filter(Boolean);
+  const puzzleCodes = codes.filter(code => code.toUpperCase().startsWith('PUZ-'));
+  if (puzzleCodes.length) {
+    if (codes.length !== 1) throw new Error('Gunakan voucher puzzle sendiri tanpa kode promo lain.');
+    const code = puzzleCodes[0].toUpperCase();
+    const validated = await puzzleRequest('puzzleVoucher', { code, phone: input.phone || '', orderKey: input.orderKey || '' });
+    if (validated.voucher?.code !== code || validated.voucher.value !== 20000) throw new Error('Voucher puzzle belum dapat diverifikasi.');
+    // A personal reward is only included after private validation for this customer.
+    promos.push({ id: code, code, name: 'Hadiah Puzzle Rempah', type: 'nominal', value: 20000, minSpend: 0, maxDiscount: 20000, startDate: '', endDate: '', active: true, stackable: false, priority: 1 });
+    codes[0] = code;
+  }
   if(codes.length>20)throw new Error("Maksimal 20 kode promo per pesanan.");
   const availableProducts = catalog.flatMap(product=>(product.variants||[]).map(variant=>({sku:variant.sku!,name:product.name,variant:variant.size,image:variant.image||product.image||"",price:variant.priceValue,weight:variant.weightGram||100})));
   const regional=promos.some(p=>p.area==='jabodetabek'&&promoInPeriod(p)&&(p.automatic||codes.includes(p.code))),destination=regional&&input.districtId?await resolvePromoDestination(input.districtId):undefined;

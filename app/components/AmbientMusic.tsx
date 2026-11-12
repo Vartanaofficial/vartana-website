@@ -1,5 +1,5 @@
 ﻿"use client";
-import {useEffect,useRef,useState} from "react";
+import {useCallback,useEffect,useRef,useState} from "react";
 import {soundscape,type Theme} from "@/lib/ambient-soundscape";
 import {createPortal} from "react-dom";
 import {clampRadioPosition,isRadioDrag,type RadioPosition} from "@/lib/radio-position";
@@ -9,14 +9,15 @@ const stations=[
  {id:'uk',name:'181.FM / UK Top 40',stream:'https://listen.181fm.com/181-uktop40_128k.mp3',website:'https://www.181.fm/'},
  {id:'breeze',name:'181.FM / The Breeze - smooth jazz',stream:'https://listen.181fm.com/181-breeze_128k.mp3',website:'https://www.181.fm/'}
 ];
-export default function AmbientMusic(){
+export default function AmbientMusic({suspended=false}:{suspended?:boolean}){
  const [mounted,setMounted]=useState(false),[open,setOpen]=useState(false),[position,setPosition]=useState<{x:number;y:number}|null>(null);
  const [mode,setMode]=useState<"music"|"radio">("music"),[theme,setTheme]=useState<Theme>("calm"),[station,setStation]=useState("power"),[playing,setPlaying]=useState(false),[error,setError]=useState("");
  const [loading,setLoading]=useState(false);
  const generation=useRef(0);
  const selectedStation=stations.find(s=>s.id===station)||stations[0];
  const audio=useRef<HTMLAudioElement|null>(null),context=useRef<AudioContext|null>(null),stop=useRef<(()=>void)|null>(null);
- function halt(){generation.current++;setLoading(false);stop.current?.();stop.current=null;if(audio.current){audio.current.pause();audio.current.removeAttribute('src');audio.current.load();}void context.current?.suspend();setPlaying(false);}
+ const halt=useCallback(()=>{generation.current++;setLoading(false);stop.current?.();stop.current=null;if(audio.current){audio.current.pause();audio.current.removeAttribute('src');audio.current.load();}void context.current?.suspend();setPlaying(false);},[]);
+ useEffect(()=>{if(suspended){halt();setOpen(false);}},[suspended,halt]);
  async function play(){halt();setError('');const run=generation.current;setLoading(true);try{
  if(mode==='radio'){
  if(!selectedStation.stream){window.open(selectedStation.website,'_blank','noopener,noreferrer');return;}
@@ -27,14 +28,14 @@ export default function AmbientMusic(){
  }else{if(!context.current)context.current=new AudioContext();await context.current.resume();if(generation.current!==run)return;const gain=context.current.createGain();gain.gain.value=.15;gain.connect(context.current.destination);const cleanup=soundscape(context.current,gain,theme);stop.current=()=>{cleanup();gain.disconnect();};}
  if(generation.current===run)setPlaying(true);
  }catch{if(generation.current===run)setError('Belum bisa diputar. Coba lagi atau pilih saluran lain.');}finally{if(generation.current===run)setLoading(false);}}
- useEffect(()=>()=>{stop.current?.();audio.current?.pause();void context.current?.close();},[]);
+ useEffect(()=>()=>{generation.current++;stop.current?.();audio.current?.pause();void context.current?.close();},[]);
 
  const root=useRef<HTMLDivElement>(null),drag=useRef<{id:number;x:number;y:number;left:number;top:number;moved:boolean}|null>(null),suppressClick=useRef(false),latest=useRef<RadioPosition|null>(null);
  function bound(x:number,y:number){const r=root.current?.getBoundingClientRect(),v=window.visualViewport;return clampRadioPosition({x,y},{width:r?.width||152,height:r?.height||44},{width:v?.width||window.innerWidth,height:v?.height||window.innerHeight,left:v?.offsetLeft||0,top:v?.offsetTop||0,bottomInset:window.innerWidth<768?72:0});}
  function move(p:RadioPosition,persist=false){latest.current=p;setPosition(p);if(persist)try{localStorage.setItem('vartana-radio-position',JSON.stringify(p));}catch{}}
  useEffect(()=>{setMounted(true);const frame=requestAnimationFrame(()=>{try{const p=JSON.parse(localStorage.getItem('vartana-radio-position')||'null');if(p&&Number.isFinite(p.x)&&Number.isFinite(p.y))move(bound(p.x,p.y));}catch{}});const resize=()=>{const p=latest.current;if(p)move(bound(p.x,p.y),true);};const key=(e:KeyboardEvent)=>{if(e.key==='Escape')setOpen(false);};window.addEventListener('resize',resize);window.visualViewport?.addEventListener('resize',resize);window.visualViewport?.addEventListener('scroll',resize);document.addEventListener('keydown',key);return()=>{cancelAnimationFrame(frame);window.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('resize',resize);window.visualViewport?.removeEventListener('scroll',resize);document.removeEventListener('keydown',key);};},[]);
  function finishDrag(){const d=drag.current;if(d?.moved&&latest.current)move(latest.current,true);drag.current=null;}
- if(!mounted)return null;
+ if(!mounted||suspended)return null;
  return createPortal(<><div ref={root} className="vartana-radio-dock" style={position?{left:position.x,top:position.y,right:'auto',bottom:'auto'}:undefined}
  onPointerDown={e=>{if(!e.isPrimary||(e.pointerType==='mouse'&&e.button!==0))return;const r=root.current!.getBoundingClientRect();suppressClick.current=false;drag.current={id:e.pointerId,x:e.clientX,y:e.clientY,left:r.left,top:r.top,moved:false};(e.target as Element).closest('button')?.setPointerCapture(e.pointerId);}}
  onPointerMove={e=>{const d=drag.current;if(!d||d.id!==e.pointerId)return;const dx=e.clientX-d.x,dy=e.clientY-d.y;if(!d.moved&&!isRadioDrag(dx,dy))return;if(!d.moved){d.moved=true;suppressClick.current=true;root.current?.setPointerCapture(e.pointerId);}e.preventDefault();move(bound(d.left+dx,d.top+dy));}}

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import {fetchGoogle} from '@/lib/google-fetch';
 
 export async function GET(request: Request) {
   try {
@@ -15,7 +16,8 @@ export async function GET(request: Request) {
       targetUrl += `?memberId=${encodeURIComponent(memberId)}`;
     }
 
-    const res = await fetch(targetUrl);
+    const target=new URL(targetUrl);
+    const res = await fetchGoogle(target,{signal:AbortSignal.timeout(30000)});
     const data = await res.json();
 
     return NextResponse.json(data);

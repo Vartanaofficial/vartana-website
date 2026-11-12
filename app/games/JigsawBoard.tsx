@@ -1,0 +1,13 @@
+'use client';
+import {useId,useState} from 'react';
+import {jigsawPath,placePiece,type Placements} from '@/lib/jigsaw';
+
+function Piece({piece,image,placed=false}:{piece:number;image:string;placed?:boolean}){
+ const id='piece'+useId().replace(/[^a-zA-Z0-9_-]/g,'');
+ return <svg className={placed?'jigsaw-piece is-placed':'jigsaw-piece'} viewBox="-20 -20 140 140" aria-hidden="true"><defs><clipPath id={id}><path d={jigsawPath(piece)}/></clipPath></defs><g clipPath={`url(#${id})`}><image href={image} x={-(piece%5)*100} y={-Math.floor(piece/5)*100} width="500" height="400" preserveAspectRatio="xMidYMid slice"/></g><path d={jigsawPath(piece)} fill="none" stroke="#fffdf8" strokeWidth="1.2"/></svg>;
+}
+export default function JigsawBoard({image,alt,pieces,placements,onChange,disabled=false}:{image:string;alt:string;pieces:number[];placements:Placements;onChange:(next:Placements)=>void;disabled?:boolean}){
+ const [selected,setSelected]=useState<number|null>(null),unplaced=pieces.filter(piece=>!placements.includes(piece)),count=placements.filter(piece=>piece!==null).length;
+ function put(slot:number){if(disabled)return;onChange(placePiece(placements,slot,selected));setSelected(null);}
+ return <div className="jigsaw-game"><div className="jigsaw-reference"><img src={image} alt={alt}/><div><strong>Gambar acuan</strong><p>Pilih satu keping, lalu klik tempatnya pada papan. Klik keping di papan untuk melepasnya.</p><span>{count}/20 keping ditempatkan</span></div></div><div className="jigsaw-board" aria-label="Papan puzzle 20 keping, 5 kolom dan 4 baris">{placements.map((piece,slot)=><button type="button" key={slot} className={'jigsaw-slot '+(piece!==null?'is-filled':'')} disabled={disabled} aria-label={`Baris ${Math.floor(slot/5)+1}, kolom ${slot%5+1}${piece!==null?', berisi keping; klik untuk melepas atau mengganti':', kosong; klik untuk menempatkan keping'}`} onClick={()=>put(slot)}>{piece!==null?<Piece piece={piece} image={image} placed/>:<span aria-hidden="true">{selected===null?'·':'+'}</span>}</button>)}</div><p className="puzzle-note" role="status">{selected===null?'Pilih keping dari baki di bawah.':'Keping dipilih. Sekarang klik tempat yang cocok pada papan.'}</p><div className="jigsaw-tray" aria-label="Baki keping puzzle">{unplaced.map((piece,index)=><button key={piece} type="button" className={'jigsaw-tray-piece '+(selected===piece?'is-selected':'')} aria-label={`Pilih keping ${index+1} di baki`} aria-pressed={selected===piece} disabled={disabled} onClick={()=>setSelected(selected===piece?null:piece)}><Piece piece={piece} image={image}/></button>)}</div></div>;
+}

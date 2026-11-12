@@ -16,15 +16,6 @@ html{scroll-behavior:smooth;scroll-padding-top:100px}.storefront{isolation:isola
 .ambient-panel{max-height:min(520px,calc(100dvh - 225px));overflow-y:auto;overscroll-behavior:contain}@media(min-width:768px){.ambient-panel{max-height:calc(100dvh - 170px)}}
 
 /* Portaled to body so transformed storefront sections cannot trap fixed positioning. */
-.vartana-radio-dock{position:fixed;right:16px;bottom:86px;z-index:80;display:flex;align-items:stretch;border:1px solid #bba16d80;border-radius:24px;background:#faf7ee;color:#173d2b;box-shadow:0 5px 24px #102d2630;max-width:calc(100vw - 16px)}
-.vartana-radio-open{display:flex;align-items:center;gap:10px;padding:10px 12px;border:0;background:none;text-align:left;cursor:pointer;font-size:11px;font-weight:600}.vartana-radio-open small{display:block;margin-top:3px;font-size:8px;letter-spacing:.12em;color:#7b806f}
-.vartana-radio-drag{display:grid;place-items:center;min-width:38px;min-height:48px;border:0;border-left:1px solid #bba16d40;border-radius:0 24px 24px 0;background:#e8e8db;color:#59725c;touch-action:none;user-select:none;cursor:grab}.vartana-radio-drag:active{cursor:grabbing}.vartana-radio-dock button:focus-visible{outline:2px solid #a48648;outline-offset:3px}
-.vartana-radio-backdrop{position:fixed;inset:0;z-index:120;background:#071a1360;display:flex;align-items:flex-end;justify-content:flex-end;padding:20px}.vartana-radio-panel{width:360px;max-width:100%;max-height:calc(100dvh - 40px);overflow-y:auto;overscroll-behavior:contain;border:1px solid #d5c69e;border-radius:24px;background:#faf7ee;padding:20px;color:#173d2b;box-shadow:0 12px 60px #0003}.vartana-radio-panel header{display:flex;justify-content:space-between;align-items:center}.vartana-radio-panel header small{font-size:9px;letter-spacing:.15em;color:#91723b}.vartana-radio-panel h2{font:28px Georgia,serif;margin:7px 0}.vartana-radio-panel header button{border:0;background:none;font-size:28px;width:44px;height:44px;cursor:pointer}.vartana-radio-panel p{font-size:12px;line-height:1.6;margin:12px 0}.vartana-radio-panel a{display:block;margin-top:12px;font-size:12px;text-decoration:underline}.vartana-radio-panel .radio-note{font-size:10px;color:#677762}
-@media(max-width:767px){.vartana-radio-dock{bottom:calc(92px + env(safe-area-inset-bottom));right:10px}.vartana-radio-open{padding:8px 10px;gap:7px;font-size:10px}.vartana-radio-open svg{width:20px}.vartana-radio-drag{min-width:36px}.vartana-radio-backdrop{padding:10px;justify-content:center}.vartana-radio-panel{max-height:calc(100dvh - 20px);padding:16px}}
-
-.vartana-radio-panel .ambient-controls { display:flex;gap:8px;margin:16px 0; }
-.vartana-radio-panel .ambient-controls button { flex:1;border:1px solid #c4ccb8;border-radius:12px;padding:10px; }
-.vartana-radio-panel .ambient-controls button[aria-pressed=true] { background:#173d2b;color:#fff; }
 
 /* Compact touch controls and a wider reading area across phone and tablet sizes. */
 .storefront .max-w-7xl{max-width:1440px}
@@ -37,13 +28,6 @@ html{scroll-behavior:smooth;scroll-padding-top:100px}.storefront{isolation:isola
 .storefront-bottom-nav :is(a,button){min-height:44px;justify-content:center;gap:2px}
 .storefront-bottom-nav svg{flex-shrink:0}
 .storefront-back-top{display:grid;place-items:center}
-.vartana-radio-dock{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;overflow:hidden}
-.vartana-radio-dock:active{cursor:grabbing}
-.vartana-radio-open{min-height:44px;padding:7px 10px;gap:8px;cursor:inherit;touch-action:none;white-space:nowrap}
-.vartana-radio-open svg{flex-shrink:0;pointer-events:none}
-.vartana-radio-open span{pointer-events:none}
-.vartana-radio-drag{min-width:28px;min-height:44px;padding:0 4px;cursor:inherit}
-.vartana-radio-dock button:focus-visible{outline-offset:-3px}
 @media(max-width:767px){
  html{scroll-padding-top:112px}
  .storefront{padding-bottom:calc(68px + env(safe-area-inset-bottom))}
@@ -75,12 +59,6 @@ html{scroll-behavior:smooth;scroll-padding-top:100px}.storefront{isolation:isola
  .storefront-product-detail button.w-full{padding:12px 16px;min-height:44px;font-size:11px}
  .storefront #origin .p-8{padding:20px 16px}
  .storefront-back-top{right:12px;bottom:calc(82px + env(safe-area-inset-bottom));width:36px;height:36px}
- .vartana-radio-dock{left:12px;right:auto;bottom:calc(82px + env(safe-area-inset-bottom));border-radius:22px}
- .vartana-radio-open{font-size:10px;padding:6px 9px;gap:7px}
- .vartana-radio-open small{font-size:7px;letter-spacing:.1em;margin-top:2px}
- .vartana-radio-drag{min-width:28px}
- .vartana-radio-panel{border-radius:20px;padding:18px;max-width:400px}
- .vartana-radio-panel :is(button,select){min-height:44px}
 }
 @media(min-width:768px) and (max-width:1279px){
  .storefront-header-row{padding:14px 24px}

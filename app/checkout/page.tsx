@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { BotanicalSprig, CheckoutProgress } from "./CheckoutVisuals";
 import "./checkout.css";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import ProductImage from "@/app/components/ProductImage";
 import { readCart, writeCart, type StoredCartItem } from "@/lib/cart-storage";
 import type { CheckoutQuote } from "@/lib/checkout";
@@ -12,10 +12,17 @@ import { orderConfirmationMessage, type CheckoutReceipt } from "@/lib/order-conf
 import { PAYMENT_DETAILS } from "@/lib/payment-details";
 import type { PostalOption } from "@/lib/postal-codes";
 
+import {readClientJson} from '@/lib/client-reads';
+import {requestCheckoutQuote} from '@/lib/checkout-client';
+
 type Region = { id: string; name: string };
 const money = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
 const field = "checkout-input mt-2 w-full rounded-xl border border-[#dce1d6] bg-white px-4 py-3.5 text-sm text-[#173b2b] outline-none transition focus:border-[#a88b43] focus:ring-2 focus:ring-[#a88b43]/10 disabled:bg-[#f1f1eb]";
 const initialCustomer = { name: "", phone: "", email: "", address: "", provinceId: "", provinceName: "", cityId: "", cityName: "", districtId: "", districtName: "", postalCode: "", notes: "" };
+
+function useRegionList(path: string|null, setRows:(rows:Region[])=>void, setError:(message:string)=>void, retry:number){
+ useEffect(()=>{if(!path)return;let active=true;setError('');readClientJson<Region[]>('https://www.emsifa.com/api-wilayah-indonesia/api/'+path+'.json',3600000,retry>0).then(rows=>{if(!Array.isArray(rows))throw new Error('Daftar wilayah tidak lengkap.');if(active)setRows(rows);}).catch(()=>{if(active)setError('Daftar wilayah belum bisa dimuat. Coba lagi.');});return()=>{active=false;};},[path,setRows,setError,retry]);
+}
 
 export default function CheckoutPage() {
   const [cart, setCart] = useState<StoredCartItem[]>([]);
@@ -40,9 +47,12 @@ export default function CheckoutPage() {
   const [paymentView, setPaymentView] = useState("bank_transfer");
   const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
   const [copied, setCopied] = useState("");
+  const orderSubmitting=useRef(false);
 
   useEffect(() => {
     const savedCart = readCart();
+    const rewardCode = new URLSearchParams(window.location.search).get("promo");
+    if (rewardCode && /^PUZ-[A-Z0-9]+$/.test(rewardCode)) setPromoCode(rewardCode);
     setCart(savedCart);
     try { const saved = JSON.parse(sessionStorage.getItem("vartana_checkout_draft") || "null"); if (saved) setCustomer({ ...initialCustomer, ...saved }); } catch { /* Use empty form. */ }
     let key = sessionStorage.getItem("vartana_checkout_key");
@@ -56,24 +66,15 @@ export default function CheckoutPage() {
   }, []);
 
   useEffect(() => {
-    if (ready) { writeCart(cart); sessionStorage.setItem("vartana_checkout_draft", JSON.stringify(customer)); }
-  }, [cart, customer, ready]);
+    if (ready) writeCart(cart);
+  }, [cart, ready]);
+  useEffect(()=>{if(!ready)return;const timer=window.setTimeout(()=>sessionStorage.setItem("vartana_checkout_draft",JSON.stringify(customer)),250);return()=>window.clearTimeout(timer);},[customer,ready]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setRegionError("");
-    async function load() {
-      try {
-        const get = async (path: string) => { const r = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/${path}.json`, { signal: controller.signal }); if (!r.ok) throw new Error(); return r.json(); };
-        setProvinces(await get("provinces"));
-        if (customer.provinceId) setCities(await get(`regencies/${customer.provinceId}`));
-        if (customer.cityId) setDistricts(await get(`districts/${customer.cityId}`));
-      } catch { if (!controller.signal.aborted) setRegionError("Daftar wilayah belum bisa dimuat. Coba lagi."); }
-    }
-    void load();
-    return () => controller.abort();
-  }, [customer.provinceId, customer.cityId, regionRetry]);
+  useRegionList(ready?'provinces':null,setProvinces,setRegionError,regionRetry);
+  useRegionList(ready&&customer.provinceId?'regencies/'+customer.provinceId:null,setCities,setRegionError,regionRetry);
+  useRegionList(ready&&customer.cityId?'districts/'+customer.cityId:null,setDistricts,setRegionError,regionRetry);
 
+  const quotePhone=promoCode.toUpperCase().includes('PUZ-')?normalizeWhatsApp(customer.phone)||'':'';
   const itemsKey = JSON.stringify(cart.map(item => ({ sku: item.selectedVariant.sku!, quantity: item.quantity })));
   useEffect(() => {
     const controller = new AbortController();
@@ -99,15 +100,13 @@ export default function CheckoutPage() {
     setLoading(true); setError("");
     const timer = window.setTimeout(async () => {
       try {
-        const r = await fetch("/api/checkout/quote", { method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
-          body: JSON.stringify({ items: JSON.parse(itemsKey), promoCode, districtId: customer.districtId, provinceName: customer.provinceName, cityName:customer.cityName,districtName:customer.districtName, shippingService }) });
-        const data = await r.json(); if (!r.ok) throw new Error(data.message);
-        setQuote(data);
+        const data = await requestCheckoutQuote({ items: JSON.parse(itemsKey), promoCode, phone: quotePhone, orderKey, districtId: customer.districtId, provinceName: customer.provinceName, cityName:customer.cityName,districtName:customer.districtName, shippingService },controller.signal);
+        if(!controller.signal.aborted)setQuote(data);
       } catch (error) { if (!controller.signal.aborted) { setQuote(null); setError(error instanceof Error ? error.message : "Ringkasan belum bisa dimuat."); } }
       finally { if (!controller.signal.aborted) setLoading(false); }
     }, 250);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [ready, itemsKey, promoCode, customer.districtId, customer.provinceName,customer.cityName,customer.districtName, shippingService, retry, receipt, cart.length]);
+  }, [ready, itemsKey, promoCode, quotePhone, orderKey, customer.districtId, customer.provinceName,customer.cityName,customer.districtName, shippingService, retry, receipt, cart.length]);
 
   function quantity(sku: string, delta: number) {
     setCart(previous => previous.map(item => item.selectedVariant.sku === sku ? { ...item, quantity: item.quantity + delta } : item).filter(item => item.quantity > 0));
@@ -128,9 +127,9 @@ export default function CheckoutPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!quote?.shipping || loading || saving || quote.promoError) return;
+    if (!quote?.shipping || loading || saving || orderSubmitting.current || !!error || quote.promoError) return;
     if (!normalizeWhatsApp(customer.phone)) { setOrderError("Nomor WhatsApp wajib diisi dengan nomor aktif, contoh 081234567890."); return; }
-    setSaving(true); setOrderError("");
+    orderSubmitting.current=true;setSaving(true); setOrderError("");
     try {
       const r = await fetch("/api/checkout/order", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
         items: JSON.parse(itemsKey), customer, promoCode, shippingService: quote.shipping.id, expectedTotal: quote.total, orderKey, paymentMethod,
@@ -140,7 +139,7 @@ export default function CheckoutPage() {
       writeCart([]); setReceipt(data); setPaymentView(data.paymentMethod || "bank_transfer");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) { setOrderError(error instanceof Error ? error.message : "Pesanan belum tersimpan."); setRetry(value => value + 1); }
-    finally { setSaving(false); }
+    finally { orderSubmitting.current=false;setSaving(false); }
   }
 
   async function copy(value: string, label: string) {
@@ -164,7 +163,7 @@ export default function CheckoutPage() {
       <CheckoutProgress step={receipt ? 2 : customer.name || customer.provinceId || customer.email ? 1 : 0} />
 
       {!ready ? <p className="py-16">Menyiapkan checkout…</p> : receipt ? <section className="checkout-payment-stage mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
-        <div className="rounded-3xl border border-[#dedfd2] bg-white p-7 sm:p-9"><p className="text-xs text-[#7d886f]">NOMOR PESANAN</p><p className="mt-3 break-all font-mono text-sm">{receipt.serial}</p><div className="mt-5 flex gap-2">{[["bank_transfer","Transfer BCA"],["qris","Lihat QRIS"]].map(([value,label])=><button key={value} type="button" onClick={()=>setPaymentView(value)} aria-pressed={paymentView===value} className={`rounded-full border px-4 py-2 text-sm ${paymentView===value?"bg-[#173b2b] text-white":"bg-white"}`}>{label}</button>)}</div>{paymentView === "qris" ? <div><h2 className="mt-8 font-serif text-2xl">Bayar dengan QRIS</h2><img src="/vartana-qris.jpeg" alt="Kode QRIS pembayaran VARTANA" width="600" height="605" className="mt-5 h-auto w-full rounded-2xl"/><a href="/vartana-qris.jpeg" download className="mt-3 inline-block text-xs underline">Unduh QRIS</a><p className="mt-3 text-xs leading-6">Pindai atau unggah QRIS di aplikasi pembayaran. Masukkan nominal sesuai total pesanan.</p></div> : <div><h2 className="mt-8 font-serif text-2xl">Transfer ke {PAYMENT_DETAILS.bank}</h2><p className="mt-5 text-sm text-[#68745f]">Nomor rekening</p><p className="mt-1 font-mono text-2xl">{PAYMENT_DETAILS.account}</p><button type="button" onClick={() => copy(PAYMENT_DETAILS.account, "Rekening tersalin")} className="mt-2 text-xs underline">Salin rekening</button><p className="mt-4 text-sm">a.n. {PAYMENT_DETAILS.holder}</p></div>}<div className="mt-7 rounded-2xl bg-[#f6f3ec] p-5"><p className="text-xs text-[#6c7865]">Total pembayaran</p><p className="mt-2 font-serif text-3xl">{money(receipt.total)}</p><button type="button" onClick={() => copy(String(receipt.total), "Nominal tersalin")} className="mt-2 text-xs underline">Salin nominal</button></div>{copied && <p role="status" className="mt-3 text-xs">{copied}</p>}</div>
+        <div className="rounded-3xl border border-[#dedfd2] bg-white p-7 sm:p-9"><p className="text-xs text-[#7d886f]">NOMOR PESANAN</p><p className="mt-3 break-all font-mono text-sm">{receipt.serial}</p><div className="mt-5 flex gap-2">{[["bank_transfer","Transfer BCA"],["qris","Lihat QRIS"]].map(([value,label])=><button key={value} type="button" onClick={()=>setPaymentView(value)} aria-pressed={paymentView===value} className={`rounded-full border px-4 py-2 text-sm ${paymentView===value?"bg-[#173b2b] text-white":"bg-white"}`}>{label}</button>)}</div>{paymentView === "qris" ? <div><h2 className="mt-8 font-serif text-2xl">Bayar dengan QRIS</h2><img src="/vartana-qris.jpeg" alt="Kode QRIS pembayaran VARTANA" width="600" height="605" className="mt-5 h-auto w-full rounded-2xl"/><Link href="/vartana-qris.jpeg" download className="mt-3 inline-block text-xs underline">Unduh QRIS</Link><p className="mt-3 text-xs leading-6">Pindai atau unggah QRIS di aplikasi pembayaran. Masukkan nominal sesuai total pesanan.</p></div> : <div><h2 className="mt-8 font-serif text-2xl">Transfer ke {PAYMENT_DETAILS.bank}</h2><p className="mt-5 text-sm text-[#68745f]">Nomor rekening</p><p className="mt-1 font-mono text-2xl">{PAYMENT_DETAILS.account}</p><button type="button" onClick={() => copy(PAYMENT_DETAILS.account, "Rekening tersalin")} className="mt-2 text-xs underline">Salin rekening</button><p className="mt-4 text-sm">a.n. {PAYMENT_DETAILS.holder}</p></div>}<div className="mt-7 rounded-2xl bg-[#f6f3ec] p-5"><p className="text-xs text-[#6c7865]">Total pembayaran</p><p className="mt-2 font-serif text-3xl">{money(receipt.total)}</p><button type="button" onClick={() => copy(String(receipt.total), "Nominal tersalin")} className="mt-2 text-xs underline">Salin nominal</button></div>{copied && <p role="status" className="mt-3 text-xs">{copied}</p>}</div>
         <div className="flex flex-col justify-center rounded-3xl bg-[#143b2b] p-8 text-[#faf7ee]"><span className="text-xs uppercase tracking-[0.2em] text-[#d8c28b]">{receipt.waOpened ? "Menunggu verifikasi admin" : "Menunggu pembayaran"}</span><h2 className="mt-4 font-serif text-3xl">Terima kasih sudah memilih VARTANA.</h2><p className="mt-4 text-sm leading-7 text-white/70">{receipt.waOpened ? "Pesanan tercatat, mohon ditunggu. Pastikan pesan dan bukti pembayaran sudah kamu kirim di WhatsApp. Admin akan memverifikasi pembayaran sebelum menyiapkan pesanan." : "Simpan nomor pesananmu. Setelah membayar, kirim bukti pembayaran melalui WhatsApp agar tim kami bisa memproses pesanan."}</p><a href={wa} onClick={() => { const updated = {...receipt, waOpened: true}; setReceipt(updated); sessionStorage.setItem(`vartana_receipt_${orderKey}`, JSON.stringify(updated)); }} target="_blank" rel="noreferrer" className="mt-8 rounded-full bg-[#dcc58c] px-6 py-4 text-center text-sm font-semibold text-[#173b2b]">Konfirmasi pembayaran →</a><Link href="/#collection" onClick={() => { sessionStorage.removeItem("vartana_checkout_key"); sessionStorage.removeItem("vartana_checkout_draft"); }} className="mt-5 text-center text-xs underline">Kembali berbelanja</Link></div>
       </section> : !cart.length ? <section className="checkout-empty rounded-3xl border border-[#dce0d4] bg-white py-16 text-center"><h2 className="font-serif text-2xl">Keranjangmu masih kosong.</h2><Link href="/#collection" className="mt-6 inline-block rounded-full bg-[#173b2b] px-8 py-3 text-sm text-white">Jelajahi koleksi</Link></section> : <form onSubmit={submit} className="checkout-form grid items-start gap-8 lg:grid-cols-[1.15fr_0.85fr]">
         <div className="checkout-main-column space-y-6">
@@ -186,7 +185,7 @@ export default function CheckoutPage() {
         <aside className="checkout-aside space-y-5">
           <section className="rounded-3xl border border-[#dedfd2] bg-white p-6"><h2 className="font-serif text-2xl">Metode pembayaran</h2><div className="mt-5 space-y-3">{[["bank_transfer","Transfer BCA"],["qris","QRIS"]].map(([value,label])=><label key={value} className="flex cursor-pointer gap-3 rounded-xl border border-[#dedfd2] p-4 text-sm"><input required type="radio" name="paymentMethod" value={value} checked={paymentMethod === value} onChange={()=>setPaymentMethod(value)}/>{label}</label>)}</div><p className="mt-3 text-xs text-[#657565]">Pembayaran diverifikasi oleh admin.</p></section>
           <section className="checkout-promo rounded-3xl border border-[#dedfd2] bg-white p-6 sm:p-8"><span className="checkout-section-eyebrow">A little extra, just for you</span><h2 className="font-serif text-2xl">Ada yang lebih istimewa.</h2><p className="mt-2 text-xs leading-6 text-[#7b866f]">Gabungkan keuntungan pilihanmu. Bonus otomatis muncul saat syarat terpenuhi.</p><div className="mt-5 flex gap-2"><input aria-label="Kode promo" onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();choosePromo(codeInput);}}} value={codeInput} onChange={e=>setCodeInput(e.target.value.toUpperCase())} placeholder="Kode promo" className={`${field} mt-0 min-w-0 uppercase`} /><button type="button" onClick={()=>choosePromo(codeInput)} className="checkout-promo-apply rounded-xl bg-[#e9e3d4] px-4 text-xs font-semibold">Pakai</button></div>{promoCode && <div className="checkout-promo-chips">{promoCode.split(/[\s,]+/).filter(Boolean).map(code=><button key={code} type="button" aria-label={'Hapus promo '+code} onClick={()=>removePromo(code)}>{code}<span aria-hidden="true"> &times;</span></button>)}</div>}{quote?.promoError && <p role="alert" className="mt-3 text-xs text-red-700">{quote.promoError}</p>}{quote?.promoCode && !quote.promoError && !loading && <p role="status" className="checkout-success">&#10003; Promo {quote.promoCode} berhasil diterapkan.</p>}<div className="mt-5 space-y-2">{quote?.promos.map(p=><button key={p.code} type="button" disabled={p.automatic} onClick={()=>choosePromo(p.code)} className={`checkout-coupon w-full rounded-xl border border-dashed p-4 text-left ${quote.appliedPromos.some(applied=>applied.code===p.code)?'border-[#70885f] bg-[#f4f7ee]':'border-[#d9d5c5]'}`}><span className="block text-xs font-semibold tracking-wider">{p.code}</span><span className="mt-1 block text-sm">{p.name}</span><span className="mt-1 block text-xs text-[#6c755d]">{offerDescription(p)}</span>{p.area==='jabodetabek'&&!p.eligibleArea&&<span className="mt-2 block text-xs text-[#7b866f]">Berlaku setelah alamat terverifikasi di Jabodetabek.</span>}<span className="mt-2 inline-block text-[10px] font-medium text-[#702b3c]">{p.automatic?"Otomatis saat memenuhi syarat":p.type==="redeem"?"Pilih tebus murah":"Tambahkan promo"}{p.stackable?" / Bisa digabung":" / Tidak bisa digabung"}</span><span className="mt-1 block text-[11px] text-[#7b866f]">Min. belanja {money(p.minSpend)}{p.maxDiscount?` · Maks. ${money(p.maxDiscount)}`:''}</span></button>)}{quote && !quote.promos.length && <p className="text-xs text-[#7b866f]">Belum ada promo checkout yang aktif.</p>}</div></section>
-          <section className="checkout-summary rounded-3xl bg-[#143b2b] p-6 text-[#fbf8ef] sm:p-8"><h2 className="font-serif text-2xl">Ringkasan pesanan</h2><div aria-live="polite" className={`mt-7 space-y-4 text-sm ${loading?'opacity-50':''}`}><div className="flex justify-between"><span className="text-white/65">Subtotal produk</span><span>{money(quote?.subtotal||0)}</span></div><div className="flex justify-between"><span className="text-white/65">Pengiriman</span><span>{quote?.shipping?money(quote.shipping.price):'Pilih alamat'}</span></div>{!!quote?.redeemTotal && <div className="flex justify-between gap-3"><span className="text-white/65">Tambahan tebus murah</span><span>{money(quote.redeemTotal)}</span></div>}{quote?.appliedPromos.map(p=>(p.productDiscount>0||p.shippingDiscount>0)&&<div key={p.code} className="flex justify-between gap-3 text-[#d8c28b]"><span>{p.name}<small className="block text-[9px] opacity-70">{p.code}</small></span><span>&minus;{money(p.productDiscount+p.shippingDiscount)}</span></div>)}<div className="flex items-end justify-between border-t border-white/15 pt-5"><span>Total pembayaran</span><strong key={quote?.total} className="font-serif text-3xl font-normal">{money(quote?.total||0)}</strong></div></div>{(error||orderError)&&<div role="alert" className="mt-5 rounded-xl bg-white/10 p-4 text-xs leading-6 text-[#ffdbcf]">{error||orderError} <button type="button" onClick={()=>setRetry(v=>v+1)} className="underline">Coba lagi</button></div>}<button type="submit" disabled={!quote?.shipping||loading||saving||!!quote?.promoError||!!error} data-busy={saving || loading} className="checkout-pay-button mt-7 w-full rounded-full bg-[#dcc58c] px-5 py-4 text-xs font-semibold uppercase tracking-[0.14em] text-[#173b2b] transition hover:bg-[#e8d4a4] disabled:cursor-not-allowed disabled:opacity-45">{saving?'Menyimpan pesanan…':loading?'Memperbarui ringkasan…':'Lanjut ke pembayaran →'}</button><p className="mt-4 text-center text-[10px] leading-5 text-white/50">Pembayaran melalui transfer BCA atau QRIS.<br/>Bukti pembayaran dikonfirmasi oleh tim VARTANA.</p></section>
+          <section className="checkout-summary rounded-3xl bg-[#143b2b] p-6 text-[#fbf8ef] sm:p-8"><h2 className="font-serif text-2xl">Ringkasan pesanan</h2><div aria-live="polite" className={`mt-7 space-y-4 text-sm ${loading?'opacity-50':''}`}><div className="flex justify-between"><span className="text-white/65">Subtotal produk</span><span>{quote ? money(quote.subtotal) : loading ? 'Memuat harga...' : 'Belum tersedia'}</span></div><div className="flex justify-between"><span className="text-white/65">Pengiriman</span><span>{quote?.shipping?money(quote.shipping.price):customer.districtId ? (loading ? 'Memuat ongkir...' : 'Belum tersedia') : 'Pilih alamat'}</span></div>{!!quote?.redeemTotal && <div className="flex justify-between gap-3"><span className="text-white/65">Tambahan tebus murah</span><span>{money(quote.redeemTotal)}</span></div>}{quote?.appliedPromos.map(p=>(p.productDiscount>0||p.shippingDiscount>0)&&<div key={p.code} className="flex justify-between gap-3 text-[#d8c28b]"><span>{p.name}<small className="block text-[9px] opacity-70">{p.code}</small></span><span>&minus;{money(p.productDiscount+p.shippingDiscount)}</span></div>)}<div className="flex items-end justify-between border-t border-white/15 pt-5"><span>Total pembayaran</span><strong key={quote?.total} className="font-serif text-3xl font-normal">{quote ? money(quote.total) : loading ? 'Menghitung...' : 'Belum tersedia'}</strong></div></div>{(error||orderError)&&<div role="alert" className="mt-5 rounded-xl bg-white/10 p-4 text-xs leading-6 text-[#ffdbcf]">{error||orderError} <button type="button" onClick={()=>setRetry(v=>v+1)} className="underline">Coba lagi</button></div>}<button type="submit" disabled={!quote?.shipping||loading||saving||!!quote?.promoError||!!error} data-busy={saving || loading} className="checkout-pay-button mt-7 w-full rounded-full bg-[#dcc58c] px-5 py-4 text-xs font-semibold uppercase tracking-[0.14em] text-[#173b2b] transition hover:bg-[#e8d4a4] disabled:cursor-not-allowed disabled:opacity-45">{saving?'Menyimpan pesanan…':loading?'Memperbarui ringkasan…':'Lanjut ke pembayaran →'}</button><p className="mt-4 text-center text-[10px] leading-5 text-white/50">Pembayaran melalui transfer BCA atau QRIS.<br/>Bukti pembayaran dikonfirmasi oleh tim VARTANA.</p></section>
         </aside>
       </form>}
       <footer className="mt-14 border-t border-[#dce0d4] pt-6 text-center text-[10px] uppercase tracking-[0.2em] text-[#8c947f]">Rooted in earth · Made with care · VARTANA</footer>

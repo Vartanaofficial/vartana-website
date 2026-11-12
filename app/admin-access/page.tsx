@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 
 const menus = [
+ {title:'Games',description:'Atur puzzle 20 keping, foto Drive, waktu, hitungan angka, simulasi dan data peserta.',href:'/admin/games',number:'11',symbol:''},
  {title:'Artikel & Jurnal',description:'Tulis, edit, terbitkan dan hapus artikel; foto lewat link dan salin URL artikel.',href:'/admin/articles',number:'10',symbol:''},
  {title:'Produksi / PPIC',description:'Resep, rencana produksi, pemakaian aktual dan hasil kemasan jual.',href:'/admin/production',number:'07',symbol:''},
  {title:'Stok Opname Tim',description:'Daftar SKU Master Product dan stok fisik barang jual.',href:'/admin/stocktake',number:'08',symbol:''},

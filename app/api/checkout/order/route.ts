@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { checkoutQuote } from "@/lib/checkout";
 import { requestMasterScript } from "@/lib/master-products";
+import { signPuzzle } from '@/lib/puzzle-server';
+import {checkoutContext} from '@/lib/checkout-context';
 
 import { normalizeWhatsApp } from "@/lib/checkout-contact";
 
@@ -22,21 +24,24 @@ export async function POST(req: Request) {
     const orderKey = String(body.orderKey);
     const serial = `VRT-${orderKey.replaceAll("-", "").toUpperCase()}`;
     const execute = async () => {
-      const quote = await checkoutQuote({ ...body, districtId: customer.districtId, provinceName: customer.provinceName,cityName:customer.cityName,districtName:customer.districtName });
+      const data = await checkoutContext(phone,orderKey);
+      const existing = (data.orders || []).find((order: { orderSerial: string; orderKey?: string }) => order.orderKey === orderKey || order.orderSerial === serial);
+      if(existing){
+        if(normalizeWhatsApp(existing.phone)!==phone)throw new Error('Pesanan ini tercatat untuk nomor lain.');
+        return {serial:existing.orderSerial,total:Number(existing.grandTotal),paymentMethod:existing.paymentMethod||paymentMethod,details:existing};
+      }
+      const quote = await checkoutQuote({ ...body, phone, districtId: customer.districtId, provinceName: customer.provinceName,cityName:customer.cityName,districtName:customer.districtName });
       if(quote.destination?.verified){customer.cityName=quote.destination.cityName;customer.provinceName=quote.destination.provinceName;customer.districtName=quote.destination.districtName;}
       if (!quote.shipping || quote.promoError) throw new Error(quote.promoError || "Pilih layanan pengiriman.");
       if (body.expectedTotal !== quote.total || body.shippingService !== quote.shipping.id) throw new Error("Harga atau ongkir berubah. Periksa ringkasan terbaru sebelum melanjutkan.");
-      const data = await requestMasterScript("getAdminData");
-      const existing = (data.orders || []).find((order: { orderSerial: string; orderKey?: string }) => order.orderKey === orderKey || order.orderSerial === serial);
-      if (existing) {
-        if (normalizeWhatsApp(existing.phone) !== phone || Number(existing.grandTotal) !== quote.total) throw new Error("Pesanan ini sudah tercatat dengan rincian berbeda. Muat ulang checkout.");
-        return { serial: existing.orderSerial, total: quote.total, paymentMethod: existing.paymentMethod || paymentMethod, details: existing };
-      }
       if (data.retailOrderVersion !== 2) throw new Error("Sistem nomor order sedang diperbarui. Admin perlu deploy Apps Script versi terbaru sebelum checkout dilanjutkan.");
       const knownMember = (data.members || []).find((m: {phone: string}) => normalizeWhatsApp(String(m.phone)) === phone);
-      const memberId = knownMember?.memberId || `VRT-${phone}`;
-      const member = await requestMasterScript("saveMember", { memberId, name: customer.name, email: customer.email, phone: customer.phone, addressDetail: customer.address, districtName: customer.districtName, cityName: customer.cityName });
-      if (member.status !== "success" && member.success !== true) throw new Error("Data pelanggan belum tersimpan.");
+      let memberId = knownMember?.memberId || `VRT-${phone}`;
+      if(!knownMember||knownMember.name!==customer.name||knownMember.email!==customer.email||knownMember.addressDetail!==customer.address||knownMember.districtName!==customer.districtName||knownMember.cityName!==customer.cityName){
+        const member = await requestMasterScript("saveMember", { memberId, name: customer.name, email: customer.email, phone: customer.phone, addressDetail: customer.address, districtName: customer.districtName, cityName: customer.cityName });
+        if (member.status !== "success" && member.success !== true) throw new Error("Data pelanggan belum tersimpan.");
+        memberId=member.memberId||memberId;
+      }
       const summary = quote.lines.map(line => `${line.name} [${line.variant}] (${line.quantity}x)`).join(", ");
       const rewardSummary = quote.rewardLines.map(line=>`${line.kind==='redeem'?'TEBUS MURAH':'GRATIS'} ${line.name} [${line.variant}] (${line.quantity}x @Rp${line.price}) [${line.promoCode}]`).join(", ");
       const orderDetails = {
@@ -52,15 +57,17 @@ export async function POST(req: Request) {
         productDiscount: quote.productDiscount, promoShippingDiscount: quote.shippingDiscount,
         shippingSubsidy: quote.shippingDiscount, customerShippingFee: quote.shipping.price - quote.shippingDiscount, grandTotal: quote.total,
       };
-      const result = await requestMasterScript("saveOrder", orderDetails);
+      const proof = quote.promoCode.startsWith('PUZ-') ? signPuzzle('saveOrder', orderDetails) : {};
+      const result = await requestMasterScript("saveOrder", { ...orderDetails, ...proof });
       if (result.status !== "success" && result.success !== true) throw new Error("Pesanan belum tersimpan.");
       const savedSerial = String(result.orderSerial || serial);
       return { serial: savedSerial, total: quote.total, paymentMethod, details: { ...orderDetails, orderSerial: savedSerial } };
     };
-    let task = pending.get(serial);
-    if (!task) { task = execute(); pending.set(serial, task); }
+    const pendingKey=serial+':'+phone;
+    let task = pending.get(pendingKey);
+    if (!task) { task = execute(); pending.set(pendingKey, task); }
     try { return NextResponse.json(await task); }
-    finally { pending.delete(serial); }
+    finally { pending.delete(pendingKey); }
   } catch (error) {
     return NextResponse.json({ message: error instanceof Error ? error.message : "Pesanan belum berhasil disimpan." }, { status: 400 });
   }

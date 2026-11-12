@@ -1,6 +1,7 @@
 const fs=require('node:fs'),ts=require('typescript'),assert=require('node:assert/strict'),{test}=require('node:test');
 require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,f);
 const {requestCostingBackend}=require('../lib/costing-backend.ts');
+require('../lib/google-fetch.ts').fetchGoogle=(url,init)=>global.fetch(url,init);
 const {normalizeMaterialPurchase}=require('../lib/raw-materials.ts');
 test('old Apps Script is detected before a material write can fall through to order saving',async()=>{
  const original=global.fetch,env=process.env.GOOGLE_SCRIPT_URL;process.env.GOOGLE_SCRIPT_URL='https://script.google.com/macros/s/TEST/exec';let calls=0;

@@ -1,3 +1,10 @@
+GAMES V3, ADMIN GAMES, DAN PERBAIKAN CHECKOUT
+
+Menu publik: /games. Admin: /admin/games. Puzzle 20 keping, foto Drive, durasi, simulasi, ranking tersamarkan, dan data peserta lengkap di GamePlayers/GameAttempts/GameSettings.
+Ganti SELURUH kode dengan TXT ini, Save, lalu Deploy > Manage deployments > Edit > New version pada Web app yang dipakai website. Save saja tidak cukup. getGameCapabilities harus mengembalikan gamesVersion: 3.
+Script property VARTANA_ARTICLE_ADMIN_KEY harus sama dengan ADMIN_SESSION_SECRET website. Jalankan setupGames bila ingin menyiapkan tab sebelum pemain pertama.
+Panduan lengkap: deliverables/PUZZLE-REMPAH.md. Hasil audit: deliverables/AUDIT-UX-VARTANA.md.
+
 VARTANA APPS SCRIPT — PROMO CHECKOUT V2
 
 File VARTANA-AppsScript-v2.txt berisi script LENGKAP dari versi yang kamu kirim, dengan revisi promo checkout dan pencatatan order. Tidak perlu menggabungkan potongan kode.

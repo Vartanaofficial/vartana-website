@@ -1,0 +1,145 @@
+// GAMES V3: every attempt gets its own durable row; public contacts are masked here.
+function gamesSheets_(){
+ return {
+  settings:inventoryOperationsSheet_('GameSettings',['Game','Settings JSON','Updated At','Revision']),
+  players:inventoryOperationsSheet_('GamePlayers',['Player ID','Name','Phone','Email','Created At','Updated At']),
+  attempts:inventoryOperationsSheet_('GameAttempts',['Attempt ID','Game','Session','Player ID','Name','Phone','Email','Started At','Deadline','Finished At','Duration Ms','Status','Score','Answer Count','Result JSON'])
+ };
+}
+function gamesCell_(text){text=String(text);return /^[=+@-]/.test(text)?"'"+text:text;}
+function gamesRead_(sheet){return sheet.getDataRange().getValues().slice(1).map(function(row,index){return {row:index+2,value:row[14]?JSON.parse(String(row[14])):null};}).filter(function(x){return x.value;});}
+function gamesSave_(sheet,row,a){
+ sheet.getRange(row,1,1,15).setValues([[a.id,a.game,a.session,a.playerId,gamesCell_(a.name),a.phone,gamesCell_(a.email),new Date(a.startedAt),new Date(a.deadline),a.finishedAt?new Date(a.finishedAt):'',a.durationMs===undefined?'':a.durationMs,a.status,a.score||0,a.answerCount||0,JSON.stringify(a)]]);
+}
+function gamesPublicAttempt_(a){
+ if(!a||!a.settings)return null;
+ return {id:a.id,game:a.game,board:a.board||null,questions:(a.questions||[]).map(function(q){return {text:q.text};}),startedAt:a.startedAt,deadline:a.deadline,status:a.status,durationMs:a.durationMs,score:a.score||0,answerCount:a.answerCount||0,settings:gamesPublicSettings_(a.settings),pieces:a.pieces||[],feedback:a.lastCheck||''};
+}
+function gamesMaskPhone_(phone){return phone.slice(0,4)+'******'+phone.slice(-2);}
+function gamesMaskEmail_(email){var parts=email.split('@'),domain=(parts[1]||'').split('.');return parts[0].slice(0,1)+'***@'+(domain[0]||'').slice(0,1)+'***.'+(domain.length>1?domain[domain.length-1]:'***');}
+function gamesRanking_(attempts,game,revision){
+ var best={},all=attempts.map(function(x){return x.value;}).filter(function(a){return a.game===game&&a.status==='WON'&&(!revision||(a.settings&&a.settings.revision===revision));});
+ all.sort(function(a,b){return a.durationMs-b.durationMs||a.finishedAt-b.finishedAt||a.startedAt-b.startedAt||a.id.localeCompare(b.id);});
+ var rows=[];all.forEach(function(a){if(best[a.phone])return;best[a.phone]=true;rows.push({rank:rows.length+1,name:a.name,phone:gamesMaskPhone_(a.phone),email:gamesMaskEmail_(a.email),durationMs:a.durationMs,completedAt:new Date(a.finishedAt).toISOString()});});
+ return {entries:rows.slice(0,50),totalPlayers:rows.length,attempts:attempts.filter(function(x){return x.value.game===game;}).length};
+}
+function gamesReward_(a,issue){
+ var sheet=puzzleSheets_().vouchers,rows=sheet.getDataRange().getValues();
+ for(var i=1;i<rows.length;i++)if(String(rows[i][1])===a.phone||String(rows[i][2])===a.playerId)return {code:String(rows[i][0]),value:20000,expiresAt:new Date(rows[i][4]).toISOString()};
+ if(!issue)return null;
+ var voucher={code:'PUZ-'+Utilities.getUuid().replace(/-/g,'').slice(0,20).toUpperCase(),value:20000,expiresAt:new Date(a.finishedAt+7*86400000).toISOString()};
+ sheet.appendRow([voucher.code,a.phone,a.playerId,new Date(a.finishedAt),new Date(voucher.expiresAt)]);return voucher;
+}
+function gamesChallenge_(game,settings){
+ if(game==='puzzle'){
+  var pieces=Array.from({length:20},function(_,i){return i;});
+  for(var i=pieces.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),value=pieces[i];pieces[i]=pieces[j];pieces[j]=value;}
+  return {pieces:pieces};
+ }
+ var questions=[];
+ for(var i=0;i<settings.questionCount;i++){
+  var first=10+Math.floor(Math.random()*40),second=10+Math.floor(Math.random()*40),type=i%3;
+  if(type===0)questions.push({text:first+' + '+second,answer:first+second});
+  else if(type===1){var hi=Math.max(first,second),lo=Math.min(first,second);questions.push({text:hi+' - '+lo,answer:hi-lo});}
+  else {first=2+Math.floor(Math.random()*8);second=2+Math.floor(Math.random()*8);questions.push({text:first+' x '+second,answer:first*second});}
+ }
+ return {questions:questions};
+}
+function gamesHandle_(data){
+ puzzleVerify_(data,'games');var d=data.puzzlePayload;
+ if(!d||['puzzle','numbers'].indexOf(d.game)<0||['leaderboard','status','start','finish','timeout'].indexOf(d.operation)<0)throw new Error('Permintaan game tidak valid.');
+ if(d.operation!=='leaderboard'&&!/^[a-f0-9-]{36}$/i.test(String(d.session||'')))throw new Error('Sesi game tidak valid.');
+ var lock=LockService.getScriptLock();lock.waitLock(20000);
+ try{
+  var sheets=gamesSheets_(),attempts=gamesRead_(sheets.attempts),now=Date.now(),settings=gamesPublicSettings_(gamesSettings_(sheets.settings,d.game));
+  // Closing a browser never erases an attempt. Expired sessions are reconciled on the next request.
+  attempts.forEach(function(x){if(x.value.status==='STARTED'&&(!x.value.settings||now>=x.value.deadline)){x.value.status='EXPIRED';x.value.finishedAt=x.value.deadline;x.value.durationMs=x.value.deadline-x.value.startedAt;gamesSave_(sheets.attempts,x.row,x.value);}});
+  if(d.operation==='leaderboard')return responseJSON({success:true,gamesVersion:3,serverNow:now,settings:settings,leaderboard:gamesRanking_(attempts,d.game,settings.revision)});
+  var own=attempts.filter(function(x){return x.value.session===d.session&&x.value.game===d.game;}),current=own[own.length-1]||null;
+  if(d.operation==='start'){
+   if(!settings.enabled)throw new Error('Game ini sedang dinonaktifkan oleh admin.');
+   if(!/^[a-f0-9-]{36}$/i.test(String(d.requestId||'')))throw new Error('Kunci permainan tidak valid. Muat ulang halaman.');
+   var duplicate=own.filter(function(x){return x.value.id==='GAME-'+d.requestId;})[0];
+   if(duplicate)current=duplicate;
+   else if(current&&current.value.status==='STARTED'){/* Resume without resetting the server clock. */}
+   else{
+    var phone=puzzlePhone_(d.phone),email=typeof d.email==='string'?d.email.trim().toLowerCase():'',name=typeof d.name==='string'?d.name.trim().replace(/[\x00-\x1f\x7f]/g,''):'';
+    if(!phone||!name||name.length>80||email.length>200||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new Error('Isi nama, nomor WhatsApp aktif, dan email dengan benar.');
+    if(attempts.some(function(x){return x.value.phone===phone&&x.value.game===d.game&&x.value.status==='STARTED';}))throw new Error('Game ini masih berjalan di sesi lain. Tunggu sampai batas waktu berakhir.');
+    var players=sheets.players.getDataRange().getValues(),playerRow=-1,playerId='VRT-'+phone;
+    for(var i=1;i<players.length;i++)if(String(players[i][2])===phone){playerRow=i+1;playerId=String(players[i][0]);break;}
+    if(playerRow<0){var members=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MEMBERS);if(members){var memberRows=members.getDataRange().getValues();for(var m=1;m<memberRows.length;m++)if(puzzlePhone_(memberRows[m][4])===phone&&memberRows[m][1]&&memberRows[m][1]!=='-'){playerId=String(memberRows[m][1]);break;}}}
+    sheets.players.getRange(playerRow>0?playerRow:sheets.players.getLastRow()+1,1,1,6).setValues([[playerId,gamesCell_(name),phone,gamesCell_(email),playerRow>0?players[playerRow-1][4]:new Date(now),new Date(now)]]);
+    var a={id:'GAME-'+d.requestId,game:d.game,session:d.session,playerId:playerId,name:name,phone:phone,email:email,startedAt:now,deadline:now+settings.durationSeconds*1000,settings:settings,status:'STARTED',score:0,answerCount:0},challenge=gamesChallenge_(d.game,settings);
+    Object.keys(challenge).forEach(function(k){a[k]=challenge[k];});
+    current={row:sheets.attempts.getLastRow()+1,value:a};gamesSave_(sheets.attempts,current.row,a);attempts.push(current);
+   }
+  }
+  if(d.operation==='finish'||d.operation==='timeout'){
+   current=own.filter(function(x){return x.value.id===d.attemptId;})[0]||null;
+   if(!current)throw new Error('Percobaan game tidak ditemukan pada sesi ini.');
+   var a=current.value;
+   if(a.status==='STARTED'){
+    if(d.operation==='timeout')throw new Error('Waktu permainan belum habis.');
+    if(a.game==='puzzle'){
+     if(!Array.isArray(d.placements)||d.placements.length!==20||d.placements.some(function(n){return !Number.isInteger(n)||n<0||n>=20;})||d.placements.some(function(n,i,list){return list.indexOf(n)!==i;}))throw new Error('Tempatkan seluruh 20 keping puzzle terlebih dahulu.');
+     a.placements=d.placements.slice();a.answerCount=20;
+     var correct=a.placements.reduce(function(sum,tile,index){return sum+(tile===index?1:0);},0);
+     a.checks=(a.checks||[]).slice(-29).concat([{at:now,placements:a.placements.slice(),correct:correct}]);
+     if(correct===20){a.status='WON';a.score=20;a.lastCheck='';}
+     else a.lastCheck='Susunannya belum pas. Coba periksa gambar acuan dan pindahkan keping yang keliru.';
+    }else{
+     var count=a.settings.questionCount;
+     if(!Array.isArray(d.answers)||d.answers.length!==count||d.answers.some(function(n){return !Number.isSafeInteger(n)||n<0||n>10000;}))throw new Error('Jawab seluruh '+count+' soal dengan angka yang valid.');
+     a.answers=d.answers.slice();a.answerCount=count;a.score=a.questions.reduce(function(sum,q,index){return sum+(q.answer===d.answers[index]?1:0);},0);a.status=a.score===count?'WON':'FAILED';
+    }
+    if(a.status!=='STARTED'){a.finishedAt=now;a.durationMs=now-a.startedAt;}gamesSave_(sheets.attempts,current.row,a);
+   }else if(a.status==='EXPIRED'&&!a.submitted){
+    // Keep bounded progress supplied at expiry for the private audit trail; it never earns a score.
+    a.submitted=true;
+    if(a.game==='puzzle'&&Array.isArray(d.moves)&&d.moves.length<=1500&&d.moves.every(function(n){return Number.isInteger(n)&&n>=1&&n<=8;}))a.moves=d.moves.slice();
+    if(a.game==='puzzle'&&Array.isArray(d.placements)&&d.placements.length===20&&d.placements.every(function(n){return n===null||(Number.isInteger(n)&&n>=0&&n<20);}))a.placements=d.placements.slice();
+    if(a.game==='numbers'&&Array.isArray(d.answers)&&d.answers.length<=30&&d.answers.every(function(n){return n===null||Number.isSafeInteger(n);}))a.answers=d.answers.slice();
+    gamesSave_(sheets.attempts,current.row,a);
+   }
+  }
+  var voucher=current?gamesReward_(current.value,current.value.status==='WON'):null;
+  return responseJSON({success:true,gamesVersion:3,serverNow:Date.now(),settings:settings,attempt:gamesPublicAttempt_(current?current.value:null),voucher:voucher,leaderboard:gamesRanking_(attempts,d.game,settings.revision)});
+ }finally{lock.releaseLock();}
+}
+
+function gamesPublicSettings_(s){return {game:s.game,enabled:s.enabled,durationSeconds:s.durationSeconds,imageUrl:s.imageUrl,imageAlt:s.imageAlt,questionCount:s.questionCount,revision:s.revision,updatedAt:s.updatedAt};}
+function gamesSettings_(sheet,game){
+ var rows=sheet.getDataRange().getValues();
+ for(var i=1;i<rows.length;i++)if(String(rows[i][0])===game)return JSON.parse(String(rows[i][1]));
+ return {game:game,enabled:true,durationSeconds:120,imageUrl:'/vartana-spices-hero.jpg',imageAlt:'Rempah VARTANA',questionCount:10,revision:1,updatedAt:''};
+}
+function gamesValidateSettings_(game,raw){
+ if(!raw||typeof raw.enabled!=='boolean'||!Number.isInteger(raw.durationSeconds)||raw.durationSeconds<30||raw.durationSeconds>1800||typeof raw.imageUrl!=='string'||raw.imageUrl.length>2000||!( /^\/(?!\/)[^\\]*$/.test(raw.imageUrl)||/^https:\/\/[^\s@\\]+$/i.test(raw.imageUrl))||typeof raw.imageAlt!=='string'||!raw.imageAlt.trim()||raw.imageAlt.length>160||!Number.isInteger(raw.questionCount)||raw.questionCount<5||raw.questionCount>30)throw new Error('Atur waktu 30-1800 detik, foto yang valid, deskripsi foto, dan jumlah soal 5-30.');
+ return {game:game,enabled:raw.enabled,durationSeconds:raw.durationSeconds,imageUrl:raw.imageUrl.trim(),imageAlt:raw.imageAlt.trim(),questionCount:raw.questionCount};
+}
+function gamesAdminHandle_(data){
+ puzzleVerify_(data,'gamesAdmin');var d=data.puzzlePayload;
+ if(!d||['settings','saveSettings','catalogHealth'].indexOf(d.operation)<0)throw new Error('Operasi admin game tidak valid.');
+ if(d.operation==='catalogHealth'){
+  var productSheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PRODUCTS);
+  return responseJSON({success:true,gamesVersion:3,health:productSheet?{maxRows:productSheet.getMaxRows(),maxColumns:productSheet.getMaxColumns()}:null});
+ }
+ var lock=LockService.getScriptLock();lock.waitLock(20000);
+ try{
+  var sheets=gamesSheets_();
+  if(d.operation==='saveSettings'){
+   if(['puzzle','numbers'].indexOf(d.game)<0||!/^[a-f0-9-]{36}$/i.test(String(d.requestId||'')))throw new Error('Game atau kunci simpan tidak valid.');
+   var clean=gamesValidateSettings_(d.game,d.settings),old=gamesSettings_(sheets.settings,d.game),fingerprint=JSON.stringify(clean);
+   if(old.lastRequestId===d.requestId){if(old.fingerprint!==fingerprint)throw new Error('Kunci simpan sudah dipakai untuk pengaturan lain.');return responseJSON({success:true,gamesVersion:3,settings:old,duplicate:true});}
+   if(d.expectedRevision!==old.revision)throw new Error('Pengaturan berubah di perangkat lain. Muat ulang sebelum menyimpan.');
+   clean.revision=old.revision+1;clean.updatedAt=new Date().toISOString();clean.lastRequestId=d.requestId;clean.fingerprint=fingerprint;
+   var rows=sheets.settings.getDataRange().getValues(),row=-1;for(var i=1;i<rows.length;i++)if(String(rows[i][0])===d.game)row=i+1;
+   sheets.settings.getRange(row>0?row:sheets.settings.getLastRow()+1,1,1,4).setValues([[d.game,JSON.stringify(clean),new Date(),clean.revision]]);
+   return responseJSON({success:true,gamesVersion:3,settings:clean});
+  }
+  var attempts=gamesRead_(sheets.attempts),ss=SpreadsheetApp.getActiveSpreadsheet();
+  return responseJSON({success:true,gamesVersion:3,settings:{puzzle:gamesSettings_(sheets.settings,'puzzle'),numbers:gamesSettings_(sheets.settings,'numbers')},players:Math.max(0,sheets.players.getLastRow()-1),totalAttempts:attempts.length,attempts:attempts.slice(-100).reverse().map(function(x){var a=x.value;return {id:a.id,game:a.game,name:a.name,phone:a.phone,email:a.email,status:a.status==='STARTED'&&Date.now()>=a.deadline?'EXPIRED':a.status,score:a.score,startedAt:new Date(a.startedAt).toISOString(),finishedAt:a.finishedAt?new Date(a.finishedAt).toISOString():'',durationMs:a.durationMs,revision:a.settings?a.settings.revision:0};}),spreadsheetUrl:typeof ss.getUrl==='function'?ss.getUrl():''});
+ }finally{lock.releaseLock();}
+}
+function setupGames(){gamesSheets_();puzzleSheets_();return 'Games v3 siap. Deploy New version pada Web app yang dipakai website.';}

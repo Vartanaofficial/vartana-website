@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import {fetchGoogle} from '@/lib/google-fetch';
 
 export const runtime = "nodejs";
 const MAX_BYTES = 12 * 1024 * 1024;
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
   url.searchParams.set("sz", "w1600");
   if (resourceKey) url.searchParams.set("resourcekey", resourceKey);
   try {
-    const upstream = await fetch(url, { signal: AbortSignal.timeout(20000), cache: "no-store" });
+    const upstream = await fetchGoogle(url, { signal: AbortSignal.timeout(20000) });
     const contentType = upstream.headers.get("content-type")?.split(";")[0].trim() || "";
     if (!upstream.ok || !IMAGE_TYPES.has(contentType) || !upstream.body) {
       await upstream.body?.cancel();

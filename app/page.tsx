@@ -6,11 +6,11 @@ import { emptyCatalogProduct } from "@/lib/store-catalog";
 import ProductImage from "@/app/components/ProductImage";
 import Link from "next/link";
 import StorefrontMotion from "@/app/components/StorefrontMotion";
-import AmbientMusic from "@/app/components/AmbientMusic";
 import StorefrontIcon from "@/app/components/StorefrontIcon";
 import ArticlePreview from "@/app/components/ArticlePreview";
 import { BotanicalSprig } from "@/app/checkout/CheckoutVisuals";
 import "./storefront.css";
+import {readClientJson} from '@/lib/client-reads';
 import { readCart, writeCart } from "@/lib/cart-storage";
 import { SPICES_DATA, type SpiceDetail } from "@/lib/spices";
 
@@ -442,9 +442,8 @@ export default function Home() {
       if (pending) return;
       pending = true;
       try {
-        const response = await fetch(`/api/catalog?lang=${language}`, { cache: "no-store", signal: controller.signal });
-        const data = await response.json();
-        if (!response.ok || data.success !== true || !Array.isArray(data.products)) throw new Error(data.message || "Katalog belum bisa dimuat.");
+        const data = await readClientJson<{success:boolean;products:Product[];translationAvailable?:boolean;message?:string}>(`/api/catalog?lang=${language}`);
+        if (data.success !== true || !Array.isArray(data.products)) throw new Error(data.message || "Katalog belum bisa dimuat.");
         if (!active) return;
         const latest: Product[] = data.products;
         setProducts(latest);
@@ -466,7 +465,7 @@ export default function Home() {
       }
     }
     void refreshCatalog();
-    const timer = window.setInterval(() => void refreshCatalog(), 30000);
+    const timer = window.setInterval(() => { if(document.visibilityState==='visible')void refreshCatalog(); }, 60000);
     const onFocus = () => void refreshCatalog();
     window.addEventListener("focus", onFocus);
     return () => { active = false; controller.abort(); window.clearInterval(timer); window.removeEventListener("focus", onFocus); };
@@ -995,7 +994,6 @@ export default function Home() {
   return (
     <main className="storefront min-h-screen bg-[#F6F2E8] pb-20 text-[#16382A] selection:bg-[#B69245] selection:text-white md:pb-0">
       <StorefrontMotion />
-      <AmbientMusic />
       {/* NAVBAR TOP DESKTOP & MOBILE HEADER */}
       <nav className="storefront-header sticky top-0 z-40 border-b border-[#B69245]/15 bg-[#F6F2E8]/90 backdrop-blur-xl transition-all">
         <div className="storefront-header-row mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
@@ -1008,21 +1006,22 @@ export default function Home() {
             <a href="#philosophy" className="transition hover:text-[#B69245]">
               {t.nav.philosophy}
             </a>
-            <a href="/katalog" className="transition hover:text-[#B69245]">
+            <Link href="/katalog" className="transition hover:text-[#B69245]">
               {t.nav.collection}
-            </a>
+            </Link>
             <a href="#science" className="transition hover:text-[#B69245]">
               {t.nav.science}
             </a>
-            <a href="/artikel/cerita-vartana" className="transition hover:text-[#B69245]">
+            <Link href="/artikel/cerita-vartana" className="transition hover:text-[#B69245]">
               {t.nav.origin}
-            </a>
+            </Link>
             <a href="#purpose" className="transition hover:text-[#B69245]">
               {t.nav.purpose}
             </a>
-            <a href="/artikel" className="transition hover:text-[#B69245]">
+            <Link href="/games" className="transition hover:text-[#B69245]">Games</Link>
+            <Link href="/artikel" className="transition hover:text-[#B69245]">
               {t.nav.journal}
-            </a>
+            </Link>
           </div>
 
           <div className="storefront-header-actions flex items-center gap-2 sm:gap-3">
@@ -1074,9 +1073,10 @@ export default function Home() {
     </svg>
     <span>{language === "en" ? "Track Order" : "Lacak Pesanan"}</span>
   </button>
-  <a href="/katalog" className="flex shrink-0 items-center rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
+  <Link href="/katalog" className="flex shrink-0 items-center rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
     {t.nav.collection}
-  </a>
+  </Link>
+  <Link href="/games" className="flex shrink-0 items-center rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">Games</Link>
   <a href="#science" className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
     <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
       <path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3" />
@@ -1084,13 +1084,13 @@ export default function Home() {
     </svg>
     <span>{t.nav.science}</span>
   </a>
-  <a href="/artikel/cerita-vartana" className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
+  <Link href="/artikel/cerita-vartana" className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
     <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
       <path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H20v17H7.5A3.5 3.5 0 0 0 4 22z" />
       <path d="M4 5.5V22M8 6h8M8 10h8" />
     </svg>
     <span>{t.nav.origin}</span>
-  </a>
+  </Link>
 </div>
       </nav>
 
@@ -1106,18 +1106,18 @@ export default function Home() {
 </span>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Home</span>
           </a>
-          <a href="/katalog" className="flex flex-col items-center py-1 text-[#16382A]">
+          <Link href="/katalog" className="flex flex-col items-center py-1 text-[#16382A]">
             <StorefrontIcon name="cart"/>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">{t.nav.collection}</span>
-          </a>
+          </Link>
           <button onClick={() => setIsTrackModalOpen(true)} className="flex flex-col items-center py-1 text-[#8E6E2E]">
             <StorefrontIcon name="search"/>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Lacak</span>
           </button>
-          <a href="/artikel/cerita-vartana" className="flex flex-col items-center py-1 text-[#16382A]">
+          <Link href="/artikel/cerita-vartana" className="flex flex-col items-center py-1 text-[#16382A]">
             <StorefrontIcon name="book"/>
             <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">{language === 'id' ? 'Tentang' : 'About'}</span>
-          </a>
+          </Link>
           <button
             onClick={() => {
               setIsCartOpen(true);
@@ -1331,15 +1331,15 @@ export default function Home() {
             </h1>
             <p className="mt-6 max-w-xl text-[14px] leading-relaxed text-[#526158] md:mt-8 md:text-[15px] md:leading-[1.8]">{t.hero.text}</p>
             <div className="storefront-hero-actions mt-8 flex flex-wrap gap-4 md:mt-10">
-              <a href="/katalog" className="rounded-full bg-[#16382A] px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#F6F2E8] transition duration-300 hover:bg-[#214737] shadow-xs">
+              <Link href="/katalog" className="rounded-full bg-[#16382A] px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#F6F2E8] transition duration-300 hover:bg-[#214737] shadow-xs">
                 {t.hero.primary}
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/artikel/cerita-vartana"
                 className="rounded-full border border-[#16382A]/20 bg-white/50 px-8 py-3.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#16382A] transition duration-300 hover:border-[#B69245] hover:text-[#9E7A32]"
               >
                 {t.hero.secondary}
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -1685,7 +1685,7 @@ export default function Home() {
 
         <div className="mx-auto mt-14 flex max-w-7xl flex-col gap-4 border-t border-white/10 pt-8 md:mt-20 md:flex-row md:items-center md:justify-between">
           <p className="text-[10px] tracking-[0.16em] text-white/30">{t.footer.copyright}</p>
-          <div className="flex items-center justify-between gap-4"><span className="text-[9px] uppercase tracking-[0.22em] text-white/25">ROOTED IN EARTH · BUILT FOR GROWTH</span><a href="/admin-access" aria-label="Admin Access" title="Admin Access" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#D8C28B]/30 text-[#D8C28B]/60 transition hover:border-[#D8C28B] hover:bg-[#D8C28B]/10 hover:text-[#D8C28B]"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg></a></div>
+          <div className="flex items-center justify-between gap-4"><span className="text-[9px] uppercase tracking-[0.22em] text-white/25">ROOTED IN EARTH · BUILT FOR GROWTH</span><Link href="/admin-access" aria-label="Admin Access" title="Admin Access" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#D8C28B]/30 text-[#D8C28B]/60 transition hover:border-[#D8C28B] hover:bg-[#D8C28B]/10 hover:text-[#D8C28B]"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg></Link></div>
         </div>
       </footer>
     </main>

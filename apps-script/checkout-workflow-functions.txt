@@ -1,0 +1,26 @@
+// Checkout reads only its customer/order context; member writes update one canonical row.
+function vartanaSaveMember_(data){
+ var phone=puzzlePhone_(data.phone);if(!phone)throw new Error('Nomor WhatsApp member tidak valid.');
+ var lock=LockService.getScriptLock();lock.waitLock(20000);
+ try{
+  var ss=SpreadsheetApp.getActiveSpreadsheet(),sheet=ss.getSheetByName(SHEET_MEMBERS)||ss.insertSheet(SHEET_MEMBERS);
+  if(!sheet.getLastRow())sheet.getRange(1,1,1,8).setValues([['Timestamp','Member ID','Nama','Email','No. WA','Tgl Lahir','Alamat','Kecamatan/Kota']]);
+  var rows=sheet.getDataRange().getValues(),row=-1,old=[];
+  for(var i=1;i<rows.length;i++)if(puzzlePhone_(rows[i][4])===phone){row=i+1;old=rows[i];break;}
+  var memberId=row>0?String(old[1]||'VRT-'+phone):String(data.memberId||'VRT-'+phone);
+  if(row<0&&rows.slice(1).some(function(r){return String(r[1])===memberId&&puzzlePhone_(r[4])!==phone;}))throw new Error('Member ID sudah dipakai nomor lain.');
+  function field(value,previous){if(value===undefined||value===null||String(value).trim()===''||value==='-')return previous||'-';var text=String(value).trim();return /^[=+@-]/.test(text)?"'"+text:text;}
+  var city=data.districtName||data.cityName?String(data.districtName||'')+', '+String(data.cityName||''):old[7];
+  var values=[row>0?old[0]:new Date(),memberId,field(data.name,old[2]),field(data.email,old[3]),phone,field(data.birthDate,old[5]),field(data.addressDetail,old[6]),field(city,old[7])];
+  sheet.getRange(row>0?row:sheet.getLastRow()+1,1,1,8).setValues([values]);
+  return responseJSON({status:'success',success:true,memberId:memberId,updated:row>0});
+ }finally{lock.releaseLock();}
+}
+function getCheckoutContext_(data){
+ var phone=puzzlePhone_(data.phone),key=String(data.orderKey||'');
+ if(!phone||!/^[a-f0-9-]{36}$/i.test(key))throw new Error('Konteks checkout tidak valid.');
+ var ss=SpreadsheetApp.getActiveSpreadsheet(),sheet=ss.getSheetByName(SHEET_MEMBERS),members=[];
+ if(sheet){var rows=sheet.getDataRange().getValues();for(var i=1;i<rows.length;i++)if(puzzlePhone_(rows[i][4])===phone){var city=String(rows[i][7]||'').split(',');members.push({memberId:String(rows[i][1]||''),name:String(rows[i][2]||''),email:String(rows[i][3]||''),phone:phone,addressDetail:String(rows[i][6]||''),districtName:(city[0]||'').trim(),cityName:(city[1]||'').trim()});break;}}
+ var orders=vartanaReadOrders_(ss.getSheetByName(SHEET_ORDERS)).filter(function(order){return order.orderKey===key&&puzzlePhone_(order.phone)===phone;});
+ return responseJSON({success:true,retailOrderVersion:2,orders:orders,members:members});
+}

@@ -1,6 +1,6 @@
 # Promotions dan catatan checkout
 
-Revisi ini belum dipasang ke deployment Google karena sesi clasp kedaluwarsa (`invalid_rapt`). `Code.gs` disiapkan dari sumber Apps Script yang diberikan pengguna. Sebelum push, tarik versi live ke direktori terpisah dan cocokkan perubahan agar revisi di Google tidak tertimpa.
+Backend Games v3 dan perbaikan checkout sudah dipasang pada deployment website yang sama, versi 58 (11 November 2026). Kode live dibandingkan sebelum pemasangan; manifest dan fungsi lain dipertahankan. Panduan game: ../deliverables/PUZZLE-REMPAH.md.
 
 ## Isi tab Promotions
 

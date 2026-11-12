@@ -1,0 +1,11 @@
+// Read only actual SKU rows and the 26 defined product columns. Unrelated cells
+// and far-away formulas must not turn every catalog request into a full-sheet scan.
+function vartanaProductRows_(sheet){
+ var column=sheet.getRange('A2:A');
+ if(typeof column.createTextFinder!=='function')return sheet.getDataRange().getValues();
+ var matches=column.createTextFinder('\\S').useRegularExpression(true).findAll(),indices=matches.map(function(range){return range.getRow();}).sort(function(a,b){return a-b;}),groups=[];
+ indices.forEach(function(row){var last=groups[groups.length-1];if(last&&row<=last.end+20)last.end=row;else groups.push({start:row,end:row});});
+ var columns=Math.min(26,sheet.getMaxColumns()),values=[[]];
+ groups.forEach(function(group){var rows=sheet.getRange(group.start,1,group.end-group.start+1,columns).getValues();rows.forEach(function(row){values.push(row);});});
+ return values;
+}

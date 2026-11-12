@@ -16,7 +16,7 @@
 12. Radio dipasang pada beranda, sehingga mati saat komponen beranda dilepas. Radio dipindah ke root layout yang persisten. Navigasi publik internal memakai Next Link agar halaman tidak reload penuh. Radio dijeda/disembunyikan pada checkout/pembayaran.
 
 13. Smoke test menemukan koneksi Google sesekali menggantung di runtime lokal. Transport Apps Script kini terpisah dari cache fetch halaman, mengikuti redirect Google dengan TLS terverifikasi, meminta identity encoding dan memiliki tenggat. Penyebab tunggal belum dapat dipastikan. Master Products juga dibaca hanya pada baris SKU dan 26 kolom terdefinisi; baris berjauhan tetap ikut dibaca.
-14. Setiap perubahan alamat/kurir membaca ulang produk dan promo. Pratinjau kini menggabungkan pembacaan bersamaan dan memakai data master publik selama 15 detik. Submit pesanan tetap membaca harga/promo terbaru; validasi voucher pribadi tidak masuk cache publik. Permintaan gagal dapat dicoba ulang.
+14. Setiap perubahan alamat/kurir membaca ulang produk dan promo. Pratinjau menggabungkan pembacaan bersamaan dan memakai data master publik selama 60 detik. Submit pesanan tetap membaca harga/promo terbaru; validasi voucher pribadi tidak masuk cache publik. Permintaan gagal dapat dicoba ulang.
 15. Ringkasan menampilkan Rp0 dan menunggu tanpa batas waktu di browser. Kini menampilkan status memuat, membatasi permintaan 25 detik, menyediakan Coba lagi, dan membatalkan hasil lama ketika input berubah. Pembayaran tetap terkunci selama ringkasan belum valid.
 
 ## Validasi dan batas
@@ -36,3 +36,11 @@ Audit berfokus pada alur publik Games, katalog, keranjang, checkout dan radio be
 - TTS ditambahkan dengan tiga tema admin, editor 3–15 jawaban/petunjuk, simulator bersama, tenggat server, ranking, dan pencatatan ke GameAttempts. Respons publik tidak menyertakan jawaban atau bank soal privat.
 - 179 tes lulus dan build produksi lulus. Backend Apps Script versi 59 terverifikasi menyediakan tiga game, 15 produk aktif untuk pilihan bonus admin, dan respons TTS publik tanpa jawaban. Tidak membuat pemain, hadiah, atau pesanan uji di produksi.
 - Pemeriksaan visual pada revisi ini juga terhenti karena alat tidak dapat memverifikasi URL Chrome. Layout responsif sudah diimplementasikan, tetapi interaksi visual desktop/HP belum dapat dikonfirmasi lewat browser.
+
+## Checkout dan radio, revisi lanjutan 12 November
+
+- Radio memindahkan pointer capture dari tombol ke dock saat melewati ambang drag. Peristiwa lostPointerCapture dari tombol memutus drag. Capture kini dipasang pada dock sejak pointer down dan tidak dipindah. Peristiwa milik elemen anak tidak mengakhiri drag. Area tombol juga menonaktifkan gesture scroll/seleksi teks saat drag; tap tetap membuka panel dan panah keyboard tetap bekerja.
+- Pembacaan sebelum submit digabung ke getCheckoutContext(includeMaster): order lama dipulihkan dahulu; order baru menerima master produk/promo segar dalam respons yang sama. Profil yang berubah disimpan bersama order di RPC berikutnya, menggunakan script lock yang sama tanpa nested lock. Submit normal menjadi dua panggilan Apps Script; voucher pribadi masih membutuhkan validasi tambahan.
+- Mengisi provinsi/kota belum memicu quote pengiriman sebelum kecamatan lengkap. Pilihan wilayah memberi indikator memuat. Lookup kode pos memiliki satu tenggat total 6 detik, bukan empat tenggat berurutan; bila gagal, input manual tersedia. Kode pos tidak menghalangi quote ekspedisi.
+- Penyimpanan order di browser memiliki tenggat 45 detik. Jika respons hilang, retry tetap menggunakan Order Key yang sama untuk memulihkan pesanan, bukan membuat order baru.
+- 186 tes lulus. Uji baca backend versi 60 memuat konteks, 15 produk, dan 4 promo dalam 4,2 detik; perhitungan ongkir setelahnya sekitar 0,2 detik. Pengujian simpan order dilakukan pada fixture lokal, tanpa membuat pesanan produksi.

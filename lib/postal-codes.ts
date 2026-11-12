@@ -12,8 +12,8 @@ function matchRegion(rows: Region[], name: string) {
   if (matches.length !== 1) throw new Error("Wilayah belum cocok dengan data kode pos. Silakan isi manual.");
   return matches[0];
 }
-async function regions(path: string): Promise<Region[]> {
-  const response = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/v2/${path}.json`, { cache: "force-cache", next: { revalidate: 86400 }, signal: AbortSignal.timeout(10000) });
+async function regions(path: string,signal:AbortSignal): Promise<Region[]> {
+  const response = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/v2/${path}.json`, { cache: "force-cache", next: { revalidate: 86400 }, signal });
   if (!response.ok) throw new Error("Data kode pos belum bisa dimuat.");
   const body = await response.json();
   if (!Array.isArray(body.data)) throw new Error("Data kode pos tidak valid.");
@@ -31,8 +31,9 @@ export function groupPostalCodes(villages: Region[]): PostalOption[] {
   return [...codes].sort(([a], [b]) => a.localeCompare(b)).map(([code, names]) => ({ code, villages: names.sort() }));
 }
 export async function lookupPostalCodes(provinceName: string, cityName: string, districtName: string) {
-  const province = matchRegion(await regions("provinces"), provinceName);
-  const city = matchRegion(await regions(`regencies/${province.id}`), cityName);
-  const district = matchRegion(await regions(`districts/${city.id}`), districtName);
-  return groupPostalCodes(await regions(`villages/${district.id}`));
+  const signal=AbortSignal.timeout(6000);
+  const province = matchRegion(await regions("provinces",signal), provinceName);
+  const city = matchRegion(await regions(`regencies/${province.id}`,signal), cityName);
+  const district = matchRegion(await regions(`districts/${city.id}`,signal), districtName);
+  return groupPostalCodes(await regions(`villages/${district.id}`,signal));
 }

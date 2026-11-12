@@ -13,7 +13,7 @@ import { PAYMENT_DETAILS } from "@/lib/payment-details";
 import type { PostalOption } from "@/lib/postal-codes";
 
 import {readClientJson} from '@/lib/client-reads';
-import {requestCheckoutQuote} from '@/lib/checkout-client';
+import {requestCheckoutQuote,requestCheckoutOrder} from '@/lib/checkout-client';
 
 type Region = { id: string; name: string };
 const money = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
@@ -21,7 +21,9 @@ const field = "checkout-input mt-2 w-full rounded-xl border border-[#dce1d6] bg-
 const initialCustomer = { name: "", phone: "", email: "", address: "", provinceId: "", provinceName: "", cityId: "", cityName: "", districtId: "", districtName: "", postalCode: "", notes: "" };
 
 function useRegionList(path: string|null, setRows:(rows:Region[])=>void, setError:(message:string)=>void, retry:number){
- useEffect(()=>{if(!path)return;let active=true;setError('');readClientJson<Region[]>('https://www.emsifa.com/api-wilayah-indonesia/api/'+path+'.json',3600000,retry>0).then(rows=>{if(!Array.isArray(rows))throw new Error('Daftar wilayah tidak lengkap.');if(active)setRows(rows);}).catch(()=>{if(active)setError('Daftar wilayah belum bisa dimuat. Coba lagi.');});return()=>{active=false;};},[path,setRows,setError,retry]);
+ const [loading,setLoading]=useState(false);
+ useEffect(()=>{if(!path){setLoading(false);return;}let active=true;setLoading(true);setError('');readClientJson<Region[]>('https://www.emsifa.com/api-wilayah-indonesia/api/'+path+'.json',3600000,retry>0).then(rows=>{if(!Array.isArray(rows))throw new Error('Daftar wilayah tidak lengkap.');if(active)setRows(rows);}).catch(()=>{if(active)setError('Daftar wilayah belum bisa dimuat. Coba lagi.');}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[path,setRows,setError,retry]);
+ return loading;
 }
 
 export default function CheckoutPage() {
@@ -70,19 +72,20 @@ export default function CheckoutPage() {
   }, [cart, ready]);
   useEffect(()=>{if(!ready)return;const timer=window.setTimeout(()=>sessionStorage.setItem("vartana_checkout_draft",JSON.stringify(customer)),250);return()=>window.clearTimeout(timer);},[customer,ready]);
 
-  useRegionList(ready?'provinces':null,setProvinces,setRegionError,regionRetry);
-  useRegionList(ready&&customer.provinceId?'regencies/'+customer.provinceId:null,setCities,setRegionError,regionRetry);
-  useRegionList(ready&&customer.cityId?'districts/'+customer.cityId:null,setDistricts,setRegionError,regionRetry);
+  const provincesLoading=useRegionList(ready?'provinces':null,setProvinces,setRegionError,regionRetry);
+  const citiesLoading=useRegionList(ready&&customer.provinceId?'regencies/'+customer.provinceId:null,setCities,setRegionError,regionRetry);
+  const districtsLoading=useRegionList(ready&&customer.cityId?'districts/'+customer.cityId:null,setDistricts,setRegionError,regionRetry);
 
   const quotePhone=promoCode.toUpperCase().includes('PUZ-')?normalizeWhatsApp(customer.phone)||'':'';
   const itemsKey = JSON.stringify(cart.map(item => ({ sku: item.selectedVariant.sku!, quantity: item.quantity })));
+  const quoteDestination=customer.districtId?JSON.stringify({districtId:customer.districtId,provinceName:customer.provinceName,cityName:customer.cityName,districtName:customer.districtName}):'{}';
   useEffect(() => {
     const controller = new AbortController();
     setPostalOptions([]); setPostalError(""); setManualPostal(false);
     if (!customer.districtId) { setPostalLoading(false); return; }
     setPostalLoading(true);
     const params = new URLSearchParams({ province: customer.provinceName, city: customer.cityName, district: customer.districtName });
-    fetch(`/api/postal-codes?${params}`, { signal: controller.signal }).then(async response => {
+    fetch(`/api/postal-codes?${params}`, { signal: AbortSignal.any([controller.signal,AbortSignal.timeout(7000)]) }).then(async response => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
       const options: PostalOption[] = data.options || [];
@@ -100,13 +103,13 @@ export default function CheckoutPage() {
     setLoading(true); setError("");
     const timer = window.setTimeout(async () => {
       try {
-        const data = await requestCheckoutQuote({ items: JSON.parse(itemsKey), promoCode, phone: quotePhone, orderKey, districtId: customer.districtId, provinceName: customer.provinceName, cityName:customer.cityName,districtName:customer.districtName, shippingService },controller.signal);
+        const data = await requestCheckoutQuote({ items: JSON.parse(itemsKey), promoCode, phone: quotePhone, orderKey, ...JSON.parse(quoteDestination), shippingService },controller.signal);
         if(!controller.signal.aborted)setQuote(data);
       } catch (error) { if (!controller.signal.aborted) { setQuote(null); setError(error instanceof Error ? error.message : "Ringkasan belum bisa dimuat."); } }
       finally { if (!controller.signal.aborted) setLoading(false); }
     }, 250);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [ready, itemsKey, promoCode, quotePhone, orderKey, customer.districtId, customer.provinceName,customer.cityName,customer.districtName, shippingService, retry, receipt, cart.length]);
+  }, [ready, itemsKey, promoCode, quotePhone, orderKey, quoteDestination, shippingService, retry, receipt, cart.length]);
 
   function quantity(sku: string, delta: number) {
     setCart(previous => previous.map(item => item.selectedVariant.sku === sku ? { ...item, quantity: item.quantity + delta } : item).filter(item => item.quantity > 0));
@@ -131,10 +134,9 @@ export default function CheckoutPage() {
     if (!normalizeWhatsApp(customer.phone)) { setOrderError("Nomor WhatsApp wajib diisi dengan nomor aktif, contoh 081234567890."); return; }
     orderSubmitting.current=true;setSaving(true); setOrderError("");
     try {
-      const r = await fetch("/api/checkout/order", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+      const data = await requestCheckoutOrder({
         items: JSON.parse(itemsKey), customer, promoCode, shippingService: quote.shipping.id, expectedTotal: quote.total, orderKey, paymentMethod,
-      }) });
-      const data = await r.json(); if (!r.ok) throw new Error(data.message);
+      });
       sessionStorage.setItem(`vartana_receipt_${orderKey}`, JSON.stringify(data));
       writeCart([]); setReceipt(data); setPaymentView(data.paymentMethod || "bank_transfer");
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -169,9 +171,9 @@ export default function CheckoutPage() {
         <div className="checkout-main-column space-y-6">
           <section className="rounded-3xl border border-[#dedfd2] bg-white p-6 sm:p-8"><div className="mb-6 flex items-center justify-between"><h2 className="font-serif text-2xl">Pilihanmu</h2><span className="text-xs text-[#7b866f]">{cart.reduce((sum,item) => sum + item.quantity,0)} produk</span></div><div className="divide-y divide-[#ecece2]">{(quote?.lines || cart.map(item => ({ sku: item.selectedVariant.sku!, quantity: item.quantity, name: item.product.name, variant: item.selectedVariant.size, image: item.selectedVariant.image || item.product.image || "", price: item.selectedVariant.priceValue }))).map(item => <div key={item.sku} className="checkout-product-row flex gap-4 py-5 first:pt-0"><ProductImage src={item.image} alt={item.name} className="checkout-product-photo h-24 w-24 shrink-0 rounded-2xl bg-[#f6f3ec] p-2 sm:h-28 sm:w-28" /><div className="min-w-0 flex-1"><h3 className="font-serif text-lg">{item.name}</h3><p className="mt-1 text-xs text-[#7b866f]">{item.variant}</p><p className="mt-2 text-sm font-semibold">{money(item.price)}</p><div className="checkout-quantity mt-3 inline-flex items-center gap-4 rounded-full border border-[#dce0d4] px-3 py-1"><button type="button" aria-label={`Kurangi ${item.name}`} onClick={() => quantity(item.sku,-1)}>−</button><span key={item.quantity} className="checkout-quantity-value text-xs">{item.quantity}</span><button type="button" aria-label={`Tambah ${item.name}`} disabled={item.quantity >= 999} onClick={() => quantity(item.sku,1)}>+</button></div></div></div>)}</div>{!!quote?.rewardLines.length && <div className="checkout-rewards"><p className="checkout-section-eyebrow">Keuntungan pilihanmu</p>{quote.rewardLines.map((item,index)=><div key={item.promoCode+'-'+index} className="checkout-reward"><ProductImage src={item.image} alt={item.name} className="h-16 w-16 shrink-0 rounded-xl bg-[#fffdf7] p-2"/><div className="min-w-0 flex-1"><span className="checkout-reward-tag">{item.kind==='redeem'?'TEBUS MURAH':'HADIAH GRATIS'} / {item.promoCode}</span><p className="mt-1 text-sm font-medium">{item.name}</p><p className="mt-1 text-xs text-[#6d795e]">{item.quantity} &times; {item.variant}</p></div><span className="text-sm font-semibold">{item.price?money(item.price*item.quantity):'Gratis'}</span></div>)}</div>}</section>
           <section className="rounded-3xl border border-[#dedfd2] bg-white p-6 sm:p-8"><span className="checkout-section-eyebrow">01 / The destination</span><h2 className="font-serif text-2xl">Tujuan pengiriman</h2><p className="mt-2 text-xs leading-6 text-[#7b866f]">Pastikan alamat dan nomor WhatsApp bisa dihubungi.</p><div className="mt-6 grid gap-5 sm:grid-cols-2">{([['name','Nama lengkap','text'],['phone','Nomor WhatsApp','tel'],['email','Email','email']] as const).map(([key,label,type]) => <label key={key} className={`text-xs font-medium ${key === 'email' ? 'sm:col-span-2' : ''}`}>{label}{key === "phone" && " (wajib)"}<input required maxLength={key === "phone" ? 20 : undefined} title={key === "phone" ? "Isi nomor WhatsApp aktif, contoh 081234567890" : undefined} type={type} autoComplete={key === 'name' ? 'name' : key === 'phone' ? 'tel' : 'email'} value={customer[key]} onChange={e => setCustomer(prev => ({...prev,[key]:e.target.value}))} className={field} /></label>)}
-            <label className="text-xs font-medium">Provinsi<select required value={customer.provinceId} onChange={e => { const region=provinces.find(r=>r.id===e.target.value); setCustomer(prev=>({...prev,provinceId:region?.id||"",provinceName:region?.name||"",cityId:"",cityName:"",districtId:"",districtName:"",postalCode:""}));setCities([]);setDistricts([]);setShippingService(""); }} className={field}><option value="">Pilih provinsi</option>{provinces.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
-            <label className="text-xs font-medium">Kota / Kabupaten<select required disabled={!customer.provinceId} value={customer.cityId} onChange={e => {const region=cities.find(r=>r.id===e.target.value);setCustomer(prev=>({...prev,cityId:region?.id||"",cityName:region?.name||"",districtId:"",districtName:"",postalCode:""}));setDistricts([]);setShippingService("");}} className={field}><option value="">Pilih kota</option>{cities.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
-            <label className="text-xs font-medium">Kecamatan<select required disabled={!customer.cityId} value={customer.districtId} onChange={e=>{const region=districts.find(r=>r.id===e.target.value);setCustomer(prev=>({...prev,districtId:region?.id||"",districtName:region?.name||"",postalCode:""}));setShippingService("");}} className={field}><option value="">Pilih kecamatan</option>{districts.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
+            <label className="text-xs font-medium">Provinsi<select required disabled={provincesLoading} value={customer.provinceId} onChange={e => { const region=provinces.find(r=>r.id===e.target.value); setCustomer(prev=>({...prev,provinceId:region?.id||"",provinceName:region?.name||"",cityId:"",cityName:"",districtId:"",districtName:"",postalCode:""}));setCities([]);setDistricts([]);setShippingService(""); }} className={field}><option value="">{provincesLoading?"Memuat provinsi...":"Pilih provinsi"}</option>{provinces.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
+            <label className="text-xs font-medium">Kota / Kabupaten<select required disabled={!customer.provinceId||citiesLoading} value={customer.cityId} onChange={e => {const region=cities.find(r=>r.id===e.target.value);setCustomer(prev=>({...prev,cityId:region?.id||"",cityName:region?.name||"",districtId:"",districtName:"",postalCode:""}));setDistricts([]);setShippingService("");}} className={field}><option value="">{citiesLoading?"Memuat kota...":"Pilih kota"}</option>{cities.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
+            <label className="text-xs font-medium">Kecamatan<select required disabled={!customer.cityId||districtsLoading} value={customer.districtId} onChange={e=>{const region=districts.find(r=>r.id===e.target.value);setCustomer(prev=>({...prev,districtId:region?.id||"",districtName:region?.name||"",postalCode:""}));setShippingService("");}} className={field}><option value="">{districtsLoading?"Memuat kecamatan...":"Pilih kecamatan"}</option>{districts.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
             <label className="text-xs font-medium">Kode pos
               {manualPostal ? <input required inputMode="numeric" pattern="[0-9]{5}" maxLength={5} value={customer.postalCode} onChange={e=>setCustomer(prev=>({...prev,postalCode:e.target.value.replace(/\D/g,'')}))} className={field} placeholder="5 digit kode pos" />
                 : <select required disabled={!customer.districtId||postalLoading} value={customer.postalCode} onChange={e=>{if(e.target.value==='manual'){setManualPostal(true);setCustomer(prev=>({...prev,postalCode:''}));}else setCustomer(prev=>({...prev,postalCode:e.target.value}));}} className={field}><option value="">{postalLoading?'Memuat kode pos...':!customer.districtId?'Pilih kecamatan dulu':'Pilih kode pos / kelurahan'}</option>{postalOptions.map(option=><option key={option.code} value={option.code}>{option.code} - {option.villages.join(', ')}</option>)}<option value="manual">Kode pos lain / isi manual</option></select>}
@@ -180,7 +182,7 @@ export default function CheckoutPage() {
             </label>
             <label className="text-xs font-medium sm:col-span-2">Alamat lengkap<textarea required rows={3} autoComplete="street-address" value={customer.address} onChange={e=>setCustomer(prev=>({...prev,address:e.target.value}))} placeholder="Jalan, nomor rumah, RT/RW, dan patokan" className={field} /></label>
             <label className="text-xs font-medium sm:col-span-2">Catatan pesanan <span className="font-normal text-[#899282]">(opsional)</span><textarea rows={2} maxLength={500} value={customer.notes} onChange={e=>setCustomer(prev=>({...prev,notes:e.target.value}))} className={field}/></label></div>{regionError && <p role="alert" className="mt-4 text-xs text-red-700">{regionError} <button type="button" className="underline" onClick={()=>setRegionRetry(v=>v+1)}>Muat ulang</button></p>}</section>
-          <section className="rounded-3xl border border-[#dedfd2] bg-white p-6 sm:p-8"><span className="checkout-section-eyebrow">02 / Delivered with care</span><h2 className="font-serif text-2xl">Layanan pengiriman</h2>{loading && customer.districtId && <p role="status" className="checkout-shipping-loading">Memperbarui pilihan pengiriman?</p>}{!customer.districtId ? <p className="mt-4 text-sm text-[#7b866f]">Pilih kecamatan untuk melihat ongkir.</p> : <div className="mt-5 space-y-3">{quote?.rates.map(rate=><label key={rate.id} className={`checkout-rate flex cursor-pointer items-center gap-3 rounded-2xl border p-4 ${quote.shipping?.id===rate.id?'border-[#8a9e7c] bg-[#f7f8f1]':'border-[#e5e7dc]'}`}><input type="radio" name="courier" checked={quote.shipping?.id===rate.id} onChange={()=>setShippingService(rate.id)} className="accent-[#173b2b]"/><span className="flex-1 text-sm">{rate.name}<span className="mt-1 block text-xs text-[#7b866f]">{rate.duration}{rate.estimated?' · Tarif estimasi':''}</span></span><span className="text-sm font-semibold">{money(rate.price)}</span></label>)}</div>}</section>
+          <section className="rounded-3xl border border-[#dedfd2] bg-white p-6 sm:p-8"><span className="checkout-section-eyebrow">02 / Delivered with care</span><h2 className="font-serif text-2xl">Layanan pengiriman</h2>{loading && customer.districtId && <p role="status" className="checkout-shipping-loading">Memperbarui pilihan pengiriman...</p>}{!customer.districtId ? <p className="mt-4 text-sm text-[#7b866f]">Pilih kecamatan untuk melihat ongkir.</p> : <div className="mt-5 space-y-3">{quote?.rates.map(rate=><label key={rate.id} className={`checkout-rate flex cursor-pointer items-center gap-3 rounded-2xl border p-4 ${quote.shipping?.id===rate.id?'border-[#8a9e7c] bg-[#f7f8f1]':'border-[#e5e7dc]'}`}><input type="radio" name="courier" checked={quote.shipping?.id===rate.id} onChange={()=>setShippingService(rate.id)} className="accent-[#173b2b]"/><span className="flex-1 text-sm">{rate.name}<span className="mt-1 block text-xs text-[#7b866f]">{rate.duration}{rate.estimated?' · Tarif estimasi':''}</span></span><span className="text-sm font-semibold">{money(rate.price)}</span></label>)}</div>}</section>
         </div>
         <aside className="checkout-aside space-y-5">
           <section className="rounded-3xl border border-[#dedfd2] bg-white p-6"><h2 className="font-serif text-2xl">Metode pembayaran</h2><div className="mt-5 space-y-3">{[["bank_transfer","Transfer BCA"],["qris","QRIS"]].map(([value,label])=><label key={value} className="flex cursor-pointer gap-3 rounded-xl border border-[#dedfd2] p-4 text-sm"><input required type="radio" name="paymentMethod" value={value} checked={paymentMethod === value} onChange={()=>setPaymentMethod(value)}/>{label}</label>)}</div><p className="mt-3 text-xs text-[#657565]">Pembayaran diverifikasi oleh admin.</p></section>

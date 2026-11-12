@@ -30,14 +30,16 @@ export async function POST(req: Request) {
         if(normalizeWhatsApp(existing.phone)!==phone)throw new Error('Pesanan ini tercatat untuk nomor lain.');
         return {serial:existing.orderSerial,total:Number(existing.grandTotal),paymentMethod:existing.paymentMethod||paymentMethod,details:existing};
       }
-      const quote = await checkoutQuote({ ...body, phone, districtId: customer.districtId, provinceName: customer.provinceName,cityName:customer.cityName,districtName:customer.districtName });
+      const quote = await checkoutQuote({ ...body, phone, districtId: customer.districtId, provinceName: customer.provinceName,cityName:customer.cityName,districtName:customer.districtName },{masterData:Array.isArray(data.products)&&Array.isArray(data.promotions)?{master:data.products,promoData:{promotions:data.promotions}}:undefined});
       if(quote.destination?.verified){customer.cityName=quote.destination.cityName;customer.provinceName=quote.destination.provinceName;customer.districtName=quote.destination.districtName;}
       if (!quote.shipping || quote.promoError) throw new Error(quote.promoError || "Pilih layanan pengiriman.");
       if (body.expectedTotal !== quote.total || body.shippingService !== quote.shipping.id) throw new Error("Harga atau ongkir berubah. Periksa ringkasan terbaru sebelum melanjutkan.");
       if (data.retailOrderVersion !== 2) throw new Error("Sistem nomor order sedang diperbarui. Admin perlu deploy Apps Script versi terbaru sebelum checkout dilanjutkan.");
       const knownMember = (data.members || []).find((m: {phone: string}) => normalizeWhatsApp(String(m.phone)) === phone);
       let memberId = knownMember?.memberId || `VRT-${phone}`;
-      if(!knownMember||knownMember.name!==customer.name||knownMember.email!==customer.email||knownMember.addressDetail!==customer.address||knownMember.districtName!==customer.districtName||knownMember.cityName!==customer.cityName){
+      const profileChanged=!knownMember||knownMember.name!==customer.name||knownMember.email!==customer.email||knownMember.addressDetail!==customer.address||knownMember.districtName!==customer.districtName||knownMember.cityName!==customer.cityName;
+      const memberProfile={memberId,name:customer.name,email:customer.email,phone:customer.phone,addressDetail:customer.address,districtName:customer.districtName,cityName:customer.cityName};
+      if(profileChanged&&data.checkoutWorkflowVersion!==3){
         const member = await requestMasterScript("saveMember", { memberId, name: customer.name, email: customer.email, phone: customer.phone, addressDetail: customer.address, districtName: customer.districtName, cityName: customer.cityName });
         if (member.status !== "success" && member.success !== true) throw new Error("Data pelanggan belum tersimpan.");
         memberId=member.memberId||memberId;
@@ -45,6 +47,7 @@ export async function POST(req: Request) {
       const summary = quote.lines.map(line => `${line.name} [${line.variant}] (${line.quantity}x)`).join(", ");
       const rewardSummary = quote.rewardLines.map(line=>`${line.kind==='redeem'?'TEBUS MURAH':'GRATIS'} ${line.name} [${line.variant}] (${line.quantity}x @Rp${line.price}) [${line.promoCode}]`).join(", ");
       const orderDetails = {
+        ...(profileChanged&&data.checkoutWorkflowVersion===3?{memberProfile}:{}),
         inventoryItems: [...quote.lines,...quote.rewardLines].map(line=>({sku:line.sku,quantity:line.quantity})),
         paymentMethod, orderKey, orderSerial: serial, memberId, customerName: customer.name, phone: customer.phone, email: customer.email,
         addressDetail: `${customer.address}, ${customer.districtName}, ${customer.cityName}, ${customer.provinceName}${customer.postalCode ? ` ${customer.postalCode}` : ""}`,

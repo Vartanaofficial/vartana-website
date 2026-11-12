@@ -3116,6 +3116,13 @@ function saveRetailOrderWithPromo_(data) {
       if(puzzleCode.length!==1||String(data.promoCode)!==puzzleCode[0]||!orderKey)throw new Error('Voucher puzzle digunakan sendiri pada satu pesanan.');
       gamesValidateRedemption_(puzzleVoucher_(puzzleCode[0],data.phone,orderKey),data);
     }
+    // Save a changed customer profile in this same RPC, under the existing lock.
+    if(data.memberProfile){
+      if(puzzlePhone_(data.memberProfile.phone)!==puzzlePhone_(data.phone))throw new Error('Profil member tidak sesuai nomor pesanan.');
+      var memberResult=vartanaSaveMember_(data.memberProfile,true),memberSaved=memberResult&&memberResult.getContent?JSON.parse(memberResult.getContent()):memberResult;
+      if(!memberSaved||memberSaved.success!==true)throw new Error('Profil pelanggan belum tersimpan.');
+      data.memberId=memberSaved.memberId;
+    }
     // Save redemption and idempotency keys in the same row as the order itself.
     var atomicCols=checkoutColumns_(sheet,['Order Key','Puzzle Voucher Code']);
     var orderRow=[new Date(),serial,data.memberId||'-',data.customerName||'-',String(data.phone),data.email||'-',data.addressDetail||'-',data.sku||'-',data.itemsSummary||'-',subtotal,original,subsidy,shipping,total,'MENUNGGU PEMBAYARAN','-'];
@@ -3788,9 +3795,9 @@ function saveBatchRevision_(data){
 }
 
 // Checkout reads only its customer/order context; member writes update one canonical row.
-function vartanaSaveMember_(data){
+function vartanaSaveMember_(data,alreadyLocked){
  var phone=puzzlePhone_(data.phone);if(!phone)throw new Error('Nomor WhatsApp member tidak valid.');
- var lock=LockService.getScriptLock();lock.waitLock(20000);
+ var lock=alreadyLocked?null:LockService.getScriptLock();if(lock)lock.waitLock(20000);
  try{
   var ss=SpreadsheetApp.getActiveSpreadsheet(),sheet=ss.getSheetByName(SHEET_MEMBERS)||ss.insertSheet(SHEET_MEMBERS);
   if(!sheet.getLastRow())sheet.getRange(1,1,1,8).setValues([['Timestamp','Member ID','Nama','Email','No. WA','Tgl Lahir','Alamat','Kecamatan/Kota']]);
@@ -3803,7 +3810,7 @@ function vartanaSaveMember_(data){
   var values=[row>0?old[0]:new Date(),memberId,field(data.name,old[2]),field(data.email,old[3]),phone,field(data.birthDate,old[5]),field(data.addressDetail,old[6]),field(city,old[7])];
   sheet.getRange(row>0?row:sheet.getLastRow()+1,1,1,8).setValues([values]);
   return responseJSON({status:'success',success:true,memberId:memberId,updated:row>0});
- }finally{lock.releaseLock();}
+ }finally{if(lock)lock.releaseLock();}
 }
 function getCheckoutContext_(data){
  var phone=puzzlePhone_(data.phone),key=String(data.orderKey||'');
@@ -3811,7 +3818,9 @@ function getCheckoutContext_(data){
  var ss=SpreadsheetApp.getActiveSpreadsheet(),sheet=ss.getSheetByName(SHEET_MEMBERS),members=[];
  if(sheet){var rows=sheet.getDataRange().getValues();for(var i=1;i<rows.length;i++)if(puzzlePhone_(rows[i][4])===phone){var city=String(rows[i][7]||'').split(',');members.push({memberId:String(rows[i][1]||''),name:String(rows[i][2]||''),email:String(rows[i][3]||''),phone:phone,addressDetail:String(rows[i][6]||''),districtName:(city[0]||'').trim(),cityName:(city[1]||'').trim()});break;}}
  var orders=vartanaReadOrders_(ss.getSheetByName(SHEET_ORDERS)).filter(function(order){return order.orderKey===key&&puzzlePhone_(order.phone)===phone;});
- return responseJSON({success:true,retailOrderVersion:2,orders:orders,members:members});
+ var result={success:true,retailOrderVersion:2,checkoutWorkflowVersion:3,orders:orders,members:members};
+ if(data.includeMaster===true&&!orders.length){result.products=getProducts();result.promotions=getPromotions();}
+ return responseJSON(result);
 }
 
 // Read only actual SKU rows and the 26 defined product columns. Unrelated cells

@@ -145,3 +145,6 @@ Pemilik tetap mengatur dan menyalakan/mematikan promo di /admin/promos. Aturan c
 Gratis ongkir Jabodetabek dapat otomatis tanpa kode setelah alamat diverifikasi, dengan minimum dan batas subsidi pilihan admin. Mengganti alamat menghitung ulang promo. Kepulauan Seribu tidak termasuk cakupan.
 Beli 2 Box gratis 1 Jar mendukung gabungan SKU box yang dicentang; pilih SKU jar hadiah dari master.
 Deploy kode lengkap sebagai New version pada deployment yang sama. Tidak perlu Setup Master. Panduan: deliverables/PANDUAN-PROMO.md.
+
+CHECKOUT WORKFLOW V3 - 12 November 2026
+getCheckoutContext menerima includeMaster untuk membaca harga/promo segar bersama konteks customer/order. Profil yang berubah disimpan dalam RPC saveOrder melalui memberProfile, di bawah lock order yang sama. Deployment versi 60 sudah aktif pada URL Web app website yang sama. Order Key dan pemakaian hadiah tetap idempotent.

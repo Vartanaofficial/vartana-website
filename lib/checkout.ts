@@ -5,6 +5,7 @@ import { decodeCheckoutPromos, promoInPeriod } from "./checkout-promos";
 import { evaluatePromoStack } from "./promo-stack";
 import { puzzleRequest } from './puzzle-server';
 import {gameRewardPromo} from './game-reward';
+import type {MasterProduct} from './store-catalog';
 
 export type CheckoutItem = { sku: string; quantity: number };
 export type CheckoutInput = { items: CheckoutItem[]; promoCode?: string; phone?: string; orderKey?: string; districtId?: string; provinceName?: string; cityName?:string; districtName?:string; shippingService?: string };
@@ -27,9 +28,9 @@ async function shippingRates(districtId: string, provinceName: string, weight: n
   return [{ id: "jnt-ez", name: "J&T EZ", price: price * Math.max(1, Math.ceil(weight / 1000)), duration: "2–5 hari", estimated: true }, { id: "jne-reg", name: "JNE REG", price: (price - 1000) * Math.max(1, Math.ceil(weight / 1000)), duration: "2–5 hari", estimated: true }];
 }
 
-export async function checkoutQuote(input: CheckoutInput,options:{freshMaster?:boolean}={}) {
+export async function checkoutQuote(input: CheckoutInput,options:{freshMaster?:boolean;masterData?:{master:MasterProduct[];promoData:{promotions:Record<string,unknown>[]}}}={}) {
   if (!Array.isArray(input.items) || !input.items.length || input.items.length > 100) throw new Error("Keranjang masih kosong atau tidak valid.");
-  const {master,promoData} = await readCheckoutMaster(options.freshMaster!==false);
+  const {master,promoData} = options.masterData||await readCheckoutMaster(options.freshMaster!==false);
   const catalog = buildStoreCatalog(master);
   const seen = new Set<string>();
   const lines = input.items.map(item => {

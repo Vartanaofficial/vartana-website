@@ -14,6 +14,6 @@ export function readCheckoutMaster(fresh=true){
  if(cached&&cached.source===source&&cached.expires>Date.now())return cached.promise;
  const entry={source,expires:Infinity,promise:read()};
  cached=entry;
- entry.promise.then(()=>{entry.expires=Date.now()+15000;},()=>{if(cached===entry)cached=undefined;});
+ entry.promise.then(()=>{entry.expires=Date.now()+60000;},()=>{if(cached===entry)cached=undefined;});
  return entry.promise;
 }

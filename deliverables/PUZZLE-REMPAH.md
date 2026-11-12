@@ -46,7 +46,7 @@ Waktu dan hasil diperiksa server. Identitas berupa data yang diisi pemain, belum
 
 ## Status pemasangan
 
-Backend website sudah diperbarui ke versi 59 pada 12 November 2026. Endpoint live mengembalikan gamesVersion: 3 dan permintaan status bertanda tangan berhasil. Tidak membuat peserta, order, atau voucher uji pada spreadsheet produksi. Langkah berikut untuk pemasangan ulang di masa depan.
+Backend website sudah diperbarui ke versi 60 pada 12 November 2026. Endpoint live mengembalikan gamesVersion: 3 dan permintaan status bertanda tangan berhasil. Tidak membuat peserta, order, atau voucher uji pada spreadsheet produksi. Langkah berikut untuk pemasangan ulang di masa depan.
 
 Revisi 12 November menambahkan hadiah yang dapat diatur, TTS, dan arena puzzle responsif. Untuk pengembangan backend: setelah mengedit lib/crossword.ts atau fragmen Games, jalankan `node scripts/sync-games-backend.cjs`. Mesin TTS di Apps Script dan file TXT lengkap diperbarui dari sumber yang sama.
 

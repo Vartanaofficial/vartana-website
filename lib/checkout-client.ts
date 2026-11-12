@@ -1,4 +1,15 @@
 import type {CheckoutInput,CheckoutQuote} from './checkout';
+import type {CheckoutReceipt} from './order-confirmation';
+
+export async function requestCheckoutOrder(body:unknown,timeoutMs=45000):Promise<CheckoutReceipt>{
+ try{
+  const response=await fetch('/api/checkout/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
+  const data=await response.json();if(!response.ok)throw new Error(data.message||'Pesanan belum tersimpan.');return data;
+ }catch(error){
+  if(error instanceof Error&&['TimeoutError','AbortError'].includes(error.name))throw new Error('Respons penyimpanan terlalu lama. Tekan Coba lagi untuk memeriksa pesanan yang sama; jangan membuat pesanan baru.');
+  throw error;
+ }
+}
 
 export async function requestCheckoutQuote(input:CheckoutInput,signal:AbortSignal,timeoutMs=25000):Promise<CheckoutQuote>{
  const controller=new AbortController();

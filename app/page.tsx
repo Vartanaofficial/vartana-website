@@ -77,18 +77,18 @@ const content = {
   "id": {
     "nav": {
       "philosophy": "Filosofi",
-      "collection": "Katalog",
+      "collection": "Belanja",
       "science": "Kenali Rempah",
       "origin": "Tentang VARTANA",
       "purpose": "Tujuan",
-      "journal": "Jurnal"
+      "journal": "Artikel"
     },
     "hero": {
       "eyebrow": "VARTANA · BOTANICAL WELLNESS",
       "title": "Seduhan rempah,",
       "accent": "teman di sela harimu.",
       "text": "VARTANA meracik teh herbal dari rempah Indonesia dalam tea bag yang praktis diseduh. Dari bahan yang akrab, kami menghadirkan hangatnya jeda untuk keseharianmu.",
-      "primary": "Lihat Katalog",
+      "primary": "Mulai Belanja",
       "secondary": "Tentang VARTANA"
     },
     "philosophy": {
@@ -123,13 +123,13 @@ const content = {
     "science": {
       "eyebrow": "KENALI BAHANNYA",
       "title": "Lebih dekat dengan rempah.",
-      "text": "Pilih bahan untuk membaca informasi dan referensi yang tersedia. Penelitian tentang bahan tidak sama dengan pengujian produk VARTANA.",
+      "text": "Kenali setiap bahan dan baca referensi jurnal penelitiannya. Penelitian tentang bahan tidak sama dengan pengujian produk VARTANA.",
       "cardBadge": "BAHAN REMPAH",
       "cardLink": "Baca tentang bahan",
       "modalActive": "Kandungan Aktif Utama:",
       "modalBenefits": "Informasi manfaat bahan:",
       "modalRelieves": "Informasi penggunaan:",
-      "modalJournalHeading": "Referensi penelitian:",
+      "modalJournalHeading": "Referensi jurnal penelitian:",
       "modalReadOfficial": "Buka publikasi",
       "modalClose": "Tutup"
     },
@@ -163,7 +163,7 @@ const content = {
       "button": "Baca cerita VARTANA"
     },
     "journal": {
-      "eyebrow": "JURNAL VARTANA",
+      "eyebrow": "ARTIKEL VARTANA",
       "title": "Cerita dan catatan dari kami.",
       "text": "Tentang bahan, pilihan racikan, dan kabar VARTANA. Setiap artikel punya halaman sendiri yang bisa kamu baca dan bagikan.",
       "button": "Lihat semua artikel"
@@ -946,9 +946,9 @@ export default function Home() {
       {/* NAVBAR TOP DESKTOP & MOBILE HEADER */}
       <nav className="storefront-header sticky top-0 z-40 border-b border-[#B69245]/15 bg-[#F6F2E8]/90 backdrop-blur-xl transition-all">
         <div className="storefront-header-row mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <a href="#home" className="flex items-center gap-3 transition hover:opacity-85">
+          <Link href="/" aria-label="Beranda VARTANA" className="flex items-center gap-3 transition hover:opacity-85">
             <img src="/Logo Vartana.png" alt="VARTANA Botanical Wellness" className="h-9 w-auto object-contain md:h-12" />
-          </a>
+          </Link>
 
           {/* MENU DESKTOP */}
           <div className="storefront-desktop-links hidden items-center gap-8 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#526158] xl:flex">
@@ -964,9 +964,6 @@ export default function Home() {
             <Link href="/artikel/cerita-vartana" className="transition hover:text-[#B69245]">
               {t.nav.origin}
             </Link>
-            <a href="#purpose" className="transition hover:text-[#B69245]">
-              {t.nav.purpose}
-            </a>
             <Link href="/games" className="transition hover:text-[#B69245]">Games</Link>
             <Link href="/artikel" className="transition hover:text-[#B69245]">
               {t.nav.journal}
@@ -1446,7 +1443,7 @@ export default function Home() {
       </section>
 
       {/* VARTANA STORY */}
-      <section id="origin" className="bg-[#FBF9F4] px-6 py-20 md:py-32 border-b border-[#B69245]/20"><div className="storefront-story-preview mx-auto max-w-7xl"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#92773c]">{t.origin.eyebrow}</p><h2 className="mt-4 font-serif text-3xl md:text-5xl">{t.origin.title}</h2><p className="mt-5 text-sm leading-7 text-[#617163]">{t.origin.intro}</p><Link className="mt-6 inline-flex min-h-11 items-center rounded-full bg-[#173d2b] px-6 py-3 text-xs text-white" href="/artikel/cerita-vartana">{t.origin.button}</Link></div><img loading="lazy" src="/vartana-spices-hero.jpg" alt={language==='id'?'Rempah yang akrab dalam keseharian':'Familiar everyday spices'} /></div></section>
+      <section id="origin" className="bg-[#FBF9F4] px-6 py-20 md:py-32 border-b border-[#B69245]/20"><div className="storefront-story-preview mx-auto max-w-7xl"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#92773c]">{t.origin.eyebrow}</p><h2 className="mt-4 font-serif text-3xl md:text-5xl">{t.origin.title}</h2><p className="mt-5 text-sm leading-7 text-[#617163]">{t.origin.intro}</p><Link className="mt-6 inline-flex min-h-11 items-center rounded-full bg-[#173d2b] px-6 py-3 text-xs text-white" href="/artikel/cerita-vartana">{t.origin.button}</Link></div><img loading="lazy" src="/vartana-spices-hero.jpg" alt={language==='id'?'Rempah yang akrab dalam keseharian':'Familiar everyday spices'} /></div>
 
       {/* PURPOSE */}
       <section id="purpose" className="bg-[#FBF9F4] px-6 py-20 md:py-32">
@@ -1469,6 +1466,8 @@ export default function Home() {
             <p className="font-serif text-xl leading-relaxed text-[#8E6E2E] md:text-3xl">{t.purpose.closing}</p>
           </div>
         </div>
+      </section>
+
       </section>
 
       {/* JOURNAL */}

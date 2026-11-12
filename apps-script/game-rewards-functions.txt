@@ -1,0 +1,30 @@
+// Immutable reward terms: existing codes keep their original reward forever.
+function gamesDefaultReward_(){return {type:'nominal',value:20000,sku:'',quantity:1,days:7,minSpend:0,maxDiscount:0};}
+function gamesRewardFromRow_(r){var reward=r[5]?JSON.parse(String(r[5])):gamesDefaultReward_();return {code:String(r[0]),value:reward.value,expiresAt:new Date(r[4]).toISOString(),reward:reward};}
+function gamesReward_(a,issue){
+ var sheet=puzzleSheets_().vouchers,rows=sheet.getDataRange().getValues();
+ for(var i=1;i<rows.length;i++)if(String(rows[i][1])===a.phone||String(rows[i][2])===a.playerId)return gamesRewardFromRow_(rows[i]);
+ var reward=a.settings&&a.settings.reward||gamesDefaultReward_();
+ if(!issue||reward.type==='none')return null;
+ var voucher={code:'PUZ-'+Utilities.getUuid().replace(/-/g,'').slice(0,20).toUpperCase(),value:reward.value,expiresAt:new Date(a.finishedAt+reward.days*86400000).toISOString(),reward:reward};
+ checkoutColumns_(sheet,['Reward JSON']);sheet.getRange(sheet.getLastRow()+1,1,1,6).setValues([[voucher.code,a.phone,a.playerId,new Date(a.finishedAt),new Date(voucher.expiresAt),JSON.stringify(reward)]]);return voucher;
+}
+function gamesValidateReward_(raw){
+ var r=raw||gamesDefaultReward_();
+ if(['nominal','percent','shipping','gift','none'].indexOf(r.type)<0||!Number.isInteger(r.days)||r.days<1||r.days>365||!Number.isInteger(r.quantity)||r.quantity<1||r.quantity>99||[r.value,r.minSpend,r.maxDiscount].some(function(v){return !Number.isSafeInteger(v)||v<0||v>1e9;})||(['nominal','percent','shipping'].indexOf(r.type)>=0&&r.value<=0)||(r.type==='percent'&&r.value>100))throw new Error('Pengaturan hadiah tidak valid. Periksa nilai bulat, masa berlaku 1-365 hari, dan jumlah produk.');
+ var clean={type:r.type,value:r.type==='gift'||r.type==='none'?0:r.value,sku:String(r.sku||''),quantity:r.quantity,days:r.days,minSpend:r.minSpend,maxDiscount:r.maxDiscount};
+ if(r.type==='gift'){var p=getProducts().filter(function(p){return p.sku===clean.sku&&p.active;})[0];if(!p)throw new Error('Pilih produk bonus aktif dari Master Product.');clean.productName=p.productName+' '+p.variantName;}
+ return clean;
+}
+function gamesValidateRedemption_(v,data){
+ var r=v.reward||gamesDefaultReward_(),gross=Number(data.grossSubtotalProducts),shipping=Number(data.originalShipping),discount=0,shipDiscount=0;
+ if(gross<r.minSpend)throw new Error('Minimum belanja hadiah belum terpenuhi.');
+ if(r.type==='nominal')discount=r.value;
+ if(r.type==='percent')discount=Math.floor(gross*r.value/100);
+ if(r.type==='shipping')shipDiscount=Math.min(shipping,r.value);
+ if(r.maxDiscount>0){discount=Math.min(discount,r.maxDiscount);shipDiscount=Math.min(shipDiscount,r.maxDiscount);}
+ discount=Math.min(gross,discount);
+ var rewards=Array.isArray(data.rewardItems)?data.rewardItems:[];
+ if(!isFinite(gross)||gross<=0||r.type==='none'||data.productDiscount!==discount||data.subtotalProducts!==gross-discount||Number(data.redeemTotal||0)!==0||Number(data.shippingSubsidy||0)!==shipDiscount)throw new Error('Potongan hadiah Games tidak sesuai.');
+ if(r.type==='gift'){if(rewards.length!==1||rewards[0].sku!==r.sku||rewards[0].quantity!==r.quantity||Number(rewards[0].price)!==0)throw new Error('Produk hadiah Games tidak sesuai.');}else if(rewards.length)throw new Error('Hadiah Games tidak dapat digabung bonus lain.');
+}

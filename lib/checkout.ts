@@ -4,6 +4,7 @@ import { buildStoreCatalog } from "./store-catalog";
 import { decodeCheckoutPromos, promoInPeriod } from "./checkout-promos";
 import { evaluatePromoStack } from "./promo-stack";
 import { puzzleRequest } from './puzzle-server';
+import {gameRewardPromo} from './game-reward';
 
 export type CheckoutItem = { sku: string; quantity: number };
 export type CheckoutInput = { items: CheckoutItem[]; promoCode?: string; phone?: string; orderKey?: string; districtId?: string; provinceName?: string; cityName?:string; districtName?:string; shippingService?: string };
@@ -47,9 +48,9 @@ export async function checkoutQuote(input: CheckoutInput,options:{freshMaster?:b
     if (codes.length !== 1) throw new Error('Gunakan voucher puzzle sendiri tanpa kode promo lain.');
     const code = puzzleCodes[0].toUpperCase();
     const validated = await puzzleRequest('puzzleVoucher', { code, phone: input.phone || '', orderKey: input.orderKey || '' });
-    if (validated.voucher?.code !== code || validated.voucher.value !== 20000) throw new Error('Voucher puzzle belum dapat diverifikasi.');
+    if (!validated.voucher) throw new Error('Hadiah Games belum dapat diverifikasi.');
     // A personal reward is only included after private validation for this customer.
-    promos.push({ id: code, code, name: 'Hadiah Puzzle Rempah', type: 'nominal', value: 20000, minSpend: 0, maxDiscount: 20000, startDate: '', endDate: '', active: true, stackable: false, priority: 1 });
+    promos.push(gameRewardPromo(validated.voucher,code));
     codes[0] = code;
   }
   if(codes.length>20)throw new Error("Maksimal 20 kode promo per pesanan.");

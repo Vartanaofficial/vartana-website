@@ -1,6 +1,6 @@
 GAMES V3, ADMIN GAMES, DAN PERBAIKAN CHECKOUT
 
-Menu publik: /games. Admin: /admin/games. Puzzle 20 keping, foto Drive, durasi, simulasi, ranking tersamarkan, dan data peserta lengkap di GamePlayers/GameAttempts/GameSettings.
+Menu publik: /games. Admin: /admin/games. Puzzle 20 keping, Hitungan Angka, dan TTS (/games/tts). TTS memiliki editor tema/rempah/pahlawan/umum dan bank soal admin. Hadiah dapat berupa nominal rupiah, diskon persen, potongan ongkir, bonus produk, atau tanpa hadiah. Puzzle memakai papan dan baki berdampingan pada laptop/tablet serta baki geser pada HP. Data peserta lengkap di GamePlayers/GameAttempts/GameSettings; ketentuan kode hadiah disimpan di PuzzleVouchers kolom Reward JSON. Kode lama tetap mempertahankan hadiah semula.
 Ganti SELURUH kode dengan TXT ini, Save, lalu Deploy > Manage deployments > Edit > New version pada Web app yang dipakai website. Save saja tidak cukup. getGameCapabilities harus mengembalikan gamesVersion: 3.
 Script property VARTANA_ARTICLE_ADMIN_KEY harus sama dengan ADMIN_SESSION_SECRET website. Jalankan setupGames bila ingin menyiapkan tab sebelum pemain pertama.
 Panduan lengkap: deliverables/PUZZLE-REMPAH.md. Hasil audit: deliverables/AUDIT-UX-VARTANA.md.

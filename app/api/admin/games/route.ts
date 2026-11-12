@@ -14,7 +14,7 @@ export async function POST(req:NextRequest){
  try{
   if(req.headers.get('origin')!==new URL(req.url).origin)throw new Error('Buka pengaturan dari dashboard VARTANA.');
   const body=await req.json();
-  if(!['puzzle','numbers'].includes(body.game))throw new Error('Pilih game yang tersedia.');
+  if(!['puzzle','numbers','crossword'].includes(body.game))throw new Error('Pilih game yang tersedia.');
   return NextResponse.json(await gamesAdminRequest({operation:'saveSettings',game:body.game,settings:body.settings,expectedRevision:body.expectedRevision,requestId:body.requestId}),{headers});
  }catch(e){return NextResponse.json({message:e instanceof Error?e.message:'Pengaturan belum tersimpan.'},{status:400,headers});}
 }

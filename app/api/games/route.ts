@@ -6,7 +6,7 @@ const headers = {'Cache-Control': 'no-store'};
 export async function GET(req: NextRequest) {
   try {
     const game = req.nextUrl.searchParams.get('game') || 'puzzle';
-    if (!['puzzle', 'numbers'].includes(game)) throw new Error('Pilih game yang tersedia.');
+    if (!['puzzle', 'numbers','crossword'].includes(game)) throw new Error('Pilih game yang tersedia.');
     const result = await gamesRequest({operation: 'leaderboard', game});
     return NextResponse.json(result, {headers});
   } catch (error) {
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   try {
     if (req.headers.get('origin') !== new URL(req.url).origin) throw new Error('Buka game dari website VARTANA.');
     const body = await req.json();
-    if (!['puzzle','numbers'].includes(body.game) || !['start','status','finish','timeout'].includes(body.operation)) throw new Error('Permintaan game tidak valid.');
+    if (!['puzzle','numbers','crossword'].includes(body.game) || !['start','status','finish','timeout'].includes(body.operation)) throw new Error('Permintaan game tidak valid.');
     const existingSession = req.cookies.get('vartana_games')?.value;
     // A retried first start keeps the same session even if its response was lost.
     const session = existingSession || (body.operation==='start'&&/^[a-f0-9-]{36}$/i.test(String(body.requestId))?body.requestId:randomUUID());

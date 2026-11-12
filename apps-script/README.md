@@ -1,6 +1,6 @@
 # Promotions dan catatan checkout
 
-Backend Games v3 dan perbaikan checkout sudah dipasang pada deployment website yang sama, versi 58 (11 November 2026). Kode live dibandingkan sebelum pemasangan; manifest dan fungsi lain dipertahankan. Panduan game: ../deliverables/PUZZLE-REMPAH.md.
+Backend Games v3 dan perbaikan checkout sudah dipasang pada deployment website yang sama, versi 59 (12 November 2026). Kode live dibandingkan sebelum pemasangan; manifest dan fungsi lain dipertahankan. Panduan game: ../deliverables/PUZZLE-REMPAH.md.
 
 ## Isi tab Promotions
 

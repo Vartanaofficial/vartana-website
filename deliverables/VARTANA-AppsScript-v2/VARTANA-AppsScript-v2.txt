@@ -890,7 +890,7 @@ function doGet(e) {
         ? e.parameter.action
         : "";
 
-    if (action === 'getGameCapabilities') return responseJSON({success:true,gamesVersion:3,games:['puzzle','numbers']});
+    if (action === 'getGameCapabilities') return responseJSON({success:true,gamesVersion:3,rewardVersion:1,games:['puzzle','numbers','crossword']});
 
 
     // ========================================================
@@ -3114,9 +3114,7 @@ function saveRetailOrderWithPromo_(data) {
       puzzleVerify_(data,'saveOrder');
       if(JSON.stringify(data.puzzlePayload)!==JSON.stringify(puzzleOrderProof_(data)))throw new Error('Rincian voucher tidak sesuai pesanan.');
       if(puzzleCode.length!==1||String(data.promoCode)!==puzzleCode[0]||!orderKey)throw new Error('Voucher puzzle digunakan sendiri pada satu pesanan.');
-      puzzleVoucher_(puzzleCode[0],data.phone,orderKey);
-      var expectedDiscount=Math.min(20000,Number(data.grossSubtotalProducts));
-      if(!isFinite(expectedDiscount)||expectedDiscount<=0||data.productDiscount!==expectedDiscount||data.subtotalProducts!==data.grossSubtotalProducts-expectedDiscount||Number(data.redeemTotal||0)!==0||subsidy!==0)throw new Error('Potongan voucher puzzle tidak sesuai.');
+      gamesValidateRedemption_(puzzleVoucher_(puzzleCode[0],data.phone,orderKey),data);
     }
     // Save redemption and idempotency keys in the same row as the order itself.
     var atomicCols=checkoutColumns_(sheet,['Order Key','Puzzle Voucher Code']);
@@ -3721,7 +3719,7 @@ function puzzleVoucher_(code,phone,orderKey){
  if(orders){var values=orders.getDataRange().getValues(),col=values[0].indexOf('Puzzle Voucher Code'),key=values[0].indexOf('Order Key');if(col>=0)values.slice(1).forEach(function(r){if(String(r[col])===code){used=true;if(orderKey&&key>=0&&String(r[key])===orderKey)same=true;}});}
  if(used&&!same)throw new Error('Voucher puzzle sudah digunakan.');
  if(!same&&Date.now()>=new Date(v[4]).getTime())throw new Error('Voucher puzzle sudah kedaluwarsa.');
- return {code:code,expiresAt:new Date(v[4]).toISOString(),value:20000};
+ return gamesRewardFromRow_(v);
 }
 function puzzleHandle_(data){
  puzzleVerify_(data,data.action);var d=data.puzzlePayload,lock=LockService.getScriptLock();lock.waitLock(20000);
@@ -3843,7 +3841,7 @@ function gamesSave_(sheet,row,a){
 }
 function gamesPublicAttempt_(a){
  if(!a||!a.settings)return null;
- return {id:a.id,game:a.game,board:a.board||null,questions:(a.questions||[]).map(function(q){return {text:q.text};}),startedAt:a.startedAt,deadline:a.deadline,status:a.status,durationMs:a.durationMs,score:a.score||0,answerCount:a.answerCount||0,settings:gamesPublicSettings_(a.settings),pieces:a.pieces||[],feedback:a.lastCheck||''};
+ return {id:a.id,game:a.game,board:a.board||null,questions:(a.questions||[]).map(function(q){return {text:q.text};}),startedAt:a.startedAt,deadline:a.deadline,status:a.status,durationMs:a.durationMs,score:a.score||0,answerCount:a.answerCount||0,settings:gamesPublicSettings_(a.settings),pieces:a.pieces||[],crossword:a.crossword?{rows:a.crossword.rows,cols:a.crossword.cols,words:a.crossword.words,cells:a.crossword.cells.map(function(c){return {row:c.row,col:c.col};})}:undefined,feedback:a.lastCheck||''};
 }
 function gamesMaskPhone_(phone){return phone.slice(0,4)+'******'+phone.slice(-2);}
 function gamesMaskEmail_(email){var parts=email.split('@'),domain=(parts[1]||'').split('.');return parts[0].slice(0,1)+'***@'+(domain[0]||'').slice(0,1)+'***.'+(domain.length>1?domain[domain.length-1]:'***');}
@@ -3853,19 +3851,13 @@ function gamesRanking_(attempts,game,revision){
  var rows=[];all.forEach(function(a){if(best[a.phone])return;best[a.phone]=true;rows.push({rank:rows.length+1,name:a.name,phone:gamesMaskPhone_(a.phone),email:gamesMaskEmail_(a.email),durationMs:a.durationMs,completedAt:new Date(a.finishedAt).toISOString()});});
  return {entries:rows.slice(0,50),totalPlayers:rows.length,attempts:attempts.filter(function(x){return x.value.game===game;}).length};
 }
-function gamesReward_(a,issue){
- var sheet=puzzleSheets_().vouchers,rows=sheet.getDataRange().getValues();
- for(var i=1;i<rows.length;i++)if(String(rows[i][1])===a.phone||String(rows[i][2])===a.playerId)return {code:String(rows[i][0]),value:20000,expiresAt:new Date(rows[i][4]).toISOString()};
- if(!issue)return null;
- var voucher={code:'PUZ-'+Utilities.getUuid().replace(/-/g,'').slice(0,20).toUpperCase(),value:20000,expiresAt:new Date(a.finishedAt+7*86400000).toISOString()};
- sheet.appendRow([voucher.code,a.phone,a.playerId,new Date(a.finishedAt),new Date(voucher.expiresAt)]);return voucher;
-}
 function gamesChallenge_(game,settings){
  if(game==='puzzle'){
   var pieces=Array.from({length:20},function(_,i){return i;});
   for(var i=pieces.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),value=pieces[i];pieces[i]=pieces[j];pieces[j]=value;}
   return {pieces:pieces};
  }
+ if(game==='crossword')return {crossword:buildCrossword(settings.entries)};
  var questions=[];
  for(var i=0;i<settings.questionCount;i++){
   var first=10+Math.floor(Math.random()*40),second=10+Math.floor(Math.random()*40),type=i%3;
@@ -3877,14 +3869,14 @@ function gamesChallenge_(game,settings){
 }
 function gamesHandle_(data){
  puzzleVerify_(data,'games');var d=data.puzzlePayload;
- if(!d||['puzzle','numbers'].indexOf(d.game)<0||['leaderboard','status','start','finish','timeout'].indexOf(d.operation)<0)throw new Error('Permintaan game tidak valid.');
+ if(!d||['puzzle','numbers','crossword'].indexOf(d.game)<0||['leaderboard','status','start','finish','timeout'].indexOf(d.operation)<0)throw new Error('Permintaan game tidak valid.');
  if(d.operation!=='leaderboard'&&!/^[a-f0-9-]{36}$/i.test(String(d.session||'')))throw new Error('Sesi game tidak valid.');
  var lock=LockService.getScriptLock();lock.waitLock(20000);
  try{
-  var sheets=gamesSheets_(),attempts=gamesRead_(sheets.attempts),now=Date.now(),settings=gamesPublicSettings_(gamesSettings_(sheets.settings,d.game));
+  var sheets=gamesSheets_(),attempts=gamesRead_(sheets.attempts),now=Date.now(),settings=gamesSettings_(sheets.settings,d.game);
   // Closing a browser never erases an attempt. Expired sessions are reconciled on the next request.
   attempts.forEach(function(x){if(x.value.status==='STARTED'&&(!x.value.settings||now>=x.value.deadline)){x.value.status='EXPIRED';x.value.finishedAt=x.value.deadline;x.value.durationMs=x.value.deadline-x.value.startedAt;gamesSave_(sheets.attempts,x.row,x.value);}});
-  if(d.operation==='leaderboard')return responseJSON({success:true,gamesVersion:3,serverNow:now,settings:settings,leaderboard:gamesRanking_(attempts,d.game,settings.revision)});
+  if(d.operation==='leaderboard')return responseJSON({success:true,gamesVersion:3,serverNow:now,settings:gamesPublicSettings_(settings),leaderboard:gamesRanking_(attempts,d.game,settings.revision)});
   var own=attempts.filter(function(x){return x.value.session===d.session&&x.value.game===d.game;}),current=own[own.length-1]||null;
   if(d.operation==='start'){
    if(!settings.enabled)throw new Error('Game ini sedang dinonaktifkan oleh admin.');
@@ -3918,6 +3910,11 @@ function gamesHandle_(data){
      a.checks=(a.checks||[]).slice(-29).concat([{at:now,placements:a.placements.slice(),correct:correct}]);
      if(correct===20){a.status='WON';a.score=20;a.lastCheck='';}
      else a.lastCheck='Susunannya belum pas. Coba periksa gambar acuan dan pindahkan keping yang keliru.';
+    }else if(a.game==='crossword'){
+     var cells=a.crossword.cells;
+     if(!Array.isArray(d.answers)||d.answers.length!==cells.length||d.answers.some(function(v){return typeof v!=='string'||! /^[A-Z]$/.test(v);}))throw new Error('Isi seluruh kotak TTS dengan satu huruf.');
+     a.answers=d.answers.slice();a.answerCount=cells.length;a.score=cells.reduce(function(sum,c,i){return sum+(c.answer===d.answers[i]?1:0);},0);
+     if(a.score===cells.length){a.status='WON';a.lastCheck='';}else a.lastCheck='Masih ada jawaban yang belum tepat. Periksa petunjuk dan coba lagi sebelum waktu habis.';
     }else{
      var count=a.settings.questionCount;
      if(!Array.isArray(d.answers)||d.answers.length!==count||d.answers.some(function(n){return !Number.isSafeInteger(n)||n<0||n>10000;}))throw new Error('Jawab seluruh '+count+' soal dengan angka yang valid.');
@@ -3929,24 +3926,33 @@ function gamesHandle_(data){
     a.submitted=true;
     if(a.game==='puzzle'&&Array.isArray(d.moves)&&d.moves.length<=1500&&d.moves.every(function(n){return Number.isInteger(n)&&n>=1&&n<=8;}))a.moves=d.moves.slice();
     if(a.game==='puzzle'&&Array.isArray(d.placements)&&d.placements.length===20&&d.placements.every(function(n){return n===null||(Number.isInteger(n)&&n>=0&&n<20);}))a.placements=d.placements.slice();
+    if(a.game==='crossword'&&Array.isArray(d.answers)&&d.answers.length<=300&&d.answers.every(function(v){return typeof v==='string'&&/^[A-Z]?$/.test(v);}))a.answers=d.answers.slice();
     if(a.game==='numbers'&&Array.isArray(d.answers)&&d.answers.length<=30&&d.answers.every(function(n){return n===null||Number.isSafeInteger(n);}))a.answers=d.answers.slice();
     gamesSave_(sheets.attempts,current.row,a);
    }
   }
   var voucher=current?gamesReward_(current.value,current.value.status==='WON'):null;
-  return responseJSON({success:true,gamesVersion:3,serverNow:Date.now(),settings:settings,attempt:gamesPublicAttempt_(current?current.value:null),voucher:voucher,leaderboard:gamesRanking_(attempts,d.game,settings.revision)});
+  return responseJSON({success:true,gamesVersion:3,serverNow:Date.now(),settings:gamesPublicSettings_(settings),attempt:gamesPublicAttempt_(current?current.value:null),voucher:voucher,leaderboard:gamesRanking_(attempts,d.game,settings.revision)});
  }finally{lock.releaseLock();}
 }
 
-function gamesPublicSettings_(s){return {game:s.game,enabled:s.enabled,durationSeconds:s.durationSeconds,imageUrl:s.imageUrl,imageAlt:s.imageAlt,questionCount:s.questionCount,revision:s.revision,updatedAt:s.updatedAt};}
+function gamesPublicSettings_(s){return {game:s.game,enabled:s.enabled,durationSeconds:s.durationSeconds,imageUrl:s.imageUrl,imageAlt:s.imageAlt,questionCount:s.questionCount,revision:s.revision,updatedAt:s.updatedAt,reward:s.reward||gamesDefaultReward_(),theme:s.theme||'rempah',entries:[]};}
 function gamesSettings_(sheet,game){
- var rows=sheet.getDataRange().getValues();
- for(var i=1;i<rows.length;i++)if(String(rows[i][0])===game)return JSON.parse(String(rows[i][1]));
- return {game:game,enabled:true,durationSeconds:120,imageUrl:'/vartana-spices-hero.jpg',imageAlt:'Rempah VARTANA',questionCount:10,revision:1,updatedAt:''};
+ var rows=sheet.getDataRange().getValues(),s=null;
+ for(var i=1;i<rows.length;i++)if(String(rows[i][0])===game)s=JSON.parse(String(rows[i][1]));
+ if(!s)s={game:game,enabled:true,durationSeconds:120,imageUrl:'/vartana-spices-hero.jpg',imageAlt:'Rempah VARTANA',questionCount:10,revision:1,updatedAt:''};
+ s.reward=s.reward||gamesDefaultReward_();s.theme=s.theme||'rempah';s.entries=s.entries||crosswordBanks[s.theme];return s;
 }
 function gamesValidateSettings_(game,raw){
  if(!raw||typeof raw.enabled!=='boolean'||!Number.isInteger(raw.durationSeconds)||raw.durationSeconds<30||raw.durationSeconds>1800||typeof raw.imageUrl!=='string'||raw.imageUrl.length>2000||!( /^\/(?!\/)[^\\]*$/.test(raw.imageUrl)||/^https:\/\/[^\s@\\]+$/i.test(raw.imageUrl))||typeof raw.imageAlt!=='string'||!raw.imageAlt.trim()||raw.imageAlt.length>160||!Number.isInteger(raw.questionCount)||raw.questionCount<5||raw.questionCount>30)throw new Error('Atur waktu 30-1800 detik, foto yang valid, deskripsi foto, dan jumlah soal 5-30.');
- return {game:game,enabled:raw.enabled,durationSeconds:raw.durationSeconds,imageUrl:raw.imageUrl.trim(),imageAlt:raw.imageAlt.trim(),questionCount:raw.questionCount};
+ var theme=raw.theme||'rempah',entries=raw.entries||crosswordBanks[theme];
+ if(['rempah','pahlawan','umum'].indexOf(theme)<0)throw new Error('Tema TTS tidak valid.');
+ if(game==='crossword'){
+  if(!Array.isArray(entries)||entries.length<3||entries.length>15)throw new Error('Isi 3-15 petunjuk TTS.');
+  var seen={};entries=entries.map(function(e){var answer=String(e.answer||'').trim().toUpperCase().replace(/\s/g,''),clue=String(e.clue||'').trim();if(!/^[A-Z]{2,15}$/.test(answer)||!clue||clue.length>200||seen[answer])throw new Error('Jawaban TTS harus unik, 2-15 huruf, dan memiliki petunjuk.');seen[answer]=true;return {answer:answer,clue:clue};});
+  buildCrossword(entries);
+ }
+ return {game:game,enabled:raw.enabled,durationSeconds:raw.durationSeconds,imageUrl:raw.imageUrl.trim(),imageAlt:raw.imageAlt.trim(),questionCount:raw.questionCount,reward:gamesValidateReward_(raw.reward),theme:theme,entries:entries};
 }
 function gamesAdminHandle_(data){
  puzzleVerify_(data,'gamesAdmin');var d=data.puzzlePayload;
@@ -3959,7 +3965,7 @@ function gamesAdminHandle_(data){
  try{
   var sheets=gamesSheets_();
   if(d.operation==='saveSettings'){
-   if(['puzzle','numbers'].indexOf(d.game)<0||!/^[a-f0-9-]{36}$/i.test(String(d.requestId||'')))throw new Error('Game atau kunci simpan tidak valid.');
+   if(['puzzle','numbers','crossword'].indexOf(d.game)<0||!/^[a-f0-9-]{36}$/i.test(String(d.requestId||'')))throw new Error('Game atau kunci simpan tidak valid.');
    var clean=gamesValidateSettings_(d.game,d.settings),old=gamesSettings_(sheets.settings,d.game),fingerprint=JSON.stringify(clean);
    if(old.lastRequestId===d.requestId){if(old.fingerprint!==fingerprint)throw new Error('Kunci simpan sudah dipakai untuk pengaturan lain.');return responseJSON({success:true,gamesVersion:3,settings:old,duplicate:true});}
    if(d.expectedRevision!==old.revision)throw new Error('Pengaturan berubah di perangkat lain. Muat ulang sebelum menyimpan.');
@@ -3969,7 +3975,108 @@ function gamesAdminHandle_(data){
    return responseJSON({success:true,gamesVersion:3,settings:clean});
   }
   var attempts=gamesRead_(sheets.attempts),ss=SpreadsheetApp.getActiveSpreadsheet();
-  return responseJSON({success:true,gamesVersion:3,settings:{puzzle:gamesSettings_(sheets.settings,'puzzle'),numbers:gamesSettings_(sheets.settings,'numbers')},players:Math.max(0,sheets.players.getLastRow()-1),totalAttempts:attempts.length,attempts:attempts.slice(-100).reverse().map(function(x){var a=x.value;return {id:a.id,game:a.game,name:a.name,phone:a.phone,email:a.email,status:a.status==='STARTED'&&Date.now()>=a.deadline?'EXPIRED':a.status,score:a.score,startedAt:new Date(a.startedAt).toISOString(),finishedAt:a.finishedAt?new Date(a.finishedAt).toISOString():'',durationMs:a.durationMs,revision:a.settings?a.settings.revision:0};}),spreadsheetUrl:typeof ss.getUrl==='function'?ss.getUrl():''});
+  return responseJSON({success:true,gamesVersion:3,products:getProducts().filter(function(p){return p.active;}).map(function(p){return {sku:p.sku,name:p.productName+' '+p.variantName};}),settings:{puzzle:gamesSettings_(sheets.settings,'puzzle'),numbers:gamesSettings_(sheets.settings,'numbers'),crossword:gamesSettings_(sheets.settings,'crossword')},players:Math.max(0,sheets.players.getLastRow()-1),totalAttempts:attempts.length,attempts:attempts.slice(-100).reverse().map(function(x){var a=x.value;return {id:a.id,game:a.game,name:a.name,phone:a.phone,email:a.email,status:a.status==='STARTED'&&Date.now()>=a.deadline?'EXPIRED':a.status,score:a.score,startedAt:new Date(a.startedAt).toISOString(),finishedAt:a.finishedAt?new Date(a.finishedAt).toISOString():'',durationMs:a.durationMs,revision:a.settings?a.settings.revision:0};}),spreadsheetUrl:typeof ss.getUrl==='function'?ss.getUrl():''});
  }finally{lock.releaseLock();}
 }
 function setupGames(){gamesSheets_();puzzleSheets_();return 'Games v3 siap. Deploy New version pada Web app yang dipakai website.';}
+
+// Immutable reward terms: existing codes keep their original reward forever.
+function gamesDefaultReward_(){return {type:'nominal',value:20000,sku:'',quantity:1,days:7,minSpend:0,maxDiscount:0};}
+function gamesRewardFromRow_(r){var reward=r[5]?JSON.parse(String(r[5])):gamesDefaultReward_();return {code:String(r[0]),value:reward.value,expiresAt:new Date(r[4]).toISOString(),reward:reward};}
+function gamesReward_(a,issue){
+ var sheet=puzzleSheets_().vouchers,rows=sheet.getDataRange().getValues();
+ for(var i=1;i<rows.length;i++)if(String(rows[i][1])===a.phone||String(rows[i][2])===a.playerId)return gamesRewardFromRow_(rows[i]);
+ var reward=a.settings&&a.settings.reward||gamesDefaultReward_();
+ if(!issue||reward.type==='none')return null;
+ var voucher={code:'PUZ-'+Utilities.getUuid().replace(/-/g,'').slice(0,20).toUpperCase(),value:reward.value,expiresAt:new Date(a.finishedAt+reward.days*86400000).toISOString(),reward:reward};
+ checkoutColumns_(sheet,['Reward JSON']);sheet.getRange(sheet.getLastRow()+1,1,1,6).setValues([[voucher.code,a.phone,a.playerId,new Date(a.finishedAt),new Date(voucher.expiresAt),JSON.stringify(reward)]]);return voucher;
+}
+function gamesValidateReward_(raw){
+ var r=raw||gamesDefaultReward_();
+ if(['nominal','percent','shipping','gift','none'].indexOf(r.type)<0||!Number.isInteger(r.days)||r.days<1||r.days>365||!Number.isInteger(r.quantity)||r.quantity<1||r.quantity>99||[r.value,r.minSpend,r.maxDiscount].some(function(v){return !Number.isSafeInteger(v)||v<0||v>1e9;})||(['nominal','percent','shipping'].indexOf(r.type)>=0&&r.value<=0)||(r.type==='percent'&&r.value>100))throw new Error('Pengaturan hadiah tidak valid. Periksa nilai bulat, masa berlaku 1-365 hari, dan jumlah produk.');
+ var clean={type:r.type,value:r.type==='gift'||r.type==='none'?0:r.value,sku:String(r.sku||''),quantity:r.quantity,days:r.days,minSpend:r.minSpend,maxDiscount:r.maxDiscount};
+ if(r.type==='gift'){var p=getProducts().filter(function(p){return p.sku===clean.sku&&p.active;})[0];if(!p)throw new Error('Pilih produk bonus aktif dari Master Product.');clean.productName=p.productName+' '+p.variantName;}
+ return clean;
+}
+function gamesValidateRedemption_(v,data){
+ var r=v.reward||gamesDefaultReward_(),gross=Number(data.grossSubtotalProducts),shipping=Number(data.originalShipping),discount=0,shipDiscount=0;
+ if(gross<r.minSpend)throw new Error('Minimum belanja hadiah belum terpenuhi.');
+ if(r.type==='nominal')discount=r.value;
+ if(r.type==='percent')discount=Math.floor(gross*r.value/100);
+ if(r.type==='shipping')shipDiscount=Math.min(shipping,r.value);
+ if(r.maxDiscount>0){discount=Math.min(discount,r.maxDiscount);shipDiscount=Math.min(shipDiscount,r.maxDiscount);}
+ discount=Math.min(gross,discount);
+ var rewards=Array.isArray(data.rewardItems)?data.rewardItems:[];
+ if(!isFinite(gross)||gross<=0||r.type==='none'||data.productDiscount!==discount||data.subtotalProducts!==gross-discount||Number(data.redeemTotal||0)!==0||Number(data.shippingSubsidy||0)!==shipDiscount)throw new Error('Potongan hadiah Games tidak sesuai.');
+ if(r.type==='gift'){if(rewards.length!==1||rewards[0].sku!==r.sku||rewards[0].quantity!==r.quantity||Number(rewards[0].price)!==0)throw new Error('Produk hadiah Games tidak sesuai.');}else if(rewards.length)throw new Error('Hadiah Games tidak dapat digabung bonus lain.');
+}
+
+// CROSSWORD ENGINE (generated from lib/crossword.ts)
+var crosswordBanks={"rempah":[{"answer":"JAHE","clue":"Rimpang beraroma hangat, sering dipakai untuk wedang."},{"answer":"KUNYIT","clue":"Rimpang yang memberi warna kuning alami pada masakan."},{"answer":"SERAI","clue":"Batang aromatik beraroma mirip lemon."},{"answer":"CENGKEH","clue":"Rempah berupa kuncup bunga kering."},{"answer":"PALA","clue":"Rempah berbiji harum yang juga menghasilkan fuli."},{"answer":"LADA","clue":"Rempah bulat kecil yang memberi rasa pedas."}],"pahlawan":[{"answer":"KARTINI","clue":"Tokoh emansipasi perempuan dari Jepara."},{"answer":"HATTA","clue":"Wakil presiden pertama Indonesia."},{"answer":"SOEKARNO","clue":"Presiden pertama Indonesia."},{"answer":"DEWANTARA","clue":"Ki Hadjar ... , tokoh pendidikan Indonesia."},{"answer":"PATTIMURA","clue":"Nama perjuangan Thomas Matulessy dari Maluku."}],"umum":[{"answer":"BUMI","clue":"Planet tempat manusia hidup."},{"answer":"MATAHARI","clue":"Bintang pusat tata surya."},{"answer":"AIR","clue":"Zat cair dengan rumus kimia H2O."},{"answer":"BUKU","clue":"Kumpulan halaman yang dijilid untuk dibaca."},{"answer":"GARUDA","clue":"Burung pada lambang negara Indonesia."}]};
+function buildCrossword(entries) {
+    const grid = {}, placed = [];
+    const key = (r, c) => r + ':' + c;
+    function fits(word, row, col, dir) {
+        const dr = dir === 'down' ? 1 : 0, dc = dir === 'across' ? 1 : 0;
+        if (row < 0 || col < 0 || row + dr * (word.length - 1) >= 25 || col + dc * (word.length - 1) >= 25 || grid[key(row - dr, col - dc)] || grid[key(row + dr * word.length, col + dc * word.length)])
+            return false;
+        for (let i = 0; i < word.length; i++) {
+            const r = row + dr * i, c = col + dc * i, cell = grid[key(r, c)];
+            if (cell) {
+                if (cell.letter !== word[i] || cell.directions.includes(dir))
+                    return false;
+            }
+            else if (grid[key(r + dc, c + dr)] || grid[key(r - dc, c - dr)])
+                return false;
+        }
+        return true;
+    }
+    for (const entry of [...entries].sort((a, b) => b.answer.length - a.answer.length)) {
+        const word = entry.answer;
+        let target;
+        const positions = Object.keys(grid).map(p => p.split(':').map(Number));
+        let best = Infinity;
+        function candidate(row, col, direction) {
+            if (!fits(word, row, col, direction))
+                return;
+            const rs = positions.map(p => p[0]).concat(row, row + (direction === 'down' ? word.length - 1 : 0)), cs = positions.map(p => p[1]).concat(col, col + (direction === 'across' ? word.length - 1 : 0));
+            const height = Math.max(...rs) - Math.min(...rs) + 1, width = Math.max(...cs) - Math.min(...cs) + 1, score = height * width + Math.abs(width - height) * 2;
+            if (score < best) {
+                best = score;
+                target = { row, col, direction };
+            }
+        }
+        if (!positions.length)
+            target = { row: 12, col: Math.floor((25 - word.length) / 2), direction: 'across' };
+        else {
+            for (const pos of Object.keys(grid)) {
+                const [r, c] = pos.split(':').map(Number);
+                for (let i = 0; i < word.length; i++)
+                    if (grid[pos].letter === word[i])
+                        for (const dir of ['across', 'down'])
+                            candidate(r - (dir === 'down' ? i : 0), c - (dir === 'across' ? i : 0), dir);
+            }
+            if (!target)
+                for (let row = 0; row < 25; row++)
+                    for (let col = 0; col <= 25 - word.length; col++)
+                        candidate(row, col, 'across');
+        }
+        if (!target)
+            throw new Error('TTS terlalu padat. Kurangi jumlah atau panjang jawaban.');
+        const { row, col, direction } = target;
+        for (let i = 0; i < word.length; i++) {
+            const k = key(row + (direction === 'down' ? i : 0), col + (direction === 'across' ? i : 0));
+            if (grid[k])
+                grid[k].directions.push(direction);
+            else
+                grid[k] = { letter: word[i], directions: [direction] };
+        }
+        placed.push(Object.assign({ entry }, target));
+    }
+    const cells = Object.keys(grid).map(k => { const [row, col] = k.split(':').map(Number); return { row, col, answer: grid[k].letter }; }).sort((a, b) => a.row - b.row || a.col - b.col);
+    const minRow = Math.min(...cells.map(c => c.row)), minCol = Math.min(...cells.map(c => c.col));
+    cells.forEach(c => { c.row -= minRow; c.col -= minCol; });
+    placed.forEach(p => { p.row -= minRow; p.col -= minCol; });
+    const starts = [...new Set(placed.map(p => key(p.row, p.col)))].sort((a, b) => { const [ar, ac] = a.split(':').map(Number), [br, bc] = b.split(':').map(Number); return ar - br || ac - bc; });
+    return { rows: Math.max(...cells.map(c => c.row)) + 1, cols: Math.max(...cells.map(c => c.col)) + 1, cells, words: placed.map(p => ({ number: starts.indexOf(key(p.row, p.col)) + 1, row: p.row, col: p.col, direction: p.direction, length: p.entry.answer.length, clue: p.entry.clue })).sort((a, b) => a.number - b.number) };
+}

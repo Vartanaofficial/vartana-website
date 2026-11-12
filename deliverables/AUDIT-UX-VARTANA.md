@@ -28,3 +28,11 @@ Pembacaan Apps Script produk/promo langsung sekitar 4 detik. Lima quote lokal de
 Pemeriksaan browser otomatis dihentikan oleh alat karena URL Chrome tidak dapat diverifikasi dengan cukup aman. Tidak ada kontrol browser lanjutan setelah penghentian. Pengujian yang menulis order atau hadiah dilakukan pada fixture lokal; tidak membuat order/voucher uji pada spreadsheet produksi.
 
 Audit berfokus pada alur publik Games, katalog, keranjang, checkout dan radio beserta handler backend terkait. Sistem pembayaran tetap menggunakan konfirmasi pembayaran yang sudah ada; tidak menambahkan gateway atau mengganti proses konsinyasi/produksi.
+
+## Revisi Games 12 November
+
+- Hadiah per game dapat diatur: rupiah, persen, ongkir, produk gratis, atau tanpa hadiah. Ketentuan disalin ke percobaan dan kode hadiah; voucher lima kolom lama tetap Rp20.000. Berat produk gratis ikut ongkir dan barang hadiah ikut alokasi stok order.
+- Arena puzzle saat bermain memakai lebar halaman, menyembunyikan cerita pembuka, serta meletakkan papan/baki berdampingan pada laptop/tablet. HP memakai baki dua baris yang digeser horizontal.
+- TTS ditambahkan dengan tiga tema admin, editor 3–15 jawaban/petunjuk, simulator bersama, tenggat server, ranking, dan pencatatan ke GameAttempts. Respons publik tidak menyertakan jawaban atau bank soal privat.
+- 179 tes lulus dan build produksi lulus. Backend Apps Script versi 59 terverifikasi menyediakan tiga game, 15 produk aktif untuk pilihan bonus admin, dan respons TTS publik tanpa jawaban. Tidak membuat pemain, hadiah, atau pesanan uji di produksi.
+- Pemeriksaan visual pada revisi ini juga terhenti karena alat tidak dapat memverifikasi URL Chrome. Layout responsif sudah diimplementasikan, tetapi interaksi visual desktop/HP belum dapat dikonfirmasi lewat browser.

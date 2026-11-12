@@ -1,18 +1,24 @@
 // Immutable reward terms: existing codes keep their original reward forever.
 function gamesDefaultReward_(){return {type:'nominal',value:20000,sku:'',quantity:1,days:7,minSpend:0,maxDiscount:0};}
-function gamesRewardFromRow_(r){var reward=r[5]?JSON.parse(String(r[5])):gamesDefaultReward_();return {code:String(r[0]),value:reward.value,expiresAt:new Date(r[4]).toISOString(),reward:reward};}
-function gamesReward_(a,issue){
- var sheet=puzzleSheets_().vouchers,rows=sheet.getDataRange().getValues();
- for(var i=1;i<rows.length;i++)if(String(rows[i][1])===a.phone||String(rows[i][2])===a.playerId)return gamesRewardFromRow_(rows[i]);
- var reward=a.settings&&a.settings.reward||gamesDefaultReward_();
- if(!issue||reward.type==='none')return null;
- var voucher={code:'PUZ-'+Utilities.getUuid().replace(/-/g,'').slice(0,20).toUpperCase(),value:reward.value,expiresAt:new Date(a.finishedAt+reward.days*86400000).toISOString(),reward:reward};
- checkoutColumns_(sheet,['Reward JSON']);sheet.getRange(sheet.getLastRow()+1,1,1,6).setValues([[voucher.code,a.phone,a.playerId,new Date(a.finishedAt),new Date(voucher.expiresAt),JSON.stringify(reward)]]);return voucher;
+function gamesRewardFromRow_(r,cols){var reward=r[5]?JSON.parse(String(r[5])):gamesDefaultReward_();return {code:String(r[0]),value:reward.value,expiresAt:new Date(r[4]).toISOString(),reward:reward,email:cols?gamesVoucherEmail_(r,cols):undefined};}
+function gamesReward_(a,issue,history){
+ var sheet=puzzleSheets_().vouchers,cols=gamesVoucherColumns_(sheet),rows=sheet.getDataRange().getValues(),allHistory=history||gamesRead_(gamesSheets_().attempts),owned=gamesFindRewards_(rows,cols,a,allHistory);
+ // Existing five/six-column rewards count toward the lifetime cap. Attribute
+ // them to their original win before deciding whether a later win is new.
+ owned.forEach(function(x){if(!x.values[cols['Attempt ID']-1]){var original=allHistory.map(function(h){return h.value||h;}).filter(function(h){return h.status==='WON'&&(h.phone===a.phone||h.playerId===a.playerId);}).sort(function(x,y){return x.finishedAt-y.finishedAt;})[0];if(original){x.values[cols['Attempt ID']-1]=original.id;sheet.getRange(x.row,1,1,sheet.getLastColumn()).setValues([Array.from({length:sheet.getLastColumn()},function(_,i){return x.values[i]===undefined?'':x.values[i];})]);}}});
+ var found=owned.filter(function(x){return String(x.values[cols['Attempt ID']-1])===a.id;})[0];
+ if(found){var old=found.values;if(!old[cols.Email-1]&&a.email&&issue){var recipient=found.email||gamesRawEmail_(a.email);old[cols.Email-1]=gamesCell_(recipient);old[cols['Email Key']-1]=gamesCell_(gamesEmailKey_(recipient));old[cols['Email Status']-1]='PENDING';old[cols['Email Send Count']-1]=0;sheet.getRange(found.row,1,1,sheet.getLastColumn()).setValues([Array.from({length:sheet.getLastColumn()},function(_,i){return old[i]===undefined?'':old[i];})]);}return gamesRewardFromRow_(old,cols);}
+ var reward=Object.assign({},a.settings&&a.settings.reward||gamesDefaultReward_(),{days:7});
+ if(!issue||reward.type==='none'||owned.length>=3)return null;
+ var voucher={code:'PUZ-'+Utilities.getUuid().replace(/-/g,'').slice(0,20).toUpperCase(),expiresAt:new Date(a.finishedAt+7*86400000).toISOString()},row=Array(sheet.getLastColumn()).fill('');
+ [voucher.code,a.phone,a.playerId,new Date(a.finishedAt),new Date(voucher.expiresAt),JSON.stringify(reward)].forEach(function(v,i){row[i]=v;});row[cols['Attempt ID']-1]=a.id;
+ var recipient=owned[0]&&owned[0].email||gamesRawEmail_(a.email);if(recipient){row[cols.Email-1]=gamesCell_(recipient);row[cols['Email Key']-1]=gamesCell_(gamesEmailKey_(recipient));row[cols['Email Status']-1]='PENDING';row[cols['Email Send Count']-1]=0;}
+ sheet.getRange(sheet.getLastRow()+1,1,1,row.length).setValues([row]);return gamesRewardFromRow_(row,cols);
 }
 function gamesValidateReward_(raw){
  var r=raw||gamesDefaultReward_();
  if(['nominal','percent','shipping','gift','none'].indexOf(r.type)<0||!Number.isInteger(r.days)||r.days<1||r.days>365||!Number.isInteger(r.quantity)||r.quantity<1||r.quantity>99||[r.value,r.minSpend,r.maxDiscount].some(function(v){return !Number.isSafeInteger(v)||v<0||v>1e9;})||(['nominal','percent','shipping'].indexOf(r.type)>=0&&r.value<=0)||(r.type==='percent'&&r.value>100))throw new Error('Pengaturan hadiah tidak valid. Periksa nilai bulat, masa berlaku 1-365 hari, dan jumlah produk.');
- var clean={type:r.type,value:r.type==='gift'||r.type==='none'?0:r.value,sku:String(r.sku||''),quantity:r.quantity,days:r.days,minSpend:r.minSpend,maxDiscount:r.maxDiscount};
+ var clean={type:r.type,value:r.type==='gift'||r.type==='none'?0:r.value,sku:String(r.sku||''),quantity:r.quantity,days:7,minSpend:r.minSpend,maxDiscount:r.maxDiscount};
  if(r.type==='gift'){var p=getProducts().filter(function(p){return p.sku===clean.sku&&p.active;})[0];if(!p)throw new Error('Pilih produk bonus aktif dari Master Product.');clean.productName=p.productName+' '+p.variantName;}
  return clean;
 }

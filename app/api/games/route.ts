@@ -1,9 +1,10 @@
-import {NextRequest, NextResponse} from 'next/server';
+import {NextRequest, NextResponse,after} from 'next/server';
 import {randomUUID} from 'node:crypto';
-import {gamesRequest} from '@/lib/games-server';
+import {gamesRequest,sendGamesRewardEmail} from '@/lib/games-server';
 import {sameOriginRequest} from '@/lib/request-origin';
 
 const headers = {'Cache-Control': 'no-store'};
+export const maxDuration=60;
 export async function GET(req: NextRequest) {
   try {
     const game = req.nextUrl.searchParams.get('game') || 'puzzle';
@@ -23,6 +24,10 @@ export async function POST(req: NextRequest) {
     // A retried first start keeps the same session even if its response was lost.
     const session = existingSession || (body.operation==='start'&&/^[a-f0-9-]{36}$/i.test(String(body.requestId))?body.requestId:randomUUID());
     const result = await gamesRequest({operation:body.operation,game:body.game,session,requestId:body.requestId,attemptId:body.attemptId,name:body.name,phone:body.phone,email:body.email,placements:body.placements,answers:body.answers});
+    if(result.attempt?.status==='WON'&&result.voucher?.email?.status==='PENDING'){
+      const attemptId=result.attempt.id;
+      after(async()=>{try{await sendGamesRewardEmail(session,attemptId);}catch{console.warn('Reward email delivery not confirmed; inspect voucher email status.');}});
+    }
     const response = NextResponse.json(result, {headers});
     // Read-only status requests must not race to replace a new player's session cookie.
     if(existingSession||body.operation==='start')response.cookies.set('vartana_games',session,{httpOnly:true,sameSite:'strict',secure:new URL(req.headers.get('origin')!).protocol==='https:',path:'/',maxAge:86400*8});

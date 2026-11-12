@@ -7,7 +7,7 @@ const functions=compiled.slice(compiled.indexOf('function buildCrossword('));
 const crossword='// CROSSWORD ENGINE (generated from lib/crossword.ts)\nvar crosswordBanks='+JSON.stringify(banks)+';\n'+functions;
 fs.writeFileSync('apps-script/crossword-functions.txt',crossword);
 const marker=code.indexOf('// GAMES V3:');if(marker<0)throw Error('Games marker missing');
-code=code.slice(0,marker)+fs.readFileSync('apps-script/games-functions.txt','utf8')+'\n'+fs.readFileSync('apps-script/game-rewards-functions.txt','utf8')+'\n'+crossword;
+code=code.slice(0,marker)+fs.readFileSync('apps-script/games-functions.txt','utf8')+'\n'+fs.readFileSync('apps-script/game-rewards-functions.txt','utf8')+'\n'+fs.readFileSync('apps-script/game-email-functions.txt','utf8')+'\n'+crossword;
 fs.writeFileSync('apps-script/Code.gs',code);fs.writeFileSync('deliverables/VARTANA-AppsScript-v2/VARTANA-AppsScript-v2.txt',code);
 // Keep the optional promotion fragment aligned with the canonical backend too.
 const canonical=ts.createSourceFile('Code.js',code,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS),functionsByName=new Map(canonical.statements.filter(ts.isFunctionDeclaration).map(node=>[node.name?.text,code.slice(node.getStart(canonical),node.end)]));

@@ -6,14 +6,15 @@ export type GameSettings = {game:GameKind;enabled:boolean;durationSeconds:number
 export type GameAttempt = {
   id: string; game: GameKind; board: number[] | null; questions: {text: string}[];
   startedAt: number; deadline: number; status: 'STARTED' | 'WON' | 'FAILED' | 'EXPIRED';
-  durationMs?: number; score: number; answerCount: number;
+  durationMs?: number; correctAnswers?:number;totalAnswers?:number; score: number; answerCount: number;
   settings:GameSettings; pieces?:number[];
   feedback?:string;crossword?:CrosswordChallenge;
 };
-export type GameVoucher = {code: string; value: number; expiresAt: string;reward?:GameReward};
-export type GameRanking = {entries: {rank: number; name: string; phone: string; email: string; durationMs: number; completedAt: string}[]; totalPlayers: number; attempts: number};
-export type GameResponse = {success: true; gamesVersion: number; serverNow: number; attempt: GameAttempt | null; voucher: GameVoucher | null; leaderboard: GameRanking; settings:GameSettings};
-export const defaultGameSettings=(game:GameKind):GameSettings=>({game,enabled:true,durationSeconds:120,imageUrl:'/vartana-spices-hero.jpg',imageAlt:'Jahe, kunyit, serai, dan aneka rempah VARTANA',questionCount:10,revision:1,updatedAt:'',reward:defaultReward(),theme:'rempah',entries:[]});
+export type GameEmail={status:string;sendCount:number;maxSends:number;recipient?:string;nextAllowedAt?:string;canResend:boolean};
+export type GameVoucher = {code: string; value: number; expiresAt: string;reward?:GameReward;email?:GameEmail|null};
+export type GameRanking = {entries: {rank: number; name: string; phone: string; email: string; durationMs: number; correctAnswers?:number;totalAnswers?:number;completedAt: string}[]; totalPlayers: number; attempts: number};
+export type GameResponse = {success: true; gamesVersion: number; serverNow: number; attempt: GameAttempt | null; voucher: GameVoucher | null; leaderboard: GameRanking; settings:GameSettings;rewardLimit?:{earned:number;max:number;remaining:number}|null};
+export const defaultGameSettings=(game:GameKind):GameSettings=>({game,enabled:true,durationSeconds:120,imageUrl:game==='puzzle'?'/vartana-spices-hero.jpg':`/games-${game}.svg`,imageAlt:game==='puzzle'?'Jahe, kunyit, serai, dan aneka rempah VARTANA':game==='numbers'?'Kartu hitungan angka VARTANA':'Papan teka-teki silang VARTANA',questionCount:10,revision:1,updatedAt:'',reward:defaultReward(),theme:'rempah',entries:[]});
 export const gameName=(game:GameKind)=>game==='puzzle'?'Puzzle Rempah':game==='numbers'?'Hitungan Angka':'Teka-teki Silang';
 export function rewardDescription(reward:GameReward){const rupiah=(n:number)=>'Rp'+n.toLocaleString('id-ID');return reward.type==='none'?'Bermain untuk rekor':reward.type==='gift'?`Bonus ${reward.quantity} ${reward.productName||reward.sku||'produk pilihan'}`:reward.type==='percent'?`Diskon ${reward.value}%`:reward.type==='shipping'?`Potongan ongkir ${rupiah(reward.value)}`:`Voucher ${rupiah(reward.value)}`;}
 export const gameSeconds = (ms: number) => (ms / 1000).toLocaleString('id-ID', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' dtk';

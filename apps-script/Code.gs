@@ -569,6 +569,7 @@ function doPost(e) {
     if (data.action === 'puzzleGame' || data.action === 'puzzleVoucher') return puzzleHandle_(data);
     if (data.action === 'games') return gamesHandle_(data);
     if (data.action === 'gamesAdmin') return gamesAdminHandle_(data);
+    if (data.action === 'gamesRewardEmail') return gamesRewardEmailHandle_(data);
     if (data.action === 'getCheckoutContext') return getCheckoutContext_(data);
     // Explicit read RPCs share the same response contracts as GET. They never
     // fall through into order creation when master data is requested via POST.
@@ -890,7 +891,7 @@ function doGet(e) {
         ? e.parameter.action
         : "";
 
-    if (action === 'getGameCapabilities') return responseJSON({success:true,gamesVersion:3,rewardVersion:1,games:['puzzle','numbers','crossword']});
+    if (action === 'getGameCapabilities') return responseJSON({success:true,gamesVersion:3,rewardVersion:1,gameEmailVersion:1,games:['puzzle','numbers','crossword']});
 
 
     // ========================================================
@@ -3854,18 +3855,25 @@ function gamesSheets_(){
 function gamesCell_(text){text=String(text);return /^[=+@-]/.test(text)?"'"+text:text;}
 function gamesRead_(sheet){return sheet.getDataRange().getValues().slice(1).map(function(row,index){return {row:index+2,value:row[14]?JSON.parse(String(row[14])):null};}).filter(function(x){return x.value;});}
 function gamesSave_(sheet,row,a){
+ var result=gamesResult_(a);a.correctAnswers=result.correct;a.totalAnswers=result.total;var cols=checkoutColumns_(sheet,['Correct Answers','Total Answers']);sheet.getRange(row,cols['Correct Answers']).setValue(result.correct);sheet.getRange(row,cols['Total Answers']).setValue(result.total);
  sheet.getRange(row,1,1,15).setValues([[a.id,a.game,a.session,a.playerId,gamesCell_(a.name),a.phone,gamesCell_(a.email),new Date(a.startedAt),new Date(a.deadline),a.finishedAt?new Date(a.finishedAt):'',a.durationMs===undefined?'':a.durationMs,a.status,a.score||0,a.answerCount||0,JSON.stringify(a)]]);
+}
+// Public result counts words for TTS, questions for arithmetic, and placed pieces for puzzle.
+function gamesResult_(a){
+ if(a.game==='crossword'&&a.crossword){var cells=a.crossword.cells,answers=a.scoredAnswers||(a.status==='EXPIRED'&&a.submitted?[]:a.answers)||[],correct=a.crossword.words.filter(function(w){for(var i=0;i<w.length;i++){var r=w.row+(w.direction==='down'?i:0),c=w.col+(w.direction==='across'?i:0),index=cells.findIndex(function(x){return x.row===r&&x.col===c;});if(index<0||answers[index]!==cells[index].answer)return false;}return true;}).length;return {correct:correct,total:a.crossword.words.length};}
+ if(a.game==='numbers'){var answers=a.scoredAnswers||(a.status==='EXPIRED'&&a.submitted?[]:a.answers)||[];return {correct:(a.questions||[]).filter(function(q,i){return answers[i]===q.answer;}).length,total:(a.questions||[]).length};}
+ return {correct:a.status==='WON'?20:0,total:20};
 }
 function gamesPublicAttempt_(a){
  if(!a||!a.settings)return null;
- return {id:a.id,game:a.game,board:a.board||null,questions:(a.questions||[]).map(function(q){return {text:q.text};}),startedAt:a.startedAt,deadline:a.deadline,status:a.status,durationMs:a.durationMs,score:a.score||0,answerCount:a.answerCount||0,settings:gamesPublicSettings_(a.settings),pieces:a.pieces||[],crossword:a.crossword?{rows:a.crossword.rows,cols:a.crossword.cols,words:a.crossword.words,cells:a.crossword.cells.map(function(c){return {row:c.row,col:c.col};})}:undefined,feedback:a.lastCheck||''};
+ return {id:a.id,game:a.game,board:a.board||null,questions:(a.questions||[]).map(function(q){return {text:q.text};}),startedAt:a.startedAt,deadline:a.deadline,status:a.status,durationMs:a.durationMs,score:a.score||0,answerCount:a.answerCount||0,correctAnswers:gamesResult_(a).correct,totalAnswers:gamesResult_(a).total,settings:gamesPublicSettings_(a.settings),pieces:a.pieces||[],crossword:a.crossword?{rows:a.crossword.rows,cols:a.crossword.cols,words:a.crossword.words,cells:a.crossword.cells.map(function(c){return {row:c.row,col:c.col};})}:undefined,feedback:a.lastCheck||''};
 }
 function gamesMaskPhone_(phone){return phone.slice(0,4)+'******'+phone.slice(-2);}
 function gamesMaskEmail_(email){var parts=email.split('@'),domain=(parts[1]||'').split('.');return parts[0].slice(0,1)+'***@'+(domain[0]||'').slice(0,1)+'***.'+(domain.length>1?domain[domain.length-1]:'***');}
 function gamesRanking_(attempts,game,revision){
- var best={},all=attempts.map(function(x){return x.value;}).filter(function(a){return a.game===game&&a.status==='WON'&&(!revision||(a.settings&&a.settings.revision===revision));});
- all.sort(function(a,b){return a.durationMs-b.durationMs||a.finishedAt-b.finishedAt||a.startedAt-b.startedAt||a.id.localeCompare(b.id);});
- var rows=[];all.forEach(function(a){if(best[a.phone])return;best[a.phone]=true;rows.push({rank:rows.length+1,name:a.name,phone:gamesMaskPhone_(a.phone),email:gamesMaskEmail_(a.email),durationMs:a.durationMs,completedAt:new Date(a.finishedAt).toISOString()});});
+ var best={},all=attempts.map(function(x){return x.value;}).filter(function(a){return a.game===game&&(a.status==='WON'||game!=='puzzle'&&['FAILED','EXPIRED'].indexOf(a.status)>=0&&gamesResult_(a).correct>0)&&(!revision||(a.settings&&a.settings.revision===revision));});
+ all.sort(function(a,b){return gamesResult_(b).correct-gamesResult_(a).correct||a.durationMs-b.durationMs||a.finishedAt-b.finishedAt||a.startedAt-b.startedAt||a.id.localeCompare(b.id);});
+ var rows=[];all.forEach(function(a){if(best[a.phone])return;best[a.phone]=true;rows.push({rank:rows.length+1,name:a.name,phone:gamesMaskPhone_(a.phone),email:gamesMaskEmail_(a.email),durationMs:a.durationMs,correctAnswers:gamesResult_(a).correct,totalAnswers:gamesResult_(a).total,completedAt:new Date(a.finishedAt).toISOString()});});
  return {entries:rows.slice(0,50),totalPlayers:rows.length,attempts:attempts.filter(function(x){return x.value.game===game;}).length};
 }
 function gamesChallenge_(game,settings){
@@ -3892,7 +3900,7 @@ function gamesHandle_(data){
  try{
   var sheets=gamesSheets_(),attempts=gamesRead_(sheets.attempts),now=Date.now(),settings=gamesSettings_(sheets.settings,d.game);
   // Closing a browser never erases an attempt. Expired sessions are reconciled on the next request.
-  attempts.forEach(function(x){if(x.value.status==='STARTED'&&(!x.value.settings||now>=x.value.deadline)){x.value.status='EXPIRED';x.value.finishedAt=x.value.deadline;x.value.durationMs=x.value.deadline-x.value.startedAt;gamesSave_(sheets.attempts,x.row,x.value);}});
+  attempts.forEach(function(x){if(x.value.status==='STARTED'&&(!x.value.settings||now>=x.value.deadline)){x.value.scoredAnswers=(x.value.answers||[]).slice();x.value.status='EXPIRED';x.value.finishedAt=x.value.deadline;x.value.durationMs=x.value.deadline-x.value.startedAt;gamesSave_(sheets.attempts,x.row,x.value);}});
   if(d.operation==='leaderboard')return responseJSON({success:true,gamesVersion:3,serverNow:now,settings:gamesPublicSettings_(settings),leaderboard:gamesRanking_(attempts,d.game,settings.revision)});
   var own=attempts.filter(function(x){return x.value.session===d.session&&x.value.game===d.game;}),current=own[own.length-1]||null;
   if(d.operation==='start'){
@@ -3908,6 +3916,7 @@ function gamesHandle_(data){
     var players=sheets.players.getDataRange().getValues(),playerRow=-1,playerId='VRT-'+phone;
     for(var i=1;i<players.length;i++)if(String(players[i][2])===phone){playerRow=i+1;playerId=String(players[i][0]);break;}
     if(playerRow<0){var members=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MEMBERS);if(members){var memberRows=members.getDataRange().getValues();for(var m=1;m<memberRows.length;m++)if(puzzlePhone_(memberRows[m][4])===phone&&memberRows[m][1]&&memberRows[m][1]!=='-'){playerId=String(memberRows[m][1]);break;}}}
+    var vouchers=puzzleSheets_().vouchers;gamesFindReward_(vouchers.getDataRange().getValues(),gamesVoucherColumns_(vouchers),{phone:phone,playerId:playerId,email:email},attempts);
     sheets.players.getRange(playerRow>0?playerRow:sheets.players.getLastRow()+1,1,1,6).setValues([[playerId,gamesCell_(name),phone,gamesCell_(email),playerRow>0?players[playerRow-1][4]:new Date(now),new Date(now)]]);
     var a={id:'GAME-'+d.requestId,game:d.game,session:d.session,playerId:playerId,name:name,phone:phone,email:email,startedAt:now,deadline:now+settings.durationSeconds*1000,settings:settings,status:'STARTED',score:0,answerCount:0},challenge=gamesChallenge_(d.game,settings);
     Object.keys(challenge).forEach(function(k){a[k]=challenge[k];});
@@ -3930,12 +3939,12 @@ function gamesHandle_(data){
     }else if(a.game==='crossword'){
      var cells=a.crossword.cells;
      if(!Array.isArray(d.answers)||d.answers.length!==cells.length||d.answers.some(function(v){return typeof v!=='string'||! /^[A-Z]$/.test(v);}))throw new Error('Isi seluruh kotak TTS dengan satu huruf.');
-     a.answers=d.answers.slice();a.answerCount=cells.length;a.score=cells.reduce(function(sum,c,i){return sum+(c.answer===d.answers[i]?1:0);},0);
+     a.answers=d.answers.slice();a.scoredAnswers=d.answers.slice();a.answerCount=cells.length;a.score=cells.reduce(function(sum,c,i){return sum+(c.answer===d.answers[i]?1:0);},0);
      if(a.score===cells.length){a.status='WON';a.lastCheck='';}else a.lastCheck='Masih ada jawaban yang belum tepat. Periksa petunjuk dan coba lagi sebelum waktu habis.';
     }else{
      var count=a.settings.questionCount;
      if(!Array.isArray(d.answers)||d.answers.length!==count||d.answers.some(function(n){return !Number.isSafeInteger(n)||n<0||n>10000;}))throw new Error('Jawab seluruh '+count+' soal dengan angka yang valid.');
-     a.answers=d.answers.slice();a.answerCount=count;a.score=a.questions.reduce(function(sum,q,index){return sum+(q.answer===d.answers[index]?1:0);},0);a.status=a.score===count?'WON':'FAILED';
+     a.answers=d.answers.slice();a.scoredAnswers=d.answers.slice();a.answerCount=count;a.score=a.questions.reduce(function(sum,q,index){return sum+(q.answer===d.answers[index]?1:0);},0);a.status=a.score===count?'WON':'FAILED';
     }
     if(a.status!=='STARTED'){a.finishedAt=now;a.durationMs=now-a.startedAt;}gamesSave_(sheets.attempts,current.row,a);
    }else if(a.status==='EXPIRED'&&!a.submitted){
@@ -3948,8 +3957,8 @@ function gamesHandle_(data){
     gamesSave_(sheets.attempts,current.row,a);
    }
   }
-  var voucher=current?gamesReward_(current.value,current.value.status==='WON'):null;
-  return responseJSON({success:true,gamesVersion:3,serverNow:Date.now(),settings:gamesPublicSettings_(settings),attempt:gamesPublicAttempt_(current?current.value:null),voucher:voucher,leaderboard:gamesRanking_(attempts,d.game,settings.revision)});
+  var voucher=current?gamesReward_(current.value,current.value.status==='WON',attempts):null;
+  return responseJSON({success:true,gamesVersion:3,serverNow:Date.now(),settings:gamesPublicSettings_(settings),attempt:gamesPublicAttempt_(current?current.value:null),voucher:voucher,rewardLimit:current?gamesRewardLimit_(current.value,attempts):null,leaderboard:gamesRanking_(attempts,d.game,settings.revision)});
  }finally{lock.releaseLock();}
 }
 
@@ -3957,8 +3966,8 @@ function gamesPublicSettings_(s){return {game:s.game,enabled:s.enabled,durationS
 function gamesSettings_(sheet,game){
  var rows=sheet.getDataRange().getValues(),s=null;
  for(var i=1;i<rows.length;i++)if(String(rows[i][0])===game)s=JSON.parse(String(rows[i][1]));
- if(!s)s={game:game,enabled:true,durationSeconds:120,imageUrl:'/vartana-spices-hero.jpg',imageAlt:'Rempah VARTANA',questionCount:10,revision:1,updatedAt:''};
- s.reward=s.reward||gamesDefaultReward_();s.theme=s.theme||'rempah';s.entries=s.entries||crosswordBanks[s.theme];return s;
+ if(!s)s={game:game,enabled:true,durationSeconds:120,imageUrl:game==='puzzle'?'/vartana-spices-hero.jpg':'/games-'+game+'.svg',imageAlt:game==='puzzle'?'Rempah VARTANA':game==='numbers'?'Kartu hitungan angka VARTANA':'Papan teka-teki silang VARTANA',questionCount:10,revision:1,updatedAt:''};
+ s.reward=Object.assign({},s.reward||gamesDefaultReward_(),{days:7});s.theme=s.theme||'rempah';s.entries=s.entries||crosswordBanks[s.theme];return s;
 }
 function gamesValidateSettings_(game,raw){
  if(!raw||typeof raw.enabled!=='boolean'||!Number.isInteger(raw.durationSeconds)||raw.durationSeconds<30||raw.durationSeconds>1800||typeof raw.imageUrl!=='string'||raw.imageUrl.length>2000||!( /^\/(?!\/)[^\\]*$/.test(raw.imageUrl)||/^https:\/\/[^\s@\\]+$/i.test(raw.imageUrl))||typeof raw.imageAlt!=='string'||!raw.imageAlt.trim()||raw.imageAlt.length>160||!Number.isInteger(raw.questionCount)||raw.questionCount<5||raw.questionCount>30)throw new Error('Atur waktu 30-1800 detik, foto yang valid, deskripsi foto, dan jumlah soal 5-30.');
@@ -3992,26 +4001,32 @@ function gamesAdminHandle_(data){
    return responseJSON({success:true,gamesVersion:3,settings:clean});
   }
   var attempts=gamesRead_(sheets.attempts),ss=SpreadsheetApp.getActiveSpreadsheet();
-  return responseJSON({success:true,gamesVersion:3,products:getProducts().filter(function(p){return p.active;}).map(function(p){return {sku:p.sku,name:p.productName+' '+p.variantName};}),settings:{puzzle:gamesSettings_(sheets.settings,'puzzle'),numbers:gamesSettings_(sheets.settings,'numbers'),crossword:gamesSettings_(sheets.settings,'crossword')},players:Math.max(0,sheets.players.getLastRow()-1),totalAttempts:attempts.length,attempts:attempts.slice(-100).reverse().map(function(x){var a=x.value;return {id:a.id,game:a.game,name:a.name,phone:a.phone,email:a.email,status:a.status==='STARTED'&&Date.now()>=a.deadline?'EXPIRED':a.status,score:a.score,startedAt:new Date(a.startedAt).toISOString(),finishedAt:a.finishedAt?new Date(a.finishedAt).toISOString():'',durationMs:a.durationMs,revision:a.settings?a.settings.revision:0};}),spreadsheetUrl:typeof ss.getUrl==='function'?ss.getUrl():''});
+  return responseJSON({success:true,gamesVersion:3,emailDelivery:gamesAdminEmailOverview_(),products:getProducts().filter(function(p){return p.active;}).map(function(p){return {sku:p.sku,name:p.productName+' '+p.variantName};}),settings:{puzzle:gamesSettings_(sheets.settings,'puzzle'),numbers:gamesSettings_(sheets.settings,'numbers'),crossword:gamesSettings_(sheets.settings,'crossword')},players:Math.max(0,sheets.players.getLastRow()-1),totalAttempts:attempts.length,attempts:attempts.slice(-100).reverse().map(function(x){var a=x.value;return {id:a.id,game:a.game,name:a.name,phone:a.phone,email:a.email,status:a.status==='STARTED'&&Date.now()>=a.deadline?'EXPIRED':a.status,score:a.score,correctAnswers:gamesResult_(a).correct,totalAnswers:gamesResult_(a).total,startedAt:new Date(a.startedAt).toISOString(),finishedAt:a.finishedAt?new Date(a.finishedAt).toISOString():'',durationMs:a.durationMs,revision:a.settings?a.settings.revision:0};}),spreadsheetUrl:typeof ss.getUrl==='function'?ss.getUrl():''});
  }finally{lock.releaseLock();}
 }
 function setupGames(){gamesSheets_();puzzleSheets_();return 'Games v3 siap. Deploy New version pada Web app yang dipakai website.';}
 
 // Immutable reward terms: existing codes keep their original reward forever.
 function gamesDefaultReward_(){return {type:'nominal',value:20000,sku:'',quantity:1,days:7,minSpend:0,maxDiscount:0};}
-function gamesRewardFromRow_(r){var reward=r[5]?JSON.parse(String(r[5])):gamesDefaultReward_();return {code:String(r[0]),value:reward.value,expiresAt:new Date(r[4]).toISOString(),reward:reward};}
-function gamesReward_(a,issue){
- var sheet=puzzleSheets_().vouchers,rows=sheet.getDataRange().getValues();
- for(var i=1;i<rows.length;i++)if(String(rows[i][1])===a.phone||String(rows[i][2])===a.playerId)return gamesRewardFromRow_(rows[i]);
- var reward=a.settings&&a.settings.reward||gamesDefaultReward_();
- if(!issue||reward.type==='none')return null;
- var voucher={code:'PUZ-'+Utilities.getUuid().replace(/-/g,'').slice(0,20).toUpperCase(),value:reward.value,expiresAt:new Date(a.finishedAt+reward.days*86400000).toISOString(),reward:reward};
- checkoutColumns_(sheet,['Reward JSON']);sheet.getRange(sheet.getLastRow()+1,1,1,6).setValues([[voucher.code,a.phone,a.playerId,new Date(a.finishedAt),new Date(voucher.expiresAt),JSON.stringify(reward)]]);return voucher;
+function gamesRewardFromRow_(r,cols){var reward=r[5]?JSON.parse(String(r[5])):gamesDefaultReward_();return {code:String(r[0]),value:reward.value,expiresAt:new Date(r[4]).toISOString(),reward:reward,email:cols?gamesVoucherEmail_(r,cols):undefined};}
+function gamesReward_(a,issue,history){
+ var sheet=puzzleSheets_().vouchers,cols=gamesVoucherColumns_(sheet),rows=sheet.getDataRange().getValues(),allHistory=history||gamesRead_(gamesSheets_().attempts),owned=gamesFindRewards_(rows,cols,a,allHistory);
+ // Existing five/six-column rewards count toward the lifetime cap. Attribute
+ // them to their original win before deciding whether a later win is new.
+ owned.forEach(function(x){if(!x.values[cols['Attempt ID']-1]){var original=allHistory.map(function(h){return h.value||h;}).filter(function(h){return h.status==='WON'&&(h.phone===a.phone||h.playerId===a.playerId);}).sort(function(x,y){return x.finishedAt-y.finishedAt;})[0];if(original){x.values[cols['Attempt ID']-1]=original.id;sheet.getRange(x.row,1,1,sheet.getLastColumn()).setValues([Array.from({length:sheet.getLastColumn()},function(_,i){return x.values[i]===undefined?'':x.values[i];})]);}}});
+ var found=owned.filter(function(x){return String(x.values[cols['Attempt ID']-1])===a.id;})[0];
+ if(found){var old=found.values;if(!old[cols.Email-1]&&a.email&&issue){var recipient=found.email||gamesRawEmail_(a.email);old[cols.Email-1]=gamesCell_(recipient);old[cols['Email Key']-1]=gamesCell_(gamesEmailKey_(recipient));old[cols['Email Status']-1]='PENDING';old[cols['Email Send Count']-1]=0;sheet.getRange(found.row,1,1,sheet.getLastColumn()).setValues([Array.from({length:sheet.getLastColumn()},function(_,i){return old[i]===undefined?'':old[i];})]);}return gamesRewardFromRow_(old,cols);}
+ var reward=Object.assign({},a.settings&&a.settings.reward||gamesDefaultReward_(),{days:7});
+ if(!issue||reward.type==='none'||owned.length>=3)return null;
+ var voucher={code:'PUZ-'+Utilities.getUuid().replace(/-/g,'').slice(0,20).toUpperCase(),expiresAt:new Date(a.finishedAt+7*86400000).toISOString()},row=Array(sheet.getLastColumn()).fill('');
+ [voucher.code,a.phone,a.playerId,new Date(a.finishedAt),new Date(voucher.expiresAt),JSON.stringify(reward)].forEach(function(v,i){row[i]=v;});row[cols['Attempt ID']-1]=a.id;
+ var recipient=owned[0]&&owned[0].email||gamesRawEmail_(a.email);if(recipient){row[cols.Email-1]=gamesCell_(recipient);row[cols['Email Key']-1]=gamesCell_(gamesEmailKey_(recipient));row[cols['Email Status']-1]='PENDING';row[cols['Email Send Count']-1]=0;}
+ sheet.getRange(sheet.getLastRow()+1,1,1,row.length).setValues([row]);return gamesRewardFromRow_(row,cols);
 }
 function gamesValidateReward_(raw){
  var r=raw||gamesDefaultReward_();
  if(['nominal','percent','shipping','gift','none'].indexOf(r.type)<0||!Number.isInteger(r.days)||r.days<1||r.days>365||!Number.isInteger(r.quantity)||r.quantity<1||r.quantity>99||[r.value,r.minSpend,r.maxDiscount].some(function(v){return !Number.isSafeInteger(v)||v<0||v>1e9;})||(['nominal','percent','shipping'].indexOf(r.type)>=0&&r.value<=0)||(r.type==='percent'&&r.value>100))throw new Error('Pengaturan hadiah tidak valid. Periksa nilai bulat, masa berlaku 1-365 hari, dan jumlah produk.');
- var clean={type:r.type,value:r.type==='gift'||r.type==='none'?0:r.value,sku:String(r.sku||''),quantity:r.quantity,days:r.days,minSpend:r.minSpend,maxDiscount:r.maxDiscount};
+ var clean={type:r.type,value:r.type==='gift'||r.type==='none'?0:r.value,sku:String(r.sku||''),quantity:r.quantity,days:7,minSpend:r.minSpend,maxDiscount:r.maxDiscount};
  if(r.type==='gift'){var p=getProducts().filter(function(p){return p.sku===clean.sku&&p.active;})[0];if(!p)throw new Error('Pilih produk bonus aktif dari Master Product.');clean.productName=p.productName+' '+p.variantName;}
  return clean;
 }
@@ -4026,6 +4041,103 @@ function gamesValidateRedemption_(v,data){
  var rewards=Array.isArray(data.rewardItems)?data.rewardItems:[];
  if(!isFinite(gross)||gross<=0||r.type==='none'||data.productDiscount!==discount||data.subtotalProducts!==gross-discount||Number(data.redeemTotal||0)!==0||Number(data.shippingSubsidy||0)!==shipDiscount)throw new Error('Potongan hadiah Games tidak sesuai.');
  if(r.type==='gift'){if(rewards.length!==1||rewards[0].sku!==r.sku||rewards[0].quantity!==r.quantity||Number(rewards[0].price)!==0)throw new Error('Produk hadiah Games tidak sesuai.');}else if(rewards.length)throw new Error('Hadiah Games tidak dapat digabung bonus lain.');
+}
+
+// Transactional reward email. Reserve before Gmail, never blindly retry an
+// ambiguous send. Three winning attempts may earn three distinct vouchers.
+var GAMES_EMAIL_SENDER = 'vartana@vartanaglobal.com';
+var GAMES_EMAIL_MAX_SENDS = 1;
+var GAMES_MAX_VOUCHERS = 3;
+var GAMES_EMAIL_COOLDOWN_MS = 60000;
+function gamesRawEmail_(v){return String(v||'').replace(/^'(?=[=+@-])/,'').trim().toLowerCase();}
+function gamesEmailKey_(v){var email=gamesRawEmail_(v),parts=email.split('@');if(parts.length!==2)return email;if(['gmail.com','googlemail.com'].indexOf(parts[1])>=0)return parts[0].split('+')[0].replace(/\./g,'')+'@gmail.com';return email;}
+function gamesVoucherColumns_(sheet){return checkoutColumns_(sheet,['Reward JSON','Email','Email Key','Email Status','Email Send Count','Email Last Attempt At','Email Sent At','Email Error','Email Delivery ID','Attempt ID']);}
+function gamesVoucherEmail_(row,cols){
+ function value(name){return cols&&cols[name]?row[cols[name]-1]:'';}
+ var email=gamesRawEmail_(value('Email')),status=String(value('Email Status')||''),count=Number(value('Email Send Count'))||0,last=value('Email Last Attempt At'),lastMs=last?new Date(last).getTime():0,expires=new Date(row[4]).getTime();
+ if(!email)return null;if(Date.now()>=expires)status='EXPIRED';
+ if(status==='SENDING'&&Date.now()-lastMs>15*60000)status='UNKNOWN';
+ return {status:status||'PENDING',sendCount:count,maxSends:GAMES_EMAIL_MAX_SENDS,recipient:gamesMaskEmail_(email),nextAllowedAt:lastMs?new Date(lastMs+GAMES_EMAIL_COOLDOWN_MS).toISOString():'',canResend:false};
+}
+function gamesLegacyVoucherEmail_(row,history){
+ var old=(history||[]).map(function(x){return x.value||x;}).filter(function(a){return a.status==='WON'&&(a.phone===String(row[1])||a.playerId===String(row[2]));})[0];
+ if(old&&old.email)return gamesRawEmail_(old.email);
+ var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MEMBERS),rows=sh?sh.getDataRange().getValues():[];
+ for(var i=1;i<rows.length;i++)if(puzzlePhone_(rows[i][4])===String(row[1])&& /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(rows[i][3]||'')))return gamesRawEmail_(rows[i][3]);
+ return '';
+}
+function gamesFindRewards_(rows,cols,a,history){
+ var key=gamesEmailKey_(a.email),matches=[];
+ for(var i=1;i<rows.length;i++){
+  var row=rows[i],email=gamesRawEmail_(row[cols.Email-1])||gamesLegacyVoucherEmail_(row,history),emailKey=gamesEmailKey_(email),owner=String(row[1])===a.phone||String(row[2])===a.playerId;
+  if(owner||key&&emailKey===key){
+   if(String(row[1])!==a.phone||emailKey&&key&&emailKey!==key)throw new Error('Hadiah sudah terikat ke email dan WhatsApp yang terdaftar. Gunakan identitas yang sama atau hubungi admin untuk koreksi.');
+   matches.push({row:i+1,values:row,email:email});
+  }
+ }
+ return matches;
+}
+function gamesFindReward_(rows,cols,a,history){var matches=gamesFindRewards_(rows,cols,a,history);return a.id?matches.filter(function(x){return String(x.values[cols['Attempt ID']-1])===a.id;})[0]||null:matches[0]||null;}
+function gamesRewardLimit_(a,history){var sheet=puzzleSheets_().vouchers,cols=gamesVoucherColumns_(sheet),count=gamesFindRewards_(sheet.getDataRange().getValues(),cols,a,history).length;return {earned:count,max:3,remaining:Math.max(0,3-count)};}
+function gamesEmailSender_(){
+ var effective=gamesRawEmail_(Session.getEffectiveUser().getEmail());
+ if(effective===GAMES_EMAIL_SENDER)return {primary:true};
+ var aliases=GmailApp.getAliases().map(gamesRawEmail_);
+ if(aliases.indexOf(GAMES_EMAIL_SENDER)>=0)return {primary:false};
+ throw new Error('Alamat vartana@vartanaglobal.com harus menjadi akun pemilik Apps Script atau alias Gmail terverifikasi.');
+}
+function setupGamesRewardEmail(){
+ var sender=gamesEmailSender_();
+ return 'Pengirim siap: '+GAMES_EMAIL_SENDER+' ('+(sender.primary?'akun utama':'alias')+'). Kuota penerima tersisa: '+MailApp.getRemainingDailyQuota()+'. Tidak ada email yang dikirim oleh pemeriksaan ini.';
+}
+function gamesRewardEmailBody_(row,cols){
+ var reward=row[5]?JSON.parse(String(row[5])):gamesDefaultReward_(),code=String(row[0]),expiry=Utilities.formatDate(new Date(row[4]),'Asia/Jakarta','dd MMMM yyyy HH:mm')+' WIB';
+ var money=function(n){return 'Rp'+Number(n).toLocaleString('id-ID');},label=reward.type==='gift'?'Bonus '+reward.quantity+' '+(reward.productName||reward.sku):reward.type==='percent'?'Diskon '+reward.value+'%':reward.type==='shipping'?'Potongan ongkir '+money(reward.value):'Potongan belanja '+money(reward.value);
+ var minimum=reward.minSpend?'Minimum belanja '+money(reward.minSpend)+'.':'Tanpa minimum belanja.',cap=reward.maxDiscount?' Batas potongan '+money(reward.maxDiscount)+'.':'';
+ var url='https://www.vartana.id/checkout?promo='+encodeURIComponent(code),text='Selamat! Hadiah VARTANA Games milikmu sudah tercatat.\n\n'+label+'\nKode: '+code+'\nBerlaku sampai: '+expiry+'\n'+minimum+cap+'\n\nPakai saat belanja: '+url+'\n\nMaksimal tiga voucher berbeda per email/WhatsApp untuk seluruh Games. Kode digunakan sekali dan tidak digabung promo lain. Setiap kode berlaku 7 hari sejak diterbitkan dan digunakan sekali.\nJika butuh bantuan, balas email ini.\n\nVARTANA Botanical Wellness';
+ function escape(v){return String(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+ var html='<div style="background:#f6f2e8;padding:32px 16px;font-family:Arial,sans-serif;color:#173d2b"><div style="max-width:560px;margin:auto;background:#fffdf7;border:1px solid #ddd9c6;border-radius:22px;overflow:hidden"><div style="padding:28px;background:#173d2b;color:#faf7ed"><small style="letter-spacing:3px">VARTANA / GAMES</small><h1 style="font-family:Georgia,serif;font-weight:normal">Satu pencapaian. Sebuah hadiah.</h1></div><div style="padding:28px"><p>Selamat! Hadiahmu sudah tercatat di VARTANA.</p><h2>'+escape(label)+'</h2><div style="padding:20px;background:#eef1e4;border:1px dashed #a6b591;border-radius:12px;font-size:21px;letter-spacing:2px;word-break:break-all">'+escape(code)+'</div><p style="line-height:1.8">Berlaku sampai <strong>'+escape(expiry)+'</strong>.<br>'+escape(minimum+cap)+'</p><p><a href="'+escape(url)+'" style="display:inline-block;padding:15px 24px;background:#173d2b;color:#fffdf7;border-radius:28px;text-decoration:none">Gunakan hadiah saat belanja →</a></p><p style="font-size:12px;line-height:1.8;color:#6a765e">Maksimal tiga voucher berbeda per email/WhatsApp untuk seluruh Games. Sekali pakai, tidak digabung promo lain. Setiap kode memiliki masa berlaku sendiri dan dikirim otomatis satu kali. Balas email ini bila membutuhkan bantuan.</p></div></div></div>';
+ return {subject:'Hadiah VARTANA Games: '+label,text:text,html:html};
+}
+function gamesRewardEmailHandle_(data){
+ puzzleVerify_(data,'gamesRewardEmail');var d=data.puzzlePayload||{};if(d.resend)throw new Error('Setiap voucher dikirim otomatis satu kali. Pengiriman ulang otomatis tidak tersedia.');
+ if(!/^[a-f0-9-]{36}$/i.test(String(d.session||''))||typeof d.attemptId!=='string')throw new Error('Sesi email hadiah tidak valid.');
+ var lock=LockService.getScriptLock();lock.waitLock(20000);var context;
+ try{
+  var history=gamesRead_(gamesSheets_().attempts),a=history.map(function(x){return x.value;}).filter(function(a){return a.session===d.session&&a.id===d.attemptId&&a.status==='WON';})[0];
+  if(!a)throw new Error('Hadiah hanya dapat dikirim untuk kemenangan pada sesi ini.');
+  var sheet=puzzleSheets_().vouchers,cols=gamesVoucherColumns_(sheet),rows=sheet.getDataRange().getValues(),found=gamesFindReward_(rows,cols,a,history);
+  if(!found||!found.email)throw new Error('Email penerima hadiah belum terdaftar.');
+  var row=found.values,info=gamesVoucherEmail_(row,cols),status=info?info.status:'',count=info?info.sendCount:0;
+  if(Date.now()>=new Date(row[4]).getTime())return responseJSON({success:true,email:{status:'EXPIRED',sendCount:count,maxSends:GAMES_EMAIL_MAX_SENDS,canResend:false}});
+  var orders=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),orderRows=orders?orders.getDataRange().getValues():[],voucherCol=orderRows.length?orderRows[0].indexOf('Puzzle Voucher Code'):-1;
+  if(voucherCol>=0&&orderRows.slice(1).some(function(r){return String(r[voucherCol])===String(row[0]);})){row[cols['Email Status']-1]='USED';sheet.getRange(found.row,1,1,row.length).setValues([row]);return responseJSON({success:true,email:{status:'USED',sendCount:count,maxSends:GAMES_EMAIL_MAX_SENDS,canResend:false}});}
+  if(status==='SENDING'||status!=='PENDING')return responseJSON({success:true,email:info,duplicate:true});
+  var total=gamesFindRewards_(rows,cols,a,history).reduce(function(sum,x){return sum+(Number(x.values[cols['Email Send Count']-1])||0);},0);
+  if(count>=GAMES_EMAIL_MAX_SENDS||total>=3)throw new Error('Batas pengiriman hadiah sudah tercapai. Kamu tetap bisa bermain tanpa email tambahan.');
+  var sender;
+  try{sender=gamesEmailSender_();if(MailApp.getRemainingDailyQuota()<1)throw new Error('Kuota email harian belum tersedia.');}
+  catch(error){row[cols['Email Status']-1]='BLOCKED';row[cols['Email Error']-1]=String(error.message||error).slice(0,500);sheet.getRange(found.row,1,1,row.length).setValues([row]);return responseJSON({success:true,email:gamesVoucherEmail_(row,cols)});}
+  var deliveryId=Utilities.getUuid();row[cols['Email Status']-1]='SENDING';row[cols['Email Send Count']-1]=count+1;row[cols['Email Last Attempt At']-1]=new Date();row[cols['Email Delivery ID']-1]=deliveryId;row[cols['Email Error']-1]='';
+  sheet.getRange(found.row,1,1,row.length).setValues([row]);
+  context={rowNumber:found.row,code:String(row[0]),email:found.email,deliveryId:deliveryId,cols:cols,sender:sender,message:gamesRewardEmailBody_(row,cols)};
+ }finally{lock.releaseLock();}
+ var sent=false,failure='';
+ try{var options={name:'VARTANA Botanical Wellness',replyTo:GAMES_EMAIL_SENDER,htmlBody:context.message.html};if(context.sender.primary)MailApp.sendEmail(Object.assign({to:context.email,subject:context.message.subject,body:context.message.text},options));else{options.from=GAMES_EMAIL_SENDER;GmailApp.sendEmail(context.email,context.message.subject,context.message.text,options);}sent=true;}catch(error){failure=String(error.message||error).slice(0,500);}
+ lock=LockService.getScriptLock();lock.waitLock(20000);
+ try{
+  var sheet=puzzleSheets_().vouchers,cols=gamesVoucherColumns_(sheet),rows=sheet.getDataRange().getValues(),rowNumber=-1;
+  for(var i=1;i<rows.length;i++)if(String(rows[i][0])===context.code)rowNumber=i+1;
+  var row=rowNumber>0?rows[rowNumber-1]:null;
+  if(!row||String(row[cols['Email Delivery ID']-1])!==context.deliveryId||gamesRawEmail_(row[cols.Email-1])!==context.email)throw new Error('Status email perlu diperiksa admin. Jangan mengirim ulang otomatis.');
+  row[cols['Email Status']-1]=sent?'SENT':'UNKNOWN';row[cols['Email Error']-1]=failure;if(sent)row[cols['Email Sent At']-1]=new Date();sheet.getRange(rowNumber,1,1,row.length).setValues([row]);
+  return responseJSON({success:true,email:gamesVoucherEmail_(row,cols)});
+ }finally{lock.releaseLock();}
+}
+function gamesAdminEmailOverview_(){
+ var ready=false,message='';try{gamesEmailSender_();ready=true;}catch(error){message=String(error.message||error).slice(0,300);}
+ var sheet=puzzleSheets_().vouchers,cols=gamesVoucherColumns_(sheet),rows=sheet.getDataRange().getValues();
+ return {sender:GAMES_EMAIL_SENDER,ready:ready,message:message,maxSends:GAMES_EMAIL_MAX_SENDS,deliveries:rows.slice(1).filter(function(r){return r[0];}).slice(-100).reverse().map(function(r){return {code:String(r[0]),email:gamesRawEmail_(r[cols.Email-1]),status:String(r[cols['Email Status']-1]||'BELUM DIANTREKAN'),sendCount:Number(r[cols['Email Send Count']-1])||0,expiresAt:new Date(r[4]).toISOString(),sentAt:r[cols['Email Sent At']-1]?new Date(r[cols['Email Sent At']-1]).toISOString():'',error:String(r[cols['Email Error']-1]||'')};})};
 }
 
 // CROSSWORD ENGINE (generated from lib/crossword.ts)

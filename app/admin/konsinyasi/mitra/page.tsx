@@ -2,6 +2,7 @@
 import {adminFetch as fetch} from '@/lib/admin-fetch';
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from 'next/link';
 
 type Mitra = {
   kodeMitra: string;
@@ -145,7 +146,7 @@ export default function KonsinyasiPage() {
       <div className="mx-auto max-w-7xl space-y-7">
         <header className="mitra-hero">
           <div><p className="mitra-eyebrow">VARTANA / KEMITRAAN</p><h1>Jaringan mitra</h1><p>Kelola toko, kontak penanggung jawab, dan status kemitraan dalam satu tempat.</p></div>
-          <button onClick={openCreate} className="mitra-add">+ Tambah mitra</button>
+          <div className="flex flex-wrap gap-3"><Link href="/admin/konsinyasi/mitra/penawaran" className="mitra-add">Simulasi harga & PDF</Link><button onClick={openCreate} className="mitra-add">+ Tambah mitra</button></div>
         </header>
 
         <section className="mitra-summary grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -400,6 +401,7 @@ export default function KonsinyasiPage() {
                           </span>
                         </td>
                         <td className="px-5 py-4 text-right">
+                          <Link href={'/admin/konsinyasi/mitra/penawaran?mitra='+encodeURIComponent(item.kodeMitra)} className="mr-2 inline-flex rounded-lg border border-[#dce5db] px-3 py-2 text-xs font-semibold text-[#24563b] hover:bg-[#edf3eb]">Simulasi harga</Link>
                           <button
                             onClick={() => openEdit(item)}
                             className="rounded-lg border border-[#dce5db] px-3 py-2 text-xs font-semibold text-[#24563b] hover:bg-[#edf3eb]"

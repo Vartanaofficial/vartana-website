@@ -579,7 +579,7 @@ function doPost(e) {
     if (data.action === 'games') return gamesHandle_(data);
     if (data.action === 'gamesAdmin') return gamesAdminHandle_(data);
     if (data.action === 'gamesRewardEmail') return gamesRewardEmailHandle_(data);
-    if(data.action==='adminRead'){puzzleVerify_(data,'adminRead');return doGet({parameter:{action:'getAdminData'},internalAdmin:true});}
+    if(data.action==='adminRead'){puzzleVerify_(data,'adminRead');if(data.puzzlePayload&&data.puzzlePayload.operation==='historyAccessCheck')return customerOrderAccessCheck_(data.puzzlePayload.phone);return doGet({parameter:{action:'getAdminData'},internalAdmin:true});}
     if (data.action === 'getCheckoutContext'){puzzleVerify_(data,'getCheckoutContext');return getCheckoutContext_(data.puzzlePayload);}
     // Explicit read RPCs share the same response contracts as GET. They never
     // fall through into order creation when master data is requested via POST.
@@ -3975,14 +3975,19 @@ function customerAccessSheet_(){return inventoryOperationsSheet_('CustomerOrderA
 function customerAccessHash_(text){var key=PropertiesService.getScriptProperties().getProperty('VARTANA_ARTICLE_ADMIN_KEY');if(!key||key.length<32)throw new Error('Konfigurasi verifikasi belum siap.');return Utilities.computeHmacSha256Signature('ORDER-ACCESS\n'+text,key).map(function(v){return ('0'+((v+256)%256).toString(16)).slice(-2);}).join('');}
 function customerVerifiedPhone_(session){if(!/^[a-f0-9-]{36}$/i.test(String(session||'')))return '';var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CustomerOrderAccess');if(!sh)return '';var rows=sh.getDataRange().getValues(),hash=customerAccessHash_('SESSION:'+session);for(var i=rows.length-1;i>=1;i--)if(rows[i][2]===hash&&rows[i][8]==='VERIFIED'&&new Date(rows[i][11]).getTime()>Date.now())return String(rows[i][1]);return '';}
 function customerChallengePublic_(row){return {success:true,customerOrdersVersion:2,challengeId:String(row[0]),maskedEmail:gamesMaskEmail_(gamesRawEmail_(row[3])),expiresAt:new Date(row[6]).toISOString(),retryAt:new Date(new Date(row[5]).getTime()+60000).toISOString(),deliveryStatus:String(row[9])};}
+function customerOrderRecipient_(raw){
+ var phone=customerOrderPhone_(raw),ss=SpreadsheetApp.getActiveSpreadsheet(),orders=vartanaReadOrders_(ss.getSheetByName(SHEET_ORDERS)).filter(function(o){return phone&&customerOrderPhone_(o.phone)===phone;}),email='';
+ for(var i=orders.length-1;i>=0;i--){var candidate=gamesRawEmail_(orders[i].email);if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate)){email=candidate;break;}}
+ return {phone:phone,email:email,matchingOrders:orders.length};
+}
+function customerOrderAccessCheck_(raw){var result=customerOrderRecipient_(raw);return responseJSON({success:true,matchingOrders:result.matchingOrders,emailAvailable:!!result.email,maskedEmail:result.email?gamesMaskEmail_(result.email):'',inputDigits:String(raw||'').replace(/\D/g,'').length});}
 function customerOrderAccess_(data){
  puzzleVerify_(data,'customerOrderAccess');var d=data.puzzlePayload||{},session=String(d.session||''),operation=String(d.operation||'');if(!/^[a-f0-9-]{36}$/i.test(session)||['request','verify'].indexOf(operation)<0)throw new Error('Sesi verifikasi tidak valid. Buka ulang pencarian.');
  var sessionHash=customerAccessHash_('SESSION:'+session),now=Date.now(),lock=LockService.getScriptLock(),context;
  if(operation==='request'){
   var raw=String(d.phone||''),phone=customerOrderPhone_(raw);if(!phone||! /^[+\d\s()-]+$/.test(raw))throw new Error('Nomor WhatsApp tidak valid.');
   if(customerVerifiedPhone_(session)===phone)return customerOrderHistory_({type:d.type||'phone',query:d.query||phone},phone);
-  var ss=SpreadsheetApp.getActiveSpreadsheet(),orders=vartanaReadOrders_(ss.getSheetByName(SHEET_ORDERS)).filter(function(o){return customerOrderPhone_(o.phone)===phone;}),email='';
-  for(var i=orders.length-1;i>=0;i--)if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(orders[i].email||''))){email=gamesRawEmail_(orders[i].email);break;}
+  var recipient=customerOrderRecipient_(phone),email=recipient.email;
   if(!email)throw new Error('Kode belum dapat dikirim. Periksa nomor WhatsApp yang digunakan saat belanja atau hubungi VARTANA.');
   lock.waitLock(20000);
   try{

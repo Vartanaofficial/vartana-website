@@ -1,0 +1,12 @@
+/* Shared workspace surfaces; forms retain their own status and validation colors. */
+.admin-workspace{background:radial-gradient(ellipse at 0 0,#dce6d5 0,transparent 42%),radial-gradient(ellipse at 100% 20%,#eee2c6 0,transparent 48%),linear-gradient(140deg,#f8f6ed,#eef2e7 65%,#f2eddf);background-attachment:fixed}
+.admin-workspace .admin-brandbar{background:linear-gradient(110deg,#fcfbf5f5,#eaf0e2f5 65%,#f2e9d5f5);border-bottom:1px solid #cbd6bf;box-shadow:0 3px 20px #163c2a06;backdrop-filter:blur(18px)}
+.admin-workspace .admin-sidebar{background:linear-gradient(155deg,#fffdf6,#edf3e5 60%,#eee8d8);box-shadow:12px 20px 60px #173d2b14;border-color:#ced9c1}
+.admin-workspace .admin-sidebar-heading{background:linear-gradient(115deg,#e4eddb,#f2ebd7);border-color:#c7d3ba;border-radius:18px}
+.admin-workspace .admin-nav-group a{border:1px solid transparent;border-radius:12px;transition:background .2s ease,border-color .2s ease,transform .2s ease}
+.admin-workspace .admin-nav-group a:hover{background:#e4ecdc;border-color:#cedabc;transform:translateX(2px)}
+.admin-workspace .admin-nav-group a[aria-current=page]{background:linear-gradient(110deg,#204c38,#315d43);color:#fff9e8;border-color:#345a3e;box-shadow:0 5px 12px #173d2b12}
+.admin-workspace .admin-nav-group a[aria-current=page] .admin-nav-dot{background:#d7bc76}
+.admin-workspace .admin-top-actions>a{background:#fffdf7;border:1px solid #cdd8c1;box-shadow:0 2px 8px #173d2b04}.admin-workspace .admin-top-actions>a:hover{background:#e7efdd;border-color:#a2b58f}
+.admin-workspace .admin-workspace-footer{border-top:1px solid #d2dcc6;color:#67735d}
+@media(prefers-reduced-motion:reduce){.admin-workspace .admin-nav-group a{transition:none}.admin-workspace .admin-nav-group a:hover{transform:none}}

@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import AdminMenuVisual from "./AdminMenuVisual";
+import "./admin-portal.css";
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 
@@ -48,17 +50,6 @@ const menus = [
     symbol: "◇",
   },
 ];
-
-function MenuIcon({ href }: { href: string }) {
-  const paths: Record<string, React.ReactNode> = {
-    "/admin/promos": <><path d="M20 13 13 20a2 2 0 0 1-3 0l-7-7V4h9l8 6a2 2 0 0 1 0 3Z"/><circle cx="7.5" cy="8" r="1"/><path d="m11 10 5 5m0-5-5 5"/></>,
-    "/admin/dashboard": <><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/></>,
-    "/admin/operations": <><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M9 10l1 1 2-2m2 1h2m-7 6 1 1 2-2m2 1h2"/></>,
-    "/admin/master-product": <><path d="m12 3 9 5v9l-9 5-9-5V8l9-5Zm0 10v9M3 8l9 5 9-5M8 5l9 5v4"/></>,
-    "/admin/konsinyasi": <><path d="M3 10V6l4-3h10l4 3v4M3 10h18M5 10v11h14V10M9 21v-7h6v7M3 6h18"/><path d="M3 10a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></>,
-  };
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8" aria-hidden="true">{paths[href] || <><path d="M4 7h16v14H4zM2 3h20v4H2zM9 11h6"/></>}</svg>;
-}
 
 export default function AdminAccessPage() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -156,7 +147,7 @@ export default function AdminAccessPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#071a13] text-[#f7f2e7]">
+    <main className="admin-portal relative min-h-screen overflow-hidden bg-[#071a13] text-[#f7f2e7]">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
@@ -255,11 +246,11 @@ export default function AdminAccessPage() {
                 Memeriksa sesi admin...
               </div>
             ) : authenticated ? (
-              <div className="rounded-3xl border border-white/15 bg-[#102a20]/90 p-5 shadow-2xl backdrop-blur-xl sm:p-7">
-                <div className="mb-6 flex items-start justify-between gap-3">
+              <div className="admin-menu-panel rounded-3xl">
+                <div className="admin-menu-heading mb-6 flex items-start justify-between gap-3">
                   <div>
                     <p className="text-[10px] tracking-[0.2em] text-[#dfc27b]">
-                      YOUR WORKSPACE
+                      RUANG KERJA VARTANA
                     </p>
                     <h2 className="mt-2 text-2xl font-semibold">
                       Pilih Menu
@@ -268,8 +259,8 @@ export default function AdminAccessPage() {
                       Mau mengelola bagian yang mana hari ini?
                     </p>
                   </div>
-                  <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-[10px] text-emerald-200">
-                    Signed in
+                  <span className="rounded-full border border-[#b8c9aa] bg-[#e3ecd9] px-3 py-1 text-[10px] text-[#365b3a]">
+                    Sesi aktif
                   </span>
                 </div>
 
@@ -278,20 +269,18 @@ export default function AdminAccessPage() {
                     <Link
                       key={menu.href}
                       href={menu.href}
-                      className="group relative flex flex-col items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.035] px-5 py-7 text-center transition duration-200 hover:-translate-y-1 hover:border-[#d7bd77]/70 hover:bg-[#c5a66b]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d7bd77] motion-reduce:transform-none"
+                      className="admin-menu-card group relative"
                     >
-                      <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-[#c5a66b]/40 bg-gradient-to-br from-[#d9bd72]/20 to-[#c5a66b]/5 text-[#e0c47b] shadow-[0_4px_20px_#0002] transition group-hover:text-[#f4dda1]">
-                        <MenuIcon href={menu.href}/>
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold sm:text-base">
+                      <AdminMenuVisual href={menu.href}/>
+                      <span className="admin-menu-copy min-w-0 flex-1">
+                        <span className="admin-menu-title block">
                           {menu.title}
                         </span>
-                        <span className="mt-1 block text-xs leading-5 text-[#b9c8bd]">
+                        <span className="admin-menu-description">
                           {menu.description}
                         </span>
                       </span>
-                      <span aria-hidden="true" className="absolute right-4 top-3 text-lg text-[#d7bd77] transition-transform group-hover:translate-x-1">
+                      <span aria-hidden="true" className="admin-menu-arrow">
                         →
                       </span>
                     </Link>
@@ -308,7 +297,7 @@ export default function AdminAccessPage() {
                   type="button"
                   onClick={logout}
                   disabled={busy}
-                  className="mt-5 min-h-11 w-full rounded-xl border border-white/15 text-sm text-[#d6dfd7] transition hover:border-[#d7bd77] hover:text-[#e4ca84] disabled:opacity-50"
+                  className="admin-portal-logout mt-5 min-h-11 w-full rounded-xl border border-white/15 text-sm text-[#d6dfd7] transition hover:border-[#d7bd77] hover:text-[#e4ca84] disabled:opacity-50"
                 >
                   {busy ? "Memproses..." : "Logout dari Admin"}
                 </button>

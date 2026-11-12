@@ -1,4 +1,5 @@
 "use client";
+import {clientId} from '@/lib/client-id';
 
 import Link from "next/link";
 import { BotanicalSprig, CheckoutProgress } from "./CheckoutVisuals";
@@ -61,7 +62,7 @@ export default function CheckoutPage() {
     if (key && savedCart.length && sessionStorage.getItem(`vartana_receipt_${key}`)) {
       key = null;
     }
-    if (!key) { key = crypto.randomUUID(); sessionStorage.setItem("vartana_checkout_key", key); }
+    if (!key) { key = clientId(); sessionStorage.setItem("vartana_checkout_key", key); }
     setOrderKey(key);
     try { const saved = JSON.parse(sessionStorage.getItem(`vartana_receipt_${key}`) || "null"); if (saved) { setReceipt(saved); setPaymentView(saved.paymentMethod || "bank_transfer"); } } catch { /* No completed order. */ }
     setReady(true);

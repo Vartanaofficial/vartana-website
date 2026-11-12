@@ -148,3 +148,6 @@ Deploy kode lengkap sebagai New version pada deployment yang sama. Tidak perlu S
 
 CHECKOUT WORKFLOW V3 - 12 November 2026
 getCheckoutContext menerima includeMaster untuk membaca harga/promo segar bersama konteks customer/order. Profil yang berubah disimpan dalam RPC saveOrder melalui memberProfile, di bawah lock order yang sama. Deployment versi 60 sudah aktif pada URL Web app website yang sama. Order Key dan pemakaian hadiah tetap idempotent.
+
+PROMO WRITE V4 - 12 November 2026
+Backend versi 61 sudah aktif. Simpan promo memvalidasi, menulis seluruh baris sekali, lalu mengembalikan aturan terverifikasi dalam satu RPC. ID promo baru dipertahankan saat retry. File promotion-functions.txt ikut disinkronkan; file TXT lengkap tetap menjadi sumber pemasangan yang disarankan.

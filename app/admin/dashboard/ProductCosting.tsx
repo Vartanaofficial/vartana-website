@@ -1,4 +1,5 @@
 "use client";
+import {adminFetch as fetch} from '@/lib/admin-fetch';
 import {useEffect,useMemo,useState} from "react";
 import {calculateProductCost,type CostRecipe,type CostComponent} from "@/lib/product-costing";
 import {calculatePromoPrice} from "@/lib/product-pricing";

@@ -1,4 +1,6 @@
 "use client";
+import {adminFetch as fetch} from '@/lib/admin-fetch';
+import {clientId} from '@/lib/client-id';
 import {useEffect,useState,type FormEvent} from 'react';
 import './inventory-batches.css';
 import {expiryFromReceipt} from '@/lib/expiry-date';
@@ -13,10 +15,10 @@ export default function InventoryBatches({item,mode='manage',onClose,onSaved}:{m
  const [sort,setSort]=useState('input');
  const [expiryMonths,setExpiryMonths]=useState<number|null>(null);
  const [printing,setPrinting]=useState<string|null>(null);
- const [unit,setUnit]=useState(item.unit==='gram'?'gram':item.unit),[op,setOp]=useState(mode==='opening'?'batchOpening':''),[selected,setSelected]=useState<InventoryBatch|null>(null),[qty,setQty]=useState(''),[received,setReceived]=useState(today().slice(0,7)),[expiry,setExpiry]=useState(''),[quality,setQuality]=useState('HOLD'),[note,setNote]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[requestId,setRequestId]=useState(()=>crypto.randomUUID()),[parts,setParts]=useState([{receivedOn:'',qty:''},{receivedOn:'',qty:''}]);
+ const [unit,setUnit]=useState(item.unit==='gram'?'gram':item.unit),[op,setOp]=useState(mode==='opening'?'batchOpening':''),[selected,setSelected]=useState<InventoryBatch|null>(null),[qty,setQty]=useState(''),[received,setReceived]=useState(today().slice(0,7)),[expiry,setExpiry]=useState(''),[quality,setQuality]=useState('HOLD'),[note,setNote]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[requestId,setRequestId]=useState(()=>clientId()),[parts,setParts]=useState([{receivedOn:'',qty:''},{receivedOn:'',qty:''}]);
  const factor=unit==='kg'?1000:1,batches=(item.batches||[]).map((b,i)=>({...b,inputOrder:b.inputOrder??i+1})).sort((a,b)=>(a.inputOrder-b.inputOrder)),sum=parts.reduce((s,p)=>s+(Number(p.qty)||0)*factor,0),remainder=(selected?.qty||0)-sum;
  useEffect(()=>{if(op)document.querySelector('.batch-form')?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'nearest'});},[op,selected]);
- const change=()=>setRequestId(crypto.randomUUID());
+ const change=()=>setRequestId(clientId());
  useEffect(()=>{const old=document.body.style.overflow;document.body.style.overflow='hidden';const escape=(e:KeyboardEvent)=>{if(e.key==='Escape'&&!busy)onClose();};document.addEventListener('keydown',escape);return()=>{document.body.style.overflow=old;document.removeEventListener('keydown',escape);};},[busy,onClose]);
  function choose(next:string,b?:InventoryBatch){setExpiryMonths(null);setOp(next);setSelected(b||null);setQty(b?String(b.qty/factor):'');setReceived(b?.receivedOn||today().slice(0,7));setExpiry(b?.expiryDate||'');setQuality(b?.quality||'HOLD');setNote('');setParts([{receivedOn:'',qty:''},{receivedOn:'',qty:''}]);setMessage('');change();}
  async function save(e:FormEvent){e.preventDefault();setBusy(true);setMessage('');try{const r=await fetch('/api/admin/inventory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:op,id:item.id,requestId,batchId:selected?.batchId,expectedQty:selected?.qty,expectedUpdatedAt:selected?.updatedAt,qty:Number(qty)*factor,receivedOn:received,expiryDate:expiry,quality,note,parts:parts.map(p=>({receivedOn:p.receivedOn,qty:Number(p.qty)*factor}))})}),d=await r.json();if(!r.ok||!d.success)throw Error(d.message||'Perubahan belum tersimpan.');if(await onSaved()===false){setMessage('Tersimpan. Tutup lalu refresh saldo terbaru.');return;}setOp('');setSelected(null);setMessage('Tersimpan. Jumlah stok dan daftar bulan sudah diperbarui.');change();}catch(e){setMessage(e instanceof Error?e.message:'Gagal menyimpan.');}finally{setBusy(false);}}

@@ -360,6 +360,7 @@ export default function Home() {
 
   // TRACKING & HISTORY MODAL STATES
   const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
+  useEffect(()=>{if(new URLSearchParams(location.search).get("track")==="1")setIsTrackModalOpen(true);},[]);
   const [searchSerial, setSearchSerial] = useState("");
   const [trackingResult, setTrackingResult] = useState<any>(null);
   const [trackingLoading, setTrackingLoading] = useState(false);

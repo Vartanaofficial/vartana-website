@@ -1,4 +1,5 @@
 "use client";
+import {adminFetch as fetch} from '@/lib/admin-fetch';
 import Link from 'next/link';
 import {useEffect,useMemo,useState} from 'react';
 import {buildMeetingReport,rupiah,type MeetingOrder,type MeetingInventory} from '@/lib/meeting-report';

@@ -1,4 +1,5 @@
 ﻿"use client";
+import {adminFetch as fetch} from '@/lib/admin-fetch';
 import Link from "next/link";
 import {useCallback,useEffect,useState,type FormEvent} from "react";
 type Target={kodeMitra?:string;sku?:string};

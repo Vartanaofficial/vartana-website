@@ -1,4 +1,5 @@
 "use client";
+import {adminFetch as fetch} from '@/lib/admin-fetch';
 import Inventory from "./Inventory";
 import BusinessOverview from "./BusinessOverview";
 import ProductCosting from "./ProductCosting";

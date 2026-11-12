@@ -1,4 +1,6 @@
 'use client';
+import {adminFetch as fetch} from '@/lib/admin-fetch';
+import {clientId} from '@/lib/client-id';
 import Link from 'next/link';
 import {useEffect,useRef,useState} from 'react';
 import {defaultGameSettings,gameSeconds,gameName,type GameKind,type GameSettings} from '@/lib/games';
@@ -21,7 +23,7 @@ export default function GamesAdmin(){
  async function save(){
   if(saving)return;
   if(!Number.isInteger(draft.durationSeconds)||draft.durationSeconds<30||draft.durationSeconds>1800||!productImageUrl(draft.imageUrl)||!draft.imageAlt.trim()||!Number.isInteger(draft.questionCount)||draft.questionCount<5||draft.questionCount>30){setError('Periksa waktu 30–1800 detik, link foto, deskripsi foto, dan jumlah soal 5–30.');return;}
-  setSaving(true);setError('');setMessage('');const fingerprint=JSON.stringify(draft);if(!pending.current||pending.current.fingerprint!==fingerprint)pending.current={fingerprint,requestId:crypto.randomUUID()};
+  setSaving(true);setError('');setMessage('');const fingerprint=JSON.stringify(draft);if(!pending.current||pending.current.fingerprint!==fingerprint)pending.current={fingerprint,requestId:clientId()};
   try{const response=await fetch('/api/admin/games',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game,settings:draft,expectedRevision:draft.revision,requestId:pending.current.requestId})}),data=await response.json();if(!response.ok)throw new Error(data.message);setSettings(previous=>({...previous,[game]:data.settings}));pending.current=null;setMessage('Pengaturan tersimpan di GameSettings. Pemain baru memakai versi ini; riwayat percobaan lama tetap tersimpan.');}
   catch(e){setError(e instanceof Error?e.message:'Pengaturan belum tersimpan.');}finally{setSaving(false);}
  }

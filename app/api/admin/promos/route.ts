@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminSessionToken } from "@/lib/admin-auth";
 import { requestMasterScript } from "@/lib/master-products";
 import { decodeCheckoutPromos } from "@/lib/checkout-promos";
-import { readMasterProducts } from "@/lib/master-products";
+
 
 function authorized(req: NextRequest) {
   const secret = process.env.ADMIN_SESSION_SECRET;
@@ -40,19 +40,12 @@ export async function POST(req: NextRequest) {
       || [startDate, endDate].some(d => d && (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !Number.isFinite(Date.parse(d)))) || (startDate && endDate && startDate > endDate)) {
       return NextResponse.json({ message: "Periksa kode, nilai diskon, dan tanggal promo." }, { status: 400 });
     }
-    if(rewardRule){
-      const products=await readMasterProducts();
-      if(type==='bogo'&&buySkus.length>1)return NextResponse.json({message:'Promo produk sama hanya untuk satu SKU.'},{status:400});
-      if(![...(buySkus.length?buySkus:[buySku]),rewardSku].every(sku=>products.some(p=>p.sku===sku&&p.active===true&&Number(p.sellingPrice)>0)))return NextResponse.json({message:"Pilih produk pemicu dan hadiah yang aktif serta memiliki harga jual."},{status:400});
-    }
-    const data = await requestMasterScript("getPromotions");
-    if(data.promoVersion!==3)return NextResponse.json({message:'Perbarui Apps Script Promo v3 sebelum menyimpan aturan promo.'},{status:409});
-    const existing = decodeCheckoutPromos(data.promotions || []);
-    if (existing.some(p => p.code === code && p.id !== body.id)) return NextResponse.json({ message: "Kode promo sudah digunakan." }, { status: 409 });
-    const id = body.id ? String(body.id) : `CHECKOUT-${crypto.randomUUID()}`;
-    if (body.id && !existing.some(p => p.id === id)) return NextResponse.json({ message: "Promo tidak ditemukan." }, { status: 404 });
+    if(type==='bogo'&&buySkus.length>1)return NextResponse.json({message:'Promo produk sama hanya untuk satu SKU.'},{status:400});
+    const requestId=String(body.requestId||crypto.randomUUID());
+    if(!/^[a-f0-9-]{36}$/i.test(requestId))return NextResponse.json({message:'Kunci simpan tidak valid.'},{status:400});
+    const id=body.id?String(body.id):'CHECKOUT-'+requestId;
     const result = await requestMasterScript(body.id ? "updatePromotion" : "createPromotion", {
-      promotionId: id, sku: "CHECKOUT", promotionName: name, active: active === true, startDate, endDate,
+      requireExisting:!!body.id,requireWriteVersion:4,promotionId: id, sku: "CHECKOUT", promotionName: name, active: active === true, startDate, endDate,
       promoPrice: type === "percent" ? 0 : value, discountPercentage: type === "percent" ? value / 100 : 0,
       scope: "checkout-v2", checkoutCode: code, checkoutType: type, checkoutValue: value, minSpend, maxDiscount,
       bannerText: JSON.stringify({ scope: "checkout-v2", code, type, value, minSpend, maxDiscount,
@@ -60,15 +53,13 @@ export async function POST(req: NextRequest) {
         buySku,buySkus,buyQty,rewardSku,rewardQty,redeemPrice,maxApplications,shippingMode,area }),
     });
     if (result.success !== true) throw new Error("Save failed");
-    // Confirm the complete rule is actually persisted, not just an HTTP success.
-    const readback = await requestMasterScript("getPromotions");
-    const saved = decodeCheckoutPromos(readback.promotions || []).find(p => p.id === id);
+    const saved=result.verified===true&&result.promoVersion===4?decodeCheckoutPromos([result.promotion||{}])[0]:null;
     const expected = { code, name, type, value, minSpend, maxDiscount, startDate, endDate, active: active === true,
       automatic: body.automatic === true && type !== "redeem", stackable: body.stackable !== false, priority,
       buySku, buyQty, rewardSku, rewardQty, redeemPrice, maxApplications,shippingMode,area };
     if (!saved || JSON.stringify(saved.buySkus||[])!==JSON.stringify(buySkus)|| Object.entries(expected).some(([key, value]) => saved[key as keyof typeof saved] !== value)) {
       return NextResponse.json({ success: false, saved: true, message: "Penyimpanan sudah dikirim, tetapi rincian promo belum cocok saat dibaca ulang. Muat ulang daftar dan pastikan Apps Script v2 sudah dideploy." }, { status: 502 });
     }
-    return NextResponse.json({ success: true, spreadsheet: "Promotions", verified: true });
-  } catch { return NextResponse.json({ message: "Promo belum berhasil disimpan." }, { status: 502 }); }
+    return NextResponse.json({ success: true, spreadsheet: "Promotions", verified: true, promo:saved, message:body.id?"Promo berhasil diperbarui.":"Promo berhasil ditambahkan." });
+  } catch(error) { const message=error instanceof Error?error.message:'Promo belum berhasil disimpan.';return NextResponse.json({ message }, { status:/sudah digunakan|tidak ditemukan/i.test(message)?409:502 }); }
 }

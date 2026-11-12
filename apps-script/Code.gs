@@ -1861,6 +1861,7 @@ function savePromotion(data) {
     if(raw&&['checkout-v1','checkout-v2'].indexOf(raw.scope)>=0)config=vartanaPromoConfig_(raw);
     else if(['checkout-v1','checkout-v2'].indexOf(data.scope)>=0)config=vartanaPromoConfig_({code:data.checkoutCode,type:data.checkoutType,value:data.checkoutValue,minSpend:data.minSpend,maxDiscount:data.maxDiscount,automatic:data.automatic,stackable:data.stackable,priority:data.priority,buySku:data.buySku,buyQty:data.buyQty,rewardSku:data.rewardSku,rewardQty:data.rewardQty,redeemPrice:data.redeemPrice,maxApplications:data.maxApplications,shippingMode:data.shippingMode,area:data.area,buySkus:data.buySkus});
   }catch(error){return responseJSON({success:false,message:error.message});}
+  if(config&&['bogo','gift','redeem'].indexOf(config.type)>=0){var products=getProducts(),skus=(config.buySkus.length?config.buySkus:[config.buySku]).concat([config.rewardSku]);if(!skus.every(function(sku){return products.some(function(p){return p.sku===sku&&p.active&&p.sellingPrice>0;});}))return responseJSON({success:false,message:'Pilih produk pemicu dan hadiah aktif dengan harga jual.'});}
   var start=String(data.startDate||''),end=String(data.endDate||'');
   if((start&&end&&start>end)||[start,end].some(function(v){return v&&(!/^\d{4}-\d{2}-\d{2}$/.test(v)||!isFinite(Date.parse(v)));}))return responseJSON({success:false,message:'Periode promo tidak valid.'});
   var lock=LockService.getScriptLock();lock.waitLock(20000);
@@ -1870,10 +1871,17 @@ function savePromotion(data) {
       if(String(rows[i][0])===String(id))found=i+1;
       if(config&&String(rows[i][0])!==String(id)){var existing=null;try{existing=vartanaConfigFromRow_(rows[i],headers);}catch(error){}if(existing&&existing.code===config.code)return responseJSON({success:false,message:'Kode promo sudah digunakan.'});}
     }
-    var now=new Date(),row=[id,data.sku,data.promotionName||'',Number(data.promoPrice)||0,Number(data.discountPercentage)||0,config?checkoutPromoLabel_(config):data.bannerText||'',start,end,data.active!==false,found>0?rows[found-1][9]:now,now];
-    if(found>0)sheet.getRange(found,1,1,row.length).setValues([row]);else{sheet.appendRow(row);found=sheet.getLastRow();}
-    if(config){var fields=vartanaPromoFields_(config);Object.keys(fields).forEach(function(key){sheet.getRange(found,cols[key]).setValue(fields[key]);});}
-    return responseJSON({success:true,promotionId:id,message:'Promotion tersimpan.'});
+    if(data.requireExisting&&found<0)return responseJSON({success:false,message:'Promo tidak ditemukan. Muat ulang daftar.'});
+    var now=new Date(),row=found>0?rows[found-1].slice():Array(headers.length).fill('');
+    var base=[id,data.sku,data.promotionName||'',Number(data.promoPrice)||0,Number(data.discountPercentage)||0,config?checkoutPromoLabel_(config):data.bannerText||'',start,end,data.active!==false,found>0?rows[found-1][9]:now,now];
+    base.forEach(function(value,i){row[i]=value;});
+    if(config){var fields=vartanaPromoFields_(config);Object.keys(fields).forEach(function(key){row[cols[key]-1]=fields[key];});}
+    var target=found>0?found:sheet.getLastRow()+1;
+    sheet.getRange(target,1,1,row.length).setValues([row]);
+    var stored=sheet.getRange(target,1,1,headers.length).getValues()[0],storedConfig=vartanaConfigFromRow_(stored,headers);
+    if(config&&JSON.stringify(storedConfig)!==JSON.stringify(config))throw new Error('Rincian promo belum cocok setelah disimpan. Muat ulang daftar sebelum mencoba lagi.');
+    var promotion={promotionId:String(stored[0]),sku:String(stored[1]),promotionName:String(stored[2]||''),promoPrice:Number(stored[3])||0,discountPercentage:Number(stored[4])||0,bannerText:storedConfig?JSON.stringify(storedConfig):String(stored[5]||''),startDate:formatDateValue(stored[6]),endDate:formatDateValue(stored[7]),active:vartanaBool_(stored[8],false)};
+    return responseJSON({success:true,promoVersion:4,verified:true,promotionId:id,promotion:promotion,message:'Promo berhasil disimpan.'});
   }finally{lock.releaseLock();}
 }
 

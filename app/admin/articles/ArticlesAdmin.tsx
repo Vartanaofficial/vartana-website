@@ -1,4 +1,6 @@
 ﻿"use client";
+import {adminFetch as fetch} from '@/lib/admin-fetch';
+import {clientId} from '@/lib/client-id';
 import {useEffect,useState,type FormEvent} from 'react';
 import {articleSlug,validateArticle,type Article,type ArticleBlock} from '@/lib/articles';
 import ArticleBody from '../../components/ArticleBody';
@@ -13,7 +15,7 @@ export default function ArticlesAdmin(){
  useEffect(()=>{void load();},[]);
  const dirty=!!edit&&JSON.stringify(edit)!==saved;
  function open(a:Article){if(dirty&&!confirm('Tinggalkan perubahan yang belum disimpan?'))return;setEdit(structuredClone(a));setSaved(JSON.stringify(a));setPreview(false);setSlugManual(true);setMessage('');}
- function create(){if(dirty&&!confirm('Tinggalkan perubahan yang belum disimpan?'))return;const a:Article={id:'ART-'+crypto.randomUUID(),slug:'',title:'',excerpt:'',category:'Cerita',status:'DRAFT',coverUrl:'',coverAlt:'',blocks:[{type:'paragraph',text:''}],createdAt:'',updatedAt:''};setEdit(a);setSaved(JSON.stringify(a));setSlugManual(false);setPreview(false);setMessage('');}
+ function create(){if(dirty&&!confirm('Tinggalkan perubahan yang belum disimpan?'))return;const a:Article={id:'ART-'+clientId(),slug:'',title:'',excerpt:'',category:'Cerita',status:'DRAFT',coverUrl:'',coverAlt:'',blocks:[{type:'paragraph',text:''}],createdAt:'',updatedAt:''};setEdit(a);setSaved(JSON.stringify(a));setSlugManual(false);setPreview(false);setMessage('');}
  useEffect(()=>{if(!dirty)return;const warn=(e:BeforeUnloadEvent)=>{e.preventDefault();e.returnValue='';};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
  function patch(values:Partial<Article>){setEdit(a=>a?{...a,...values}:a);}
  function block(i:number,values:Partial<ArticleBlock>){if(edit)patch({blocks:edit.blocks.map((b,n)=>i===n?{...b,...values}:b)});}

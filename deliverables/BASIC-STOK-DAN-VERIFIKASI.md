@@ -1,6 +1,6 @@
 # Stok checkout dan verifikasi riwayat
 
-Revisi ini masih lokal. Belum commit, push, atau publikasi website. Apps Script produksi masih versi 67; pemasangan backend baru perlu dilakukan bersamaan dengan pembaruan website karena protokol checkout dan admin kini bertanda tangan.
+Backend versi 68 tersedia melalui deployment terpisah, sehingga website lama dapat tetap memakai versi 67 selama build website baru. Konfigurasi Netlify GOOGLE_SCRIPT_URL untuk deployment berikutnya menunjuk versi 68. Protokol checkout dan admin kini bertanda tangan.
 
 ## Aturan stok
 
@@ -26,4 +26,4 @@ Email order baru untuk admin dan email perubahan tahap untuk customer tetap ters
 
 ## Validasi
 
-243 tes lolos, termasuk alur voucher–ongkir–order–alokasi stok–OTP riwayat–pembayaran–pengiriman, persaingan pembelian stok terakhir, kedaluwarsa 30 menit, idempotensi, dan rekonsiliasi tanpa perubahan stok. Pengujian memakai fixture; tidak mengirim email percobaan atau membuat order produksi. Verifikasi visual pada perangkat HP belum dilakukan pada revisi ini.
+244 tes lolos, termasuk alur voucher–ongkir–order–alokasi stok–OTP riwayat–pembayaran–pengiriman, persaingan pembelian stok terakhir, kedaluwarsa 30 menit, idempotensi, dan rekonsiliasi tanpa perubahan stok. Struk memakai label Biaya pengiriman, tanpa catatan teknis estimasi historis atau metode pembayaran yang tidak tercatat. Status asli tetap tampil. Pengujian memakai fixture; tidak mengirim email percobaan atau membuat order produksi. Hasil gambar struk telah diperiksa; verifikasi visual pada perangkat HP belum dilakukan pada revisi ini.

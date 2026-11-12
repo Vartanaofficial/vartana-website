@@ -15,3 +15,12 @@ test('unpaid orders cannot generate a paid receipt and unknown amounts stay unkn
  assert.throws(()=>receiptSvg({...order,grandTotal:NaN},logo));
  const d=receiptSvg({...order,subtotalProducts:null,customerShippingFee:null},logo);assert.ok(d.svg.includes('Belum tersedia'));
 });
+test('receipt keeps the actual order stage and omits internal shipping diagnostics and unknown payment method',()=>{
+ for(const status of ['PEMBAYARAN DITERIMA','PESANAN DISIAPKAN','DIKIRIM','SELESAI']){
+  const d=receiptSvg({...order,status,reconciliationStatus:'ESTIMASI_ONGKIR'},logo);
+  assert.ok(d.svg.includes(status));assert.ok(d.svg.includes('Biaya pengiriman'));
+  for(const text of ['estimasi historis','Tidak tercatat','Metode saat checkout'])assert.ok(!d.svg.includes(text));
+  if(status!=='PEMBAYARAN DITERIMA')assert.ok(!d.svg.includes('PEMBAYARAN DITERIMA'));
+ }
+ assert.ok(receiptSvg({...order,paymentMethod:'qris'},logo).svg.includes('QRIS'));
+});

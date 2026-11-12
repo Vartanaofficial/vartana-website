@@ -2,6 +2,7 @@
 function adminManagement_(data) {
   puzzleVerify_(data,'adminManagement');
   var d=data.puzzlePayload||{},op=String(d.operation||'');
+  if(op==='campaignCapabilities')return responseJSON({success:true,broadcastImageVersion:1});
   if(op==='menuRead'||op==='menuSave')return adminMenuOrder_(d);
   if(['campaignCreate','campaignRead','campaignSend','campaignList'].indexOf(op)<0)throw new Error('Tindakan admin tidak dikenal.');
   return adminCampaign_(d);
@@ -36,6 +37,7 @@ function adminCampaignFind_(sh,id){
 }
 function adminCampaignPublic_(campaign){
   var result=JSON.parse(JSON.stringify(campaign));delete result.fingerprint;
+  delete result.imageFileId;
   result.recipients.forEach(function(r){if(r.status==='SENDING'&&Date.now()-Date.parse(r.attemptedAt)>15*60000)r.status='UNKNOWN';});
   return result;
 }
@@ -50,13 +52,22 @@ function adminCampaign_(d){
   if(!/^[a-f0-9-]{36}$/i.test(String(d.id||'')))throw new Error('ID broadcast tidak valid.');
   var sh=adminCampaignSheet_();
   if(d.operation==='campaignRead')return responseJSON({success:true,campaign:adminCampaignPublic_(adminCampaignFind_(sh,d.id).value)});
+  var imageUrl=String(d.imageUrl||''),imageCaption=String(d.imageCaption||'').trim();
+  if(d.operation==='campaignCreate'&&(imageCaption.length>400||(!imageUrl&&imageCaption)))throw new Error('Tambahkan foto sebelum mengisi caption (maksimal 400 karakter).');
+  // Fetch and snapshot the image before taking the shared order/inventory lock.
+  var image=null;
+  if(d.operation==='campaignCreate'&&imageUrl){
+    if(!String(d.subject||'').trim()||String(d.subject).length>160||/[\r\n]/.test(String(d.subject))||String(d.body||'').trim().length<10||String(d.body).length>10000||!Array.isArray(d.members)||!d.members.length||d.members.length>100)throw new Error('Lengkapi subjek, pesan, dan penerima sebelum menambahkan foto.');
+    var imageExists=sh.getDataRange().getValues().some(function(r){return String(r[0])===d.id;});
+    if(!imageExists)image=adminBroadcastImage_(imageUrl,d.id);
+  }
   var lock=LockService.getScriptLock();lock.waitLock(20000);
   var campaign,row,recipient;
   try{
     if(d.operation==='campaignCreate'){
       var subject=String(d.subject||'').trim(),body=String(d.body||'').trim();
       if(!subject||subject.length>160||/[\r\n]/.test(subject)||body.length<10||body.length>10000||!Array.isArray(d.members)||!d.members.length||d.members.length>100)throw new Error('Isi subjek, pesan (10–10.000 karakter), dan pilih maksimal 100 member.');
-      var fingerprint=JSON.stringify({subject:subject,body:body,members:d.members});
+      var fingerprint=JSON.stringify({subject:subject,body:body,members:d.members,imageUrl:imageUrl,imageCaption:imageCaption});
       var previous=sh.getDataRange().getValues().filter(function(r){return String(r[0])===d.id;})[0];
       if(previous){var existing=JSON.parse(String(previous[1]));if(existing.fingerprint!==fingerprint)throw new Error('ID broadcast sudah digunakan untuk pesan berbeda.');return responseJSON({success:true,campaign:adminCampaignPublic_(existing)});}
       var source=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MEMBERS),rows=source?source.getDataRange().getValues():[],seen={},recipients=[];
@@ -68,8 +79,8 @@ function adminCampaign_(d){
         var key=gamesEmailKey_(email);if(seen[key])return;seen[key]=true;
         recipients.push({email:email,name:String(r[2]||''),memberId:String(r[1]),status:'PENDING'});
       });
-      campaign={id:d.id,subject:subject,body:body,recipients:recipients,createdAt:new Date().toISOString(),fingerprint:fingerprint};
-      if(JSON.stringify(campaign).length>44000)throw new Error('Pesan atau jumlah penerima terlalu besar. Bagi menjadi beberapa broadcast.');
+      campaign={id:d.id,subject:subject,body:body,recipients:recipients,createdAt:new Date().toISOString(),fingerprint:fingerprint,imageUrl:imageUrl,imageCaption:imageCaption,imageFileId:image?image.fileId:''};
+      if(JSON.stringify(campaign).length+recipients.length*200>44000)throw new Error('Pesan atau jumlah penerima terlalu besar. Bagi menjadi beberapa broadcast.');
       sh.appendRow([d.id,JSON.stringify(campaign),new Date()]);
       return responseJSON({success:true,campaign:adminCampaignPublic_(campaign)});
     }
@@ -87,10 +98,12 @@ function adminCampaign_(d){
   function escape(value){return String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   var greeting=recipient.name?'Halo '+recipient.name+',':'Halo,';
   try{
-    MailApp.sendEmail({to:recipient.email,subject:campaign.subject,name:'VARTANA Botanical Wellness',replyTo:GAMES_EMAIL_SENDER,
+    var mail={to:recipient.email,subject:campaign.subject,name:'VARTANA Botanical Wellness',replyTo:GAMES_EMAIL_SENDER,
       body:greeting+'\n\n'+campaign.body+'\n\nVARTANA Botanical Wellness\nhttps://www.vartana.id',
-      htmlBody:'<div style="background:#f5f2e8;padding:28px;font-family:Arial,sans-serif;color:#173d2b"><div style="max-width:580px;margin:auto;background:#fffdf7;padding:32px;border-radius:18px"><p style="letter-spacing:3px;color:#947538">VARTANA</p><h1 style="font-family:Georgia,serif;font-size:27px">'+escape(campaign.subject)+'</h1><p>'+escape(greeting)+'</p><div style="line-height:1.8;white-space:pre-wrap">'+escape(campaign.body)+'</div><p style="margin-top:30px"><a href="https://www.vartana.id/katalog" style="color:#173d2b">Belanja di VARTANA →</a></p><hr style="border:0;border-top:1px solid #dedfce"><p style="font-size:12px">VARTANA Botanical Wellness<br>Balas email ini untuk menghubungi tim VARTANA.</p></div></div>'});
-  }catch(e){status='UNKNOWN';error=String(e.message||e).slice(0,300);}
+      htmlBody:'<div style="background:#f5f2e8;padding:28px;font-family:Arial,sans-serif;color:#173d2b"><div style="max-width:580px;margin:auto;background:#fffdf7;padding:32px;border-radius:18px"><p style="letter-spacing:3px;color:#947538">VARTANA</p><h1 style="font-family:Georgia,serif;font-size:27px">'+escape(campaign.subject)+'</h1><p>'+escape(greeting)+'</p>'+ (campaign.imageFileId?'<div style="margin:24px 0"><img src="cid:promo" alt="'+escape(campaign.imageCaption||'Foto promo VARTANA')+'" style="display:block;width:100%;max-width:516px;height:auto;border-radius:12px">'+(campaign.imageCaption?'<p style="font-size:13px;line-height:1.7;color:#65715f">'+escape(campaign.imageCaption)+'</p>':'')+'</div>':'')+'<div style="line-height:1.8;white-space:pre-wrap">'+escape(campaign.body)+'</div><p style="margin-top:30px"><a href="https://www.vartana.id/katalog" style="color:#173d2b">Belanja di VARTANA →</a></p><hr style="border:0;border-top:1px solid #dedfce"><p style="font-size:12px">VARTANA Botanical Wellness<br>Balas email ini untuk menghubungi tim VARTANA.</p></div></div>'};
+    if(campaign.imageFileId){mail.inlineImages={promo:DriveApp.getFileById(campaign.imageFileId).getBlob()};mail.body+=(campaign.imageCaption?'\n\n'+campaign.imageCaption:'')+'\n'+campaign.imageUrl;}
+    MailApp.sendEmail(mail);
+  }catch(e){status='UNKNOWN';error=String(e.message||e).slice(0,100);}
 
   // A reserved recipient is never retried automatically after an ambiguous send.
   lock.waitLock(20000);
@@ -101,4 +114,15 @@ function adminCampaign_(d){
     sh.getRange(latest.row,2).setValue(JSON.stringify(campaign));
     return responseJSON({success:true,campaign:adminCampaignPublic_(campaign)});
   }finally{lock.releaseLock();}
+}
+
+function adminBroadcastImage_(url,campaignId){
+  if(url.length>2200||!/^https:\/\/(?:www\.)?vartana\.id\//i.test(url)||/[\s\\]/.test(url)||!(/\/api\/product-image\?fileId=[a-zA-Z0-9_-]+/.test(url)||/\.(png|jpe?g|gif)(?:\?|$)/i.test(url)))throw new Error('Link foto harus berasal dari Google Drive melalui website VARTANA atau foto produk VARTANA.');
+  var response=UrlFetchApp.fetch(url,{followRedirects:false,muteHttpExceptions:true});
+  if(response.getResponseCode()!==200)throw new Error('Foto tidak bisa diunduh. Pastikan link Drive dapat dilihat oleh siapa saja.');
+  var blob=response.getBlob(),mime=String(blob.getContentType()).split(';')[0].toLowerCase();
+  if(['image/jpeg','image/png','image/gif'].indexOf(mime)<0||!blob.getBytes().length||blob.getBytes().length>2*1024*1024)throw new Error('Gunakan foto JPG, PNG, atau GIF maksimal 2 MB.');
+  var folders=DriveApp.getFoldersByName('VARTANA_Broadcast_Images'),folder=folders.hasNext()?folders.next():DriveApp.createFolder('VARTANA_Broadcast_Images');
+  blob.setName('Promo-'+campaignId+(mime==='image/png'?'.png':mime==='image/gif'?'.gif':'.jpg'));
+  return {fileId:folder.createFile(blob).getId()};
 }

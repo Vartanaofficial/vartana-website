@@ -73,3 +73,37 @@ test('an interrupted delivery-status write cannot cause a second email on retry'
   f.advance(16*60000);
   assert.equal(f.call({operation:'campaignRead',id}).campaign.recipients[0].status,'UNKNOWN');
 });
+
+function photoSetup(){
+  const f=setup(),files=[];let fetches=0;
+  const blob={getContentType:()=> 'image/png',getBytes:()=>[137,80,78,71],setName(){return this;}};
+  f.c.UrlFetchApp={fetch(url,options){assert.ok(url.startsWith('https://www.vartana.id/'));assert.equal(options.followRedirects,false);fetches++;return {getResponseCode:()=>200,getBlob:()=>blob};}};
+  const folder={createFile(value){files.push(value);return {getId:()=> 'PRIVATE-PROMO-IMAGE'};}};
+  f.c.DriveApp={getFoldersByName:()=>({hasNext:()=>false}),createFolder:()=>folder,getFileById:()=>({getBlob:()=>blob})};
+  return {...f,blob,files,fetches:()=>fetches};
+}
+
+test('photo broadcast freezes an image once and sends embedded bytes with an escaped caption',()=>{
+  const f=photoSetup(),draft={...f.draft,imageUrl:'https://www.vartana.id/promo.png',imageCaption:'Promo <b>spesial</b>'};
+  const preview=f.call(draft).campaign;
+  assert.equal(f.mail.length,0);assert.equal(f.files.length,1);assert.equal(preview.imageFileId,undefined);
+  assert.equal(preview.imageCaption,draft.imageCaption);
+  f.call(draft);assert.equal(f.fetches(),1);
+  f.call({operation:'campaignSend',id,confirmed:true});
+  assert.equal(f.mail[0].inlineImages.promo,f.blob);
+  assert.ok(f.mail[0].htmlBody.includes('src="cid:promo"'));
+  assert.ok(f.mail[0].htmlBody.includes('Promo &lt;b&gt;spesial&lt;/b&gt;'));
+  assert.ok(!f.mail[0].htmlBody.includes('<b>spesial</b>'));
+  f.call({operation:'campaignSend',id,confirmed:true});assert.equal(f.mail.length,1);
+});
+
+test('unsupported, oversized and redirected photos fail before any email or campaign is created',()=>{
+  for(const failure of ['host','mime','size','redirect']){
+    const f=photoSetup();
+    if(failure==='mime')f.blob.getContentType=()=> 'text/html';
+    if(failure==='size')f.blob.getBytes=()=>({length:2*1024*1024+1});
+    if(failure==='redirect')f.c.UrlFetchApp.fetch=()=>({getResponseCode:()=>302});
+    assert.throws(()=>f.call({...f.draft,imageUrl:failure==='host'?'https://localhost/private.png':'https://www.vartana.id/promo.png'}));
+    assert.equal(f.mail.length,0);assert.equal(f.files.length,0);assert.equal(f.tables.MemberCampaigns.rows.length,1);
+  }
+});

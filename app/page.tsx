@@ -1,11 +1,12 @@
-"use client";
+'use client';
+import {useSiteLanguage,LocaleScope} from '@/app/components/SiteLanguage';
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { type Product, type ProductVariant } from "@/lib/products";
 import { emptyCatalogProduct } from "@/lib/store-catalog";
 import ProductImage from "@/app/components/ProductImage";
 import Link from "next/link";
-import CustomerAccountLink from "./components/CustomerAccountLink";
+import PublicNavigation from "./components/PublicNavigation";
 import "./akun/customer-account.css";
 import {stockDisplay} from "@/lib/stock-display";
 import StorefrontMotion from "@/app/components/StorefrontMotion";
@@ -205,15 +206,15 @@ const content = {
     "nav": {
       "philosophy": "Philosophy",
       "collection": "Shop",
-      "science": "Explore Spices",
+      "science": "Discover Spices",
       "origin": "About VARTANA",
       "purpose": "Purpose",
-      "journal": "Journal"
+      "journal": "Articles"
     },
     "hero": {
       "eyebrow": "VARTANA · BOTANICAL WELLNESS",
-      "title": "A cup of spices,",
-      "accent": "the flavour of Indonesia.",
+      "title": "Indonesian spices.",
+      "accent": "Distinctive flavour.",
       "text": "Ginger, lemongrass, and selected spices blended into distinctive herbal teas. Easy to brew, made to savour.",
       "primary": "Shop the blends",
       "secondary": "About VARTANA"
@@ -332,10 +333,10 @@ const content = {
 
 function InfoBlock({ title = "", text = "" }: { title?: string; text?: string }) {
   return (
-    <div className="border-t border-[#B69245]/20 pt-5">
+    <LocaleScope><div className="border-t border-[#B69245]/20 pt-5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#9E7A32]">{title}</p>
       <p className="mt-3 text-[14px] leading-relaxed text-[#526158]">{text || "—"}</p>
-    </div>
+    </div></LocaleScope>
   );
 }
 
@@ -345,7 +346,7 @@ export default function Home() {
   const [catalogError, setCatalogError] = useState("");
   const [translationAvailable, setTranslationAvailable] = useState(true);
   const [catalogReload, setCatalogReload] = useState(0);
-  const [language, setLanguage] = useState<Language>("id");
+  const {language,ready:languageReady}=useSiteLanguage();
   const [selectedProduct, setSelectedProduct] = useState<number>(0);
   const [productQuantity, setProductQuantity] = useState<number>(1);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number>(0);
@@ -433,6 +434,7 @@ export default function Home() {
   useEffect(() => { if (cartReady) writeCart(cart); }, [cart, cartReady]);
 
   useEffect(() => {
+    if(!languageReady)return;
     let active = true;
     let pending = false;
     const controller = new AbortController();
@@ -467,7 +469,7 @@ export default function Home() {
     const onFocus = () => void refreshCatalog();
     window.addEventListener("focus", onFocus);
     return () => { active = false; controller.abort(); window.clearInterval(timer); window.removeEventListener("focus", onFocus); };
-  }, [catalogReload, language]);
+  }, [catalogReload, language, languageReady]);
 
   // AUTO-FILL PROFILE MEMBER & WILAYAH LENGKAP VIA NO HP
   const handleAutoFillByPhone = async () => {
@@ -941,148 +943,15 @@ export default function Home() {
   };
 
   return (
-    <main className="storefront min-h-screen bg-[#F6F2E8] pb-20 text-[#16382A] selection:bg-[#B69245] selection:text-white md:pb-0">
+    <LocaleScope><main className="storefront min-h-screen bg-[#F6F2E8] pb-20 text-[#16382A] selection:bg-[#B69245] selection:text-white md:pb-0">
       <StorefrontMotion />
-      {/* NAVBAR TOP DESKTOP & MOBILE HEADER */}
-      <nav className="storefront-header sticky top-0 z-40 border-b border-[#B69245]/15 bg-[#F6F2E8]/90 backdrop-blur-xl transition-all">
-        <div className="storefront-header-row mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <Link href="/" aria-label="Beranda VARTANA" className="flex items-center gap-3 transition hover:opacity-85">
-            <img src="/Logo Vartana.png" alt="VARTANA Botanical Wellness" className="h-9 w-auto object-contain md:h-12" />
-          </Link>
-
-          {/* MENU DESKTOP */}
-          <div className="storefront-desktop-links hidden items-center gap-8 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#526158] xl:flex">
-            <a href="#philosophy" className="transition hover:text-[#B69245]">
-              {t.nav.philosophy}
-            </a>
-            <Link href="/katalog" className="transition hover:text-[#B69245]">
-              {t.nav.collection}
-            </Link>
-            <a href="#science" className="transition hover:text-[#B69245]">
-              {t.nav.science}
-            </a>
-            <Link href="/artikel/cerita-vartana" className="transition hover:text-[#B69245]">
-              {t.nav.origin}
-            </Link>
-            <Link href="/games" className="transition hover:text-[#B69245]">Games</Link>
-            <Link href="/artikel" className="transition hover:text-[#B69245]">
-              {t.nav.journal}
-            </Link>
-          </div>
-
-          <div className="storefront-header-actions flex items-center gap-2 sm:gap-3"><CustomerAccountLink/>
-            {/* BUTTON LACAK PESANAN */}
-            <button
-              aria-label={language === "en" ? "Track order" : "Lacak pesanan"}
-              onClick={() => setIsTrackModalOpen(true)}
-              className="storefront-track-top hidden md:flex items-center gap-1.5 rounded-full border border-[#B69245]/30 bg-[#F6F2E8] px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A] hover:bg-[#B69245] hover:text-white transition shadow-xs"
-            >
-              <StorefrontIcon name="search"/>
-              <span className="hidden md:inline">{language === "en" ? "Track Order" : "Lacak Pesanan"}</span>
-            </button>
-
-            {/* BUTTON CART */}
-            <button
-              aria-label={language === "en" ? "Open cart" : "Buka keranjang"}
-              onClick={() => {
-                setIsCartOpen(true);
-                setCheckoutStep("cart");
-              }}
-              className="relative flex items-center gap-2 rounded-full border border-[#16382A]/15 bg-white/80 px-4 py-2 text-[11px] font-semibold transition hover:border-[#B69245] shadow-xs"
-            >
-              <StorefrontIcon name="cart"/>
-              <span className="hidden tracking-wider sm:inline">{t.cart.title}</span>
-              {totalItemsInCart > 0 && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#16382A] text-[10px] font-bold text-[#F6F2E8]">{totalItemsInCart}</span>}
-            </button>
-
-            {/* TOGGLE LANGUAGE */}
-            <div className="flex rounded-full border border-[#16382A]/10 bg-white/80 p-1 shadow-xs">
-              <button onClick={() => setLanguage("id")} className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition ${language === "id" ? "bg-[#16382A] text-[#F6F2E8] shadow-xs" : "text-[#526158] hover:text-[#B69245]"}`}>
-                ID
-              </button>
-              <button onClick={() => setLanguage("en")} className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition ${language === "en" ? "bg-[#16382A] text-[#F6F2E8] shadow-xs" : "text-[#526158] hover:text-[#B69245]"}`}>
-                EN
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* HORIZONTAL NAVIGATION BAR FOR MOBILE */}
-<div className="storefront-mobile-links no-scrollbar flex items-center gap-2 overflow-x-auto border-t border-[#B69245]/10 bg-[#FBF9F4] px-4 py-2.5 xl:hidden">
-  <button
-    onClick={() => setIsTrackModalOpen(true)}
-    className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#B69245]/40 bg-[#F6F2E8] px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#8E6E2E]"
-  >
-    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <circle cx="10.5" cy="10.5" r="6.5" />
-      <path d="m16 16 4 4" />
-    </svg>
-    <span>{language === "en" ? "Track Order" : "Lacak Pesanan"}</span>
-  </button>
-  <Link href="/katalog" className="flex shrink-0 items-center rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
-    {t.nav.collection}
-  </Link>
-  <Link href="/games" className="flex shrink-0 items-center rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">Games</Link>
-  <a href="#science" className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
-    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3" />
-      <path d="M8 15h8" />
-    </svg>
-    <span>{t.nav.science}</span>
-  </a>
-  <Link href="/artikel/cerita-vartana" className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#16382A]/10 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#16382A]">
-    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H20v17H7.5A3.5 3.5 0 0 0 4 22z" />
-      <path d="M4 5.5V22M8 6h8M8 10h8" />
-    </svg>
-    <span>{t.nav.origin}</span>
-  </Link>
-</div>
-      </nav>
-
-      {/* MOBILE BOTTOM NAVIGATION BAR */}
-      <div className="storefront-bottom-nav fixed bottom-0 left-0 right-0 z-40 border-t border-[#B69245]/20 bg-[#FBF9F4]/95 px-4 py-2.5 backdrop-blur-md md:hidden">
-        <div className="grid grid-cols-5 items-center text-center">
-          <a href="#home" className="flex flex-col items-center py-1 text-[#16382A]">
-            <span className="inline-flex h-6 w-6 items-center justify-center">
-  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="m3 10 9-7 9 7" />
-    <path d="M5 9v11h14V9M9 20v-6h6v6" />
-  </svg>
-</span>
-            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Home</span>
-          </a>
-          <Link href="/katalog" className="flex flex-col items-center py-1 text-[#16382A]">
-            <StorefrontIcon name="cart"/>
-            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">{t.nav.collection}</span>
-          </Link>
-          <button onClick={() => setIsTrackModalOpen(true)} className="flex flex-col items-center py-1 text-[#8E6E2E]">
-            <StorefrontIcon name="search"/>
-            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Lacak</span>
-          </button>
-          <Link href="/artikel/cerita-vartana" className="flex flex-col items-center py-1 text-[#16382A]">
-            <StorefrontIcon name="book"/>
-            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">{language === 'id' ? 'Tentang' : 'About'}</span>
-          </Link>
-          <button
-            onClick={() => {
-              setIsCartOpen(true);
-              setCheckoutStep("cart");
-            }}
-            className="relative flex flex-col items-center py-1 text-[#16382A]"
-          >
-            <StorefrontIcon name="cart"/>
-            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider">Cart</span>
-            {totalItemsInCart > 0 && <span className="absolute right-2 top-0 flex h-4 w-4 items-center justify-center rounded-full bg-[#B69245] text-[8px] font-bold text-[#0D261C]">{totalItemsInCart}</span>}
-          </button>
-        </div>
-      </div>
+      <PublicNavigation onTrack={()=>setIsTrackModalOpen(true)} onCart={()=>{setIsCartOpen(true);setCheckoutStep("cart");}}/>
 
       {isTrackModalOpen&&<CustomerOrdersModal onClose={closeTracking}/>}
 
       {/* CART DRAWER */}
       {isCartOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-[#0D261C]/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[210] flex justify-end bg-[#0D261C]/60 backdrop-blur-xs">
           <button type="button" aria-label="Tutup keranjang" className="absolute inset-0" onClick={() => setIsCartOpen(false)} />
           <div role="dialog" aria-modal="true" aria-labelledby="cart-title" className="relative flex h-full w-full max-w-md flex-col bg-[#FBF9F4] p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-[#16382A]/10 pb-5"><h3 id="cart-title" className="font-serif text-2xl text-[#16382A]">{t.cart.title}</h3><button type="button" aria-label="Tutup" onClick={() => setIsCartOpen(false)} className="rounded-full bg-[#16382A]/5 px-3 py-1">?</button></div>
@@ -1101,7 +970,7 @@ export default function Home() {
 
       {/* MODAL JURNAL ILMIAH REMPAH */}
       {selectedSpiceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0D261C]/60 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-[#0D261C]/60 p-4 backdrop-blur-xs">
           <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-[#B69245]/30 bg-[#FBF9F4] p-8 shadow-2xl">
             <div className="flex shrink-0 items-center justify-between border-b border-[#16382A]/10 pb-4">
               <div>
@@ -1530,7 +1399,7 @@ export default function Home() {
           <div className="flex items-center justify-between gap-4"><span className="text-[9px] uppercase tracking-[0.22em] text-white/25">ROOTED IN EARTH · BUILT FOR GROWTH</span><Link href="/admin-access" aria-label="Admin Access" title="Admin Access" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#D8C28B]/30 text-[#D8C28B]/60 transition hover:border-[#D8C28B] hover:bg-[#D8C28B]/10 hover:text-[#D8C28B]"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg></Link></div>
         </div>
       </footer>
-    </main>
+    </main></LocaleScope>
   );
 }
 

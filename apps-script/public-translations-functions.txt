@@ -1,0 +1,21 @@
+// Translate published editorial content only. Never accept arbitrary text or customer data.
+function publicArticleTranslations_(){
+  var texts=[],seen=Object.create(null);
+  readArticles_().filter(function(article){return article.status==='PUBLISHED';}).forEach(function(article){
+    [article.title,article.excerpt,article.category,article.coverAlt].concat((article.blocks||[]).reduce(function(out,block){return out.concat([block.text,block.alt,block.caption]);},[])).forEach(function(value){
+      if(typeof value==='string'&&value.trim()&&!seen[value]){seen[value]=true;texts.push(value);}
+    });
+  });
+  var ss=SpreadsheetApp.getActiveSpreadsheet(),sheet=ss.getSheetByName('CatalogTranslations');
+  if(!sheet){sheet=ss.insertSheet('CatalogTranslations');sheet.getRange(1,1,1,3).setValues([['Indonesian','English','Updated At']]);sheet.setFrozenRows(1);}
+  var rows=sheet.getDataRange().getValues();
+  if(rows[0][0]!=='Indonesian'||rows[0][1]!=='English')throw new Error('Header terjemahan tidak sesuai.');
+  var dictionary=Object.create(null),start=Date.now(),pending=0;
+  rows.slice(1).forEach(function(row){if(row[0]&&row[1]&&seen[String(row[0])])dictionary[String(row[0])]=String(row[1]);});
+  texts.forEach(function(text){
+    if(dictionary[text])return;
+    if(Date.now()-start>14000){pending++;return;}
+    try{var english=catalogTranslateText_(text);sheet.appendRow([text,english,new Date()]);dictionary[text]=english;}catch(error){pending++;}
+  });
+  return responseJSON({success:true,publicTranslationVersion:1,translations:dictionary,pending:pending});
+}

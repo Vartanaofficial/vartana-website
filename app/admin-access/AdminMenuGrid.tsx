@@ -1,4 +1,5 @@
 'use client';
+import {LocaleScope} from '@/app/components/SiteLanguage';
 import Link from 'next/link';
 import {useEffect,useState} from 'react';
 import {adminManagement} from '@/lib/admin-management-client';
@@ -27,7 +28,7 @@ export default function AdminMenuGrid({menus}:{menus:Menu[]}){
     catch(error){setMessage(error instanceof Error?error.message:'Urutan belum tersimpan.');}
     finally{setBusy(false);}
   }
-  return <>
+  return <LocaleScope><>
     <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#d0dbc4] bg-[#e8efdf] p-4 text-xs text-[#36543b]">
       <p>{editing?'Geser kartu atau gunakan tombol naik/turun, lalu simpan urutannya.':'Susun menu sesuai alur kerja Anda. Urutan disimpan untuk admin VARTANA.'}</p>
       <div className="flex flex-wrap gap-2">{editing?<><button disabled={busy} onClick={()=>void save()} className="rounded-lg bg-[#214b36] px-4 py-2 text-white">{busy?'Menyimpan…':'Simpan urutan'}</button><button disabled={busy} onClick={()=>{setOrder(saved);setEditing(false);}} className="rounded-lg border border-[#aabb98] px-3 py-2">Batal</button></>:<button disabled={!ready} onClick={()=>{setEditing(true);setMessage('');}} className="rounded-lg border border-[#aabb98] bg-[#fffdf5] px-4 py-2 disabled:opacity-50">Atur urutan menu</button>}<button disabled={busy||editing} onClick={()=>void load()} className="px-2 py-2 disabled:opacity-40">Muat ulang</button></div>
@@ -42,5 +43,5 @@ export default function AdminMenuGrid({menus}:{menus:Menu[]}){
         {editing&&<div className="flex items-center justify-between gap-2 border-t border-[#dae2d0] bg-[#edf2e6] p-3 text-xs"><span>No. {index+1}</span><div className="flex gap-2"><button disabled={busy||index===0} aria-label={'Naikkan '+menu.title} onClick={()=>move(index,index-1)} className="rounded-lg border border-[#bcccad] bg-white px-3 py-2 disabled:opacity-30">↑ Naik</button><button disabled={busy||index===order.length-1} aria-label={'Turunkan '+menu.title} onClick={()=>move(index,index+1)} className="rounded-lg border border-[#bcccad] bg-white px-3 py-2 disabled:opacity-30">↓ Turun</button></div></div>}
       </div>;
     })}</div>
-  </>;
+  </></LocaleScope>;
 }

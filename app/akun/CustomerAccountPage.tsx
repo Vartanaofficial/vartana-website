@@ -1,4 +1,5 @@
 'use client';
+import {LocaleScope} from '@/app/components/SiteLanguage';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
 import Link from 'next/link';
 import PublicNavigation from '../components/PublicNavigation';
@@ -21,14 +22,14 @@ export default function CustomerAccountPage(){
  function saveProfile(e:FormEvent){e.preventDefault();if(!profile)return;void run(async()=>{const d=await request('saveProfile',{profile});setProfile(d.profile);setAccount(old=>old?{...old,profile:d.profile}:old);setMessage('Data diri dan alamat berhasil disimpan.');});}
  function logout(){void run(async()=>{await request('logout');setAccount(null);setProfile(null);setStage('email');setEmail('');setPassword('');sessionStorage.removeItem('vartana_checkout_draft');sessionStorage.removeItem('vartana_checkout_key');for(let i=sessionStorage.length-1;i>=0;i--){const key=sessionStorage.key(i);if(key?.startsWith('vartana_receipt_'))sessionStorage.removeItem(key);}setMessage('Kamu sudah keluar dari akun.');});}
  const resetWait=challenge?Math.max(0,Math.ceil((Date.parse(challenge.retryAt)-now)/1000)):0;
- return <div className="editorial customer-account-page"><PublicNavigation/><main className="ca-main">
+ return <LocaleScope><div className="editorial customer-account-page"><PublicNavigation/><main className="ca-main">
   <section className="ca-story"><span className="ca-eyebrow">VARTANA / RUANG MEMBER</span><h1>Belanja lebih mudah.<br/><em>Selamat datang<br/>di akun VARTANA.</em></h1><p>Simpan data belanja agar pesanan berikutnya lebih mudah. Sandi baru cukup minimal 6 karakter, boleh 6 angka.</p><div className="ca-benefits"><div><b>01</b><span>Data cukup sekali<small>Nama, kontak, dan alamat siap dipakai kembali.</small></span></div><div><b>02</b><span>Belanja lebih singkat<small>Tetap bebas memilih alamat pengiriman lain.</small></span></div><div><b>03</b><span>Akses milikmu<small>Atur password lewat email yang kamu verifikasi.</small></span></div></div><div className="ca-story-signature">Rooted in earth, built for growth.</div></section>
   <section className="ca-card" aria-busy={busy||checking}>
    {checking?<div role="status" className="ca-loading">Memeriksa sesi akun…</div>:account?<>
-    <div className="ca-card-heading"><span className="ca-eyebrow">AKUN SAYA</span><h2>Halo, {profile?.name?.split(' ')[0]||'teman VARTANA'}.</h2><p>{account.email}</p></div>
+    <div className="ca-card-heading"><span className="ca-eyebrow">AKUN SAYA</span><h2>Halo, <span data-no-translate>{profile?.name?.split(' ')[0]||'teman VARTANA'}</span>.</h2><p data-no-translate>{account.email}</p></div>
     <Link className="ca-primary" href={returnTo}>{returnTo==='/checkout'?'Kembali ke checkout →':'Jelajahi racikan →'}</Link>
     <form onSubmit={saveProfile} className="ca-form ca-profile-form"><h3>Data diri & alamat utama</h3><p className="ca-note">Data ini akan membantu mengisi checkout berikutnya. Email akun tetap memakai email terverifikasi.</p>
-     {profile&&<><label>Nama lengkap<input required autoComplete="name" maxLength={120} value={profile.name} onChange={e=>setProfile({...profile,name:e.target.value})}/></label><label>WhatsApp<input required type="tel" autoComplete="tel" maxLength={25} value={profile.phone} onChange={e=>setProfile({...profile,phone:e.target.value})}/></label><label>Detail alamat<textarea rows={3} autoComplete="street-address" maxLength={700} value={profile.address} onChange={e=>setProfile({...profile,address:e.target.value})}/></label>{(profile.cityName||profile.districtName)&&<div className="ca-address-summary"><small>Wilayah pengiriman terakhir</small><p>{[profile.districtName,profile.cityName,profile.provinceName,profile.postalCode].filter(Boolean).join(', ')}</p></div>}<p className="ca-note">Pilih atau ubah wilayah pengiriman saat checkout. Alamat lengkap dari pembelian berikutnya akan disimpan untuk belanja selanjutnya.</p></>}
+     {profile&&<><label>Nama lengkap<input required autoComplete="name" maxLength={120} value={profile.name} onChange={e=>setProfile({...profile,name:e.target.value})}/></label><label>WhatsApp<input required type="tel" autoComplete="tel" maxLength={25} value={profile.phone} onChange={e=>setProfile({...profile,phone:e.target.value})}/></label><label>Detail alamat<textarea rows={3} autoComplete="street-address" maxLength={700} value={profile.address} onChange={e=>setProfile({...profile,address:e.target.value})}/></label>{(profile.cityName||profile.districtName)&&<div className="ca-address-summary"><small>Wilayah pengiriman terakhir</small><p data-no-translate>{[profile.districtName,profile.cityName,profile.provinceName,profile.postalCode].filter(Boolean).join(', ')}</p></div>}<p className="ca-note">Pilih atau ubah wilayah pengiriman saat checkout. Alamat lengkap dari pembelian berikutnya akan disimpan untuk belanja selanjutnya.</p></>}
      <button className="ca-secondary" disabled={busy} type="submit">{busy?'Memproses…':'Simpan data diri'}</button>
     </form><button className="ca-text-button" disabled={busy} onClick={logout}>Keluar dari akun</button>
    </>:<>
@@ -41,5 +42,5 @@ export default function CustomerAccountPage(){
    {error&&<p role="alert" className="ca-error">{error}</p>}{message&&<p role="status" className="ca-success">{message}</p>}
    <div className="ca-card-footer"><Link href="/checkout">Belanja tanpa login tetap tersedia →</Link><small>VARTANA tidak pernah meminta password melalui WhatsApp atau email.</small></div>
   </section>
- </main></div>;
+ </main></div></LocaleScope>;
 }

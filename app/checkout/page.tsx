@@ -1,4 +1,5 @@
-"use client";
+'use client';
+import {LocaleScope} from '@/app/components/SiteLanguage';
 import {selectCheckoutVoucher} from '@/lib/voucher-selection';
 import {clientId} from '@/lib/client-id';
 
@@ -164,7 +165,7 @@ export default function CheckoutPage() {
 
   const wa = receipt ? `https://wa.me/${PAYMENT_DETAILS.whatsapp}?text=${encodeURIComponent(orderConfirmationMessage(receipt,customer,paymentView))}` : "";
 
-  return <main className="premium-checkout min-h-screen text-[#183d2c]">
+  return <LocaleScope><main className="premium-checkout min-h-screen text-[#183d2c]">
     <header className="checkout-topbar border-b border-[#dce0d4] bg-[#FCFAF5] px-5 py-5 sm:px-10">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4"><Link href="/" className="checkout-brand"><img src="/Logo%20Vartana%20Bulat.png" alt="Logo VARTANA" width="54" height="54"/><span className="font-serif text-2xl tracking-[0.12em]">VARTANA<span className="mt-1 block text-[8px] tracking-[0.3em] text-[#8a7446]">BOTANICAL WELLNESS</span></span></Link><Link href="/#collection" className="text-xs text-[#657565]">← Kembali ke katalog</Link></div>
     </header>
@@ -206,5 +207,5 @@ export default function CheckoutPage() {
       </form>}
       <footer className="mt-14 border-t border-[#dce0d4] pt-6 text-center text-[10px] uppercase tracking-[0.2em] text-[#8c947f]">Rooted in earth · Made with care · VARTANA</footer>
     </div>
-  </main>;
+  </main></LocaleScope>;
 }

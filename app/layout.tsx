@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import PersistentAudio from './components/PersistentAudio';
+import {SiteLanguageProvider} from './components/SiteLanguage';
+import './components/site-language.css';
+import './components/site-theme.css';
 import './components/ambient-music.css';
 
 const geistSans = Geist({
@@ -25,7 +28,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="id" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}<PersistentAudio/></body>
+      <body className="min-h-full flex flex-col"><SiteLanguageProvider>{children}<PersistentAudio/></SiteLanguageProvider></body>
     </html>
   );
 }

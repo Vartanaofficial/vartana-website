@@ -1,0 +1,5 @@
+.site-language-toggle{display:inline-flex;align-items:center;flex-shrink:0;gap:2px;padding:4px;border:1px solid #d5ddcf;border-radius:100px;background:#fffdf7;color:#49604e}
+.site-language-toggle button{display:grid;place-items:center;min-height:30px;min-width:30px;padding:5px;border-radius:50%;font-size:10px;font-weight:700;cursor:pointer;transition:background .2s,color .2s}
+.site-language-toggle button[aria-pressed=true]{background:#1c4433;color:#fff9ea}.site-language-toggle button:focus-visible{outline:2px solid #ae8c47;outline-offset:2px}
+@media(max-width:540px){.site-language-toggle{padding:3px}.site-language-toggle button{min-height:27px;min-width:27px;font-size:9px}}
+@media(max-width:420px){.public-header-row{padding-inline:10px;gap:8px}.public-brand img{width:105px}.public-header-actions{gap:4px}.public-cart,.public-menu-button{padding:8px}.public-header-actions .customer-account-link{width:35px;min-height:36px;height:36px}.site-language-toggle button{min-width:25px}}

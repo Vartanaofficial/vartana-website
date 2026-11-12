@@ -1,4 +1,5 @@
 'use client';
+import {LocaleScope} from '@/app/components/SiteLanguage';
 import {clientId} from '@/lib/client-id';
 import Link from 'next/link';
 import {useEffect,useRef,useState} from 'react';
@@ -92,7 +93,7 @@ export default function GameArena({game}:{game:GameKind}) {
  const playing=attempt?.status==='STARTED',terminal=attempt&&!playing,complete=puzzle&&playing&&placements.every(piece=>piece!==null);
  useEffect(()=>{if(!focus||!playing)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';const exit=(e:KeyboardEvent)=>{if(e.key==='Escape')setFocus(false);};document.addEventListener('keydown',exit);return()=>{document.body.style.overflow=previous;document.removeEventListener('keydown',exit);};},[focus,playing]);
  const activeSettings=attempt?.settings||settings,photo=productImageUrl(activeSettings.imageUrl),reward=activeSettings.reward;
- return <>
+ return <LocaleScope><>
  <section ref={arena} className={`puzzle-layout ${playing?'is-playing':''} ${playing&&focus?'is-focused':''}`}>
   <div className="puzzle-story"><span className="editorial-eyebrow">{puzzle?'01 / SUSUN PUZZLE':crossword?'03 / TEKA-TEKI SILANG':'02 / HITUNGAN ANGKA'}</span><h1>{crossword?<>Isi kotaknya.<br/><em>Temukan jawabannya.</em></>:puzzle?<>Susun kepingnya.<br/><em>Temukan gambar utuhnya.</em></>:<>Asah pikiran.<br/><em>Kejar rekor barumu.</em></>}</h1><p>{crossword?'Isi kotak mendatar dan menurun sesuai petunjuk. Tema tantangan: '+settings.theme+'.':puzzle?'Pilih keping dari baki, lalu tempatkan pada papan 20 keping. Cocokkan dengan gambar acuan yang selalu terlihat.':'Selesaikan '+settings.questionCount+' soal penjumlahan, pengurangan, dan perkalian. Jawab semuanya dengan benar untuk masuk papan rekor.'} Waktu bermain: {settings.durationSeconds} detik.</p>
    <div className="puzzle-prize"><span>HADIAH PERTAMA KALI BERHASIL</span><strong>{rewardDescription(reward)}</strong><p>{reward.minSpend?'Minimum belanja Rp'+reward.minSpend.toLocaleString('id-ID'):'Tanpa minimum belanja'} · berlaku {reward.days} hari.</p></div>
@@ -114,5 +115,5 @@ export default function GameArena({game}:{game:GameKind}) {
   </div>
  </section>
  <GameLeaderboard game={game} revision={revision} initialData={ranking||undefined} waitingForInitial/>
- </>;
+ </></LocaleScope>;
 }

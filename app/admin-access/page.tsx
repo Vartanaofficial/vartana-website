@@ -1,4 +1,5 @@
-"use client";
+'use client';
+import {LanguageToggle,LocaleScope} from '@/app/components/SiteLanguage';
 
 import Image from "next/image";
 import AdminMenuGrid from "./AdminMenuGrid";
@@ -147,7 +148,7 @@ export default function AdminAccessPage() {
   }
 
   return (
-    <main className="admin-portal relative min-h-screen overflow-hidden bg-[#071a13] text-[#f7f2e7]">
+    <LocaleScope><main className="admin-portal relative min-h-screen overflow-hidden bg-[#071a13] text-[#f7f2e7]">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
@@ -190,7 +191,7 @@ export default function AdminAccessPage() {
           </Link>
 
           <div className="hidden rounded-full border border-[#c5a66b]/40 bg-black/20 px-4 py-2 text-[10px] tracking-[0.2em] text-[#e2c77f] sm:block">
-            <Link href="/">Kembali ke website ↗</Link>
+            <div className="flex items-center gap-3"><LanguageToggle/><Link href="/">Kembali ke website ↗</Link></div>
           </div>
         </header>
 
@@ -375,7 +376,7 @@ export default function AdminAccessPage() {
           <span>ROOTED IN EARTH, BUILT FOR GROWTH</span>
         </footer>
       </div>
-    </main>
+    </main></LocaleScope>
   );
 }
 

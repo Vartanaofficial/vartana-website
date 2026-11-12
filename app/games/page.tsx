@@ -1,3 +1,4 @@
+import {LocaleScope} from '@/app/components/SiteLanguage';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import EditorialHeader from '../components/EditorialHeader';
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 export default function GamesPage() {
-  return <main className="editorial games-page">
+  return <LocaleScope><main className="editorial games-page">
     <EditorialHeader/>
     <section className="games-intro">
       <span className="editorial-eyebrow">RUANG BERMAIN VARTANA</span>
@@ -44,5 +45,5 @@ export default function GamesPage() {
     <GameLeaderboard game="puzzle"/>
     <GameLeaderboard game="numbers"/>
     <footer className="editorial-footer">Selesai bermain? <Link href="/katalog">Temukan racikan favoritmu di katalog.</Link></footer>
-  </main>;
+  </main></LocaleScope>;
 }

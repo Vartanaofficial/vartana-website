@@ -1,0 +1,7 @@
+.public-header-row{max-width:1360px;gap:20px}.public-desktop-nav{gap:17px}.public-header-actions{gap:8px}.public-brand{flex-shrink:0}
+.public-track{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:10px 13px;border:1px solid #cbb47570;border-radius:30px;background:#f6f2e6;color:#80672f;font-size:10px;font-weight:600;white-space:nowrap}.public-track svg{width:17px;height:17px}
+.public-header button{cursor:pointer}.public-header :is(a,button):focus-visible{outline:2px solid #aa8948;outline-offset:3px}.public-desktop-nav a[aria-current=location]:after{transform:scaleX(1)}
+.public-shortcuts>button{display:inline-flex;align-items:center;gap:6px;min-height:34px;flex-shrink:0;padding:7px 12px;border:1px solid #b6924550;border-radius:24px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.035em;background:#fcfaf4;color:#987a39}
+.public-bottom-nav>button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:48px;border-radius:14px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#173d2b}
+@media(min-width:1200px) and (max-width:1340px){.public-header-actions .customer-account-link>span,.public-header-actions .public-cart>span{display:none}.public-header-actions .customer-account-link,.public-header-actions .public-cart{width:42px;padding:10px}.public-desktop-nav{gap:15px}}
+@media(max-width:1199px){.public-track{display:none}}

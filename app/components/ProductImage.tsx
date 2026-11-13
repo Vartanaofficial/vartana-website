@@ -17,7 +17,7 @@ function ImageContent({ src, alt, className, errorMessage, loading }: Props) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const retrySrc = attempt && src.startsWith("/api/product-image?") ? `${src}&retry=${attempt}` : src;
+  const retrySrc = attempt && src.startsWith("/api/product-image") ? `${src}${src.includes('?')?'&':'?'}retry=${attempt}` : src;
   if (!src || failed) {
     return <LocaleScope><div className={`${className || ""} flex flex-col items-center justify-center gap-1 overflow-hidden text-center text-[10px] text-[#657365]`}>
       <span role="img" aria-label={alt}>{errorMessage || "Gambar belum tersedia"}</span>

@@ -245,7 +245,7 @@ Object.assign(englishText,{
   "Sapaan nama dan identitas VARTANA ditambahkan otomatis.": "A personalised greeting and the VARTANA signature are added automatically.",
   "Foto promo (opsional)": "Promotional photo (optional)",
   "Tempel link foto Google Drive atau website VARTANA": "Paste a Google Drive or VARTANA image link",
-  "JPG, PNG, atau GIF, maksimal 2 MB. Untuk Drive, aktifkan akses siapa saja yang memiliki link.": "JPG, PNG, or GIF, up to 2 MB. For Drive images, enable access for anyone with the link.",
+  "JPG, PNG, atau GIF, maksimal 5 MB. Untuk Drive, aktifkan akses siapa saja yang memiliki link.": "JPG, PNG, or GIF, up to 5 MB. For Drive images, enable access for anyone with the link.",
   "Caption foto": "Photo caption",
   "Contoh: Koleksi rempah pilihan dengan penawaran khusus bulan ini.": "Example: Selected spice blends with a special offer this month.",
   "Foto akan disertakan langsung di badan email, diikuti caption dan pesan Anda.": "The photo is embedded in the email, followed by your caption and message.",

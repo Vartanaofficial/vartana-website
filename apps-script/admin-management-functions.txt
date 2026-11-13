@@ -117,11 +117,11 @@ function adminCampaign_(d){
 }
 
 function adminBroadcastImage_(url,campaignId){
-  if(url.length>2200||!/^https:\/\/(?:www\.)?vartana\.id\//i.test(url)||/[\s\\]/.test(url)||!(/\/api\/product-image\?fileId=[a-zA-Z0-9_-]+/.test(url)||/\.(png|jpe?g|gif)(?:\?|$)/i.test(url)))throw new Error('Link foto harus berasal dari Google Drive melalui website VARTANA atau foto produk VARTANA.');
+  if(url.length>2200||!/^https:\/\/(?:www\.)?vartana\.id\//i.test(url)||/[\s\\]/.test(url)||!(/\/api\/product-image(?:\?fileId=|\/)[a-zA-Z0-9_-]+/.test(url)||/\.(png|jpe?g|gif)(?:\?|$)/i.test(url)))throw new Error('Link foto harus berasal dari Google Drive melalui website VARTANA atau foto produk VARTANA.');
   var response=UrlFetchApp.fetch(url,{followRedirects:false,muteHttpExceptions:true});
   if(response.getResponseCode()!==200)throw new Error('Foto tidak bisa diunduh. Pastikan link Drive dapat dilihat oleh siapa saja.');
   var blob=response.getBlob(),mime=String(blob.getContentType()).split(';')[0].toLowerCase();
-  if(['image/jpeg','image/png','image/gif'].indexOf(mime)<0||!blob.getBytes().length||blob.getBytes().length>2*1024*1024)throw new Error('Gunakan foto JPG, PNG, atau GIF maksimal 2 MB.');
+  if(['image/jpeg','image/png','image/gif'].indexOf(mime)<0||!blob.getBytes().length||blob.getBytes().length>5*1024*1024)throw new Error('Gunakan foto JPG, PNG, atau GIF maksimal 5 MB.');
   var folders=DriveApp.getFoldersByName('VARTANA_Broadcast_Images'),folder=folders.hasNext()?folders.next():DriveApp.createFolder('VARTANA_Broadcast_Images');
   blob.setName('Promo-'+campaignId+(mime==='image/png'?'.png':mime==='image/gif'?'.gif':'.jpg'));
   return {fileId:folder.createFile(blob).getId()};

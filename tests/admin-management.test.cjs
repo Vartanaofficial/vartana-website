@@ -101,9 +101,15 @@ test('unsupported, oversized and redirected photos fail before any email or camp
   for(const failure of ['host','mime','size','redirect']){
     const f=photoSetup();
     if(failure==='mime')f.blob.getContentType=()=> 'text/html';
-    if(failure==='size')f.blob.getBytes=()=>({length:2*1024*1024+1});
+    if(failure==='size')f.blob.getBytes=()=>({length:5*1024*1024+1});
     if(failure==='redirect')f.c.UrlFetchApp.fetch=()=>({getResponseCode:()=>302});
     assert.throws(()=>f.call({...f.draft,imageUrl:failure==='host'?'https://localhost/private.png':'https://www.vartana.id/promo.png'}));
     assert.equal(f.mail.length,0);assert.equal(f.files.length,0);assert.equal(f.tables.MemberCampaigns.rows.length,1);
   }
+});
+
+test('a poster matching the supplied 2.46 MB photo fits the broadcast limit',()=>{
+  const f=photoSetup();f.blob.getBytes=()=>({length:2461454});
+  const result=f.call({...f.draft,imageUrl:'https://www.vartana.id/api/product-image/1pAZOnFzVdrJMycMBKFiv9BRuCowKHosC',imageCaption:'Promo JSM Vartana'});
+  assert.equal(result.success,true);assert.equal(f.files.length,1);assert.equal(f.mail.length,0);
 });

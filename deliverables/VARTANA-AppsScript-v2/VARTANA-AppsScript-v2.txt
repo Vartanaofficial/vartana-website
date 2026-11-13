@@ -3746,11 +3746,14 @@ function puzzleVerify_(data,action){
  var key=PropertiesService.getScriptProperties().getProperty('VARTANA_ARTICLE_ADMIN_KEY'),time=String(data.authTime||'');
  if(!key||key.length<32)throw new Error('Admin perlu mengaktifkan konfigurasi hadiah puzzle.');
  if(!/^\d{13}$/.test(time)||Math.abs(Date.now()-Number(time))>300000)throw new Error('Permintaan puzzle kedaluwarsa.');
- var message='VARTANA-PUZZLE\n'+action+'\n'+time+'\n'+JSON.stringify(data.puzzlePayload),bytes=Utilities.computeHmacSha256Signature(message,key),expected=bytes.map(function(v){return ('0'+((v+256)%256).toString(16)).slice(-2);}).join(''),provided=String(data.authSignature||''),diff=0;
+ var encoding=String(data.authEncoding||'');if(encoding&&encoding!=='json-ascii-v1')throw new Error('Format otorisasi tidak didukung.');
+ var serialized=JSON.stringify(data.puzzlePayload);
+ if(encoding==='json-ascii-v1')serialized=serialized.replace(/[\u007f-\uffff]/g,function(character){return '\\u'+('0000'+character.charCodeAt(0).toString(16)).slice(-4);});
+ var message='VARTANA-PUZZLE\n'+action+'\n'+time+'\n'+serialized,bytes=Utilities.computeHmacSha256Signature(message,key),expected=bytes.map(function(v){return ('0'+((v+256)%256).toString(16)).slice(-2);}).join(''),provided=String(data.authSignature||''),diff=0;
  if(provided.length!==expected.length)throw new Error('Otorisasi puzzle tidak valid.');
  for(var i=0;i<expected.length;i++)diff|=expected.charCodeAt(i)^provided.charCodeAt(i);if(diff)throw new Error('Otorisasi puzzle tidak valid.');
 }
-function puzzleOrderProof_(data){var clean={};Object.keys(data).forEach(function(k){if(['action','authTime','authSignature','puzzlePayload'].indexOf(k)<0)clean[k]=data[k];});return clean;}
+function puzzleOrderProof_(data){var clean={};Object.keys(data).forEach(function(k){if(['action','authTime','authSignature','authEncoding','puzzlePayload'].indexOf(k)<0)clean[k]=data[k];});return clean;}
 function puzzlePhone_(value){var p=String(value||'').replace(/\D/g,'');if(p.charAt(0)==='0')p='62'+p.slice(1);return /^628\d{8,11}$/.test(p)?p:'';}
 function puzzleMove_(board,tile){var at=board.indexOf(tile),empty=board.indexOf(0);if(!Number.isInteger(tile)||tile<1||tile>8||at<0||Math.abs(Math.floor(at/3)-Math.floor(empty/3))+Math.abs(at%3-empty%3)!==1)throw new Error('Langkah puzzle tidak valid.');board[empty]=tile;board[at]=0;}
 function puzzleSolved_(board){return board.join(',')==='1,2,3,4,5,6,7,8,0';}
@@ -4073,11 +4076,11 @@ function adminCampaign_(d){
 }
 
 function adminBroadcastImage_(url,campaignId){
-  if(url.length>2200||!/^https:\/\/(?:www\.)?vartana\.id\//i.test(url)||/[\s\\]/.test(url)||!(/\/api\/product-image\?fileId=[a-zA-Z0-9_-]+/.test(url)||/\.(png|jpe?g|gif)(?:\?|$)/i.test(url)))throw new Error('Link foto harus berasal dari Google Drive melalui website VARTANA atau foto produk VARTANA.');
+  if(url.length>2200||!/^https:\/\/(?:www\.)?vartana\.id\//i.test(url)||/[\s\\]/.test(url)||!(/\/api\/product-image(?:\?fileId=|\/)[a-zA-Z0-9_-]+/.test(url)||/\.(png|jpe?g|gif)(?:\?|$)/i.test(url)))throw new Error('Link foto harus berasal dari Google Drive melalui website VARTANA atau foto produk VARTANA.');
   var response=UrlFetchApp.fetch(url,{followRedirects:false,muteHttpExceptions:true});
   if(response.getResponseCode()!==200)throw new Error('Foto tidak bisa diunduh. Pastikan link Drive dapat dilihat oleh siapa saja.');
   var blob=response.getBlob(),mime=String(blob.getContentType()).split(';')[0].toLowerCase();
-  if(['image/jpeg','image/png','image/gif'].indexOf(mime)<0||!blob.getBytes().length||blob.getBytes().length>2*1024*1024)throw new Error('Gunakan foto JPG, PNG, atau GIF maksimal 2 MB.');
+  if(['image/jpeg','image/png','image/gif'].indexOf(mime)<0||!blob.getBytes().length||blob.getBytes().length>5*1024*1024)throw new Error('Gunakan foto JPG, PNG, atau GIF maksimal 5 MB.');
   var folders=DriveApp.getFoldersByName('VARTANA_Broadcast_Images'),folder=folders.hasNext()?folders.next():DriveApp.createFolder('VARTANA_Broadcast_Images');
   blob.setName('Promo-'+campaignId+(mime==='image/png'?'.png':mime==='image/gif'?'.gif':'.jpg'));
   return {fileId:folder.createFile(blob).getId()};

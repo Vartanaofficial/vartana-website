@@ -43,7 +43,7 @@ test("public catalog omits internal cost data and handles image sources", () => 
   assert.equal(catalogImage("javascript:alert(1)"), "");
   assert.equal(catalogImage("//unknown.test/p.png"), "");
   assert.equal(catalogImage("/tea.png"), "/tea.png");
-  assert.equal(catalogImage("https://drive.google.com/file/d/example123/view"), "/api/product-image?fileId=example123");
+  assert.equal(catalogImage("https://drive.google.com/file/d/example123/view"), "/api/product-image/example123");
 });
 
 test("Drive share, open, thumbnail and uc links share the same image endpoint", () => {
@@ -53,8 +53,8 @@ test("Drive share, open, thumbnail and uc links share the same image endpoint", 
     "https://drive.google.com/thumbnail?id=example123&sz=w1200",
     "https://drive.google.com/uc?export=view&id=example123",
     "https://lh3.googleusercontent.com/d/example123=w1600",
-  ]) assert.equal(catalogImage(url), "/api/product-image?fileId=example123");
-  assert.equal(catalogImage("https://drive.google.com/file/d/example123/view?resourcekey=key_123"), "/api/product-image?fileId=example123&resourceKey=key_123");
+  ]) assert.equal(catalogImage(url), "/api/product-image/example123");
+  assert.equal(catalogImage("https://drive.google.com/file/d/example123/view?resourcekey=key_123"), "/api/product-image/example123?resourceKey=key_123");
   assert.equal(catalogImage("https://drive.google.com/drive/folders/example123"), "");
   assert.equal(catalogImage("https://evil.test/drive.google.com/file/d/example123/view"), "https://evil.test/drive.google.com/file/d/example123/view");
 });

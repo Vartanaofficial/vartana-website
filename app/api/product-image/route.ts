@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {fetchGoogle} from '@/lib/google-fetch';
 
 export const runtime = "nodejs";
+export const dynamic = 'force-dynamic';
 const MAX_BYTES = 12 * 1024 * 1024;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"]);
 
@@ -40,7 +41,10 @@ export async function GET(request: Request) {
     return new Response(Buffer.concat(chunks), {
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
+        "Cache-Control": "private, no-store",
+        "Netlify-CDN-Cache-Control": "no-store",
+        "CDN-Cache-Control": "no-store",
+        "Netlify-Vary": "query=fileId|resourceKey|retry",
         "X-Content-Type-Options": "nosniff",
       },
     });

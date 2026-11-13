@@ -19,11 +19,20 @@ export function driveImageReference(raw: string): { fileId: string; resourceKey?
 
 export function productImageUrl(raw = ""): string {
   const value = raw.trim();
-  const drive = driveImageReference(value);
+  let legacy:{fileId:string;resourceKey?:string}|null=null;
+  try{
+    const proxy=new URL(value,'https://www.vartana.id');
+    if(['www.vartana.id','vartana.id'].includes(proxy.hostname)&&proxy.pathname==='/api/product-image'&&proxy.searchParams.has('fileId')){
+      const fileId=proxy.searchParams.get('fileId')||'',resourceKey=proxy.searchParams.get('resourceKey')||'';
+      if(!/^[a-zA-Z0-9_-]{5,200}$/.test(fileId)||(resourceKey&&!/^[a-zA-Z0-9_-]{1,200}$/.test(resourceKey)))return '';
+      legacy={fileId,...(resourceKey?{resourceKey}:{})};
+    }
+  }catch{}
+  const drive = driveImageReference(value)||legacy;
   if (drive) {
-    const params = new URLSearchParams({ fileId: drive.fileId });
+    const params = new URLSearchParams();
     if (drive.resourceKey) params.set("resourceKey", drive.resourceKey);
-    return `/api/product-image?${params}`;
+    return `/api/product-image/${drive.fileId}${params.size?'?'+params:''}`;
   }
   if (value.startsWith("/") && !value.startsWith("//") && !value.includes("\\")) return value;
   try {

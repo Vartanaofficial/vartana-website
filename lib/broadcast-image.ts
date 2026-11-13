@@ -7,6 +7,6 @@ export function broadcastImageUrl(raw:unknown):string{
   if(!converted)throw Error('Gunakan link foto Google Drive atau foto dari website VARTANA.');
   const url=new URL(converted,'https://www.vartana.id');
   if(url.protocol!=='https:'||url.port||url.username||url.password||!['www.vartana.id','vartana.id'].includes(url.hostname)||
-    !(url.pathname==='/api/product-image'&&url.searchParams.has('fileId')||/\.(png|jpe?g|gif)$/i.test(url.pathname)))throw Error('Gunakan link foto Google Drive atau foto JPG/PNG/GIF dari website VARTANA.');
+    !(url.pathname==='/api/product-image'&&url.searchParams.has('fileId')||/^\/api\/product-image\/[a-zA-Z0-9_-]{5,200}$/.test(url.pathname)||/\.(png|jpe?g|gif)$/i.test(url.pathname)))throw Error('Gunakan link foto Google Drive atau foto JPG/PNG/GIF dari website VARTANA.');
   url.hostname='www.vartana.id';return url.toString();
 }

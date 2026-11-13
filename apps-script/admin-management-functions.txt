@@ -118,11 +118,40 @@ function adminCampaign_(d){
 
 function adminBroadcastImage_(url,campaignId){
   if(url.length>2200||!/^https:\/\/(?:www\.)?vartana\.id\//i.test(url)||/[\s\\]/.test(url)||!(/\/api\/product-image(?:\?fileId=|\/)[a-zA-Z0-9_-]+/.test(url)||/\.(png|jpe?g|gif)(?:\?|$)/i.test(url)))throw new Error('Link foto harus berasal dari Google Drive melalui website VARTANA atau foto produk VARTANA.');
-  var response=UrlFetchApp.fetch(url,{followRedirects:false,muteHttpExceptions:true});
-  if(response.getResponseCode()!==200)throw new Error('Foto tidak bisa diunduh. Pastikan link Drive dapat dilihat oleh siapa saja.');
-  var blob=response.getBlob(),mime=String(blob.getContentType()).split(';')[0].toLowerCase();
+  var driveMatch=url.match(/\/api\/product-image\/([a-zA-Z0-9_-]+)(?:\?|$)/)||url.match(/\/api\/product-image\?fileId=([a-zA-Z0-9_-]+)(?:&|$)/);
+  var blob;
+  if(driveMatch){
+    var resourceKey=url.match(/[?&]resourceKey=([a-zA-Z0-9_-]+)(?:&|$)/);
+    var file=resourceKey?DriveApp.getFileByIdAndResourceKey(driveMatch[1],resourceKey[1]):DriveApp.getFileById(driveMatch[1]);
+    blob=file.getBlob();
+  }else{
+    var response;
+    try{response=UrlFetchApp.fetch(url,{followRedirects:false,muteHttpExceptions:true});}
+    catch(error){
+      if(/permission|script.external_request|authorization/i.test(String(error)))throw new Error('Izin mengambil foto website belum aktif. Buka editor Apps Script sebagai vartana@vartanaglobal.com, jalankan setupBroadcastPermissions, lalu setujui izin Google. Setelah itu klik Kirim broadcast kembali.');
+      throw error;
+    }
+    if(response.getResponseCode()!==200)throw new Error('Foto tidak bisa diunduh. Pastikan link Drive dapat dilihat oleh siapa saja.');
+    blob=response.getBlob();
+  }
+  var mime=String(blob.getContentType()).split(';')[0].toLowerCase();
   if(['image/jpeg','image/png','image/gif'].indexOf(mime)<0||!blob.getBytes().length||blob.getBytes().length>5*1024*1024)throw new Error('Gunakan foto JPG, PNG, atau GIF maksimal 5 MB.');
   var folders=DriveApp.getFoldersByName('VARTANA_Broadcast_Images'),folder=folders.hasNext()?folders.next():DriveApp.createFolder('VARTANA_Broadcast_Images');
   blob.setName('Promo-'+campaignId+(mime==='image/png'?'.png':mime==='image/gif'?'.gif':'.jpg'));
   return {fileId:folder.createFile(blob).getId()};
+}
+
+function setupBroadcastPermissions(){
+  ScriptApp.requireScopes(ScriptApp.AuthMode.FULL,[
+    'https://www.googleapis.com/auth/drive',
+    'https://www.googleapis.com/auth/script.external_request',
+    'https://www.googleapis.com/auth/script.send_mail'
+  ]);
+  var response=UrlFetchApp.fetch('https://www.vartana.id/favicon.ico',{muteHttpExceptions:true});
+  var folders=DriveApp.getFoldersByName('VARTANA_Broadcast_Images');
+  var folder=folders.hasNext()?folders.next():DriveApp.createFolder('VARTANA_Broadcast_Images');
+  var quota=MailApp.getRemainingDailyQuota();
+  var message='Izin baca dan simpan foto broadcast siap. Folder: '+folder.getId()+'. Sisa kuota email: '+quota+'. Pemeriksaan koneksi: '+response.getResponseCode();
+  console.log(message);
+  return message;
 }

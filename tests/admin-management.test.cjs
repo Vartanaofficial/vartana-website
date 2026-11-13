@@ -83,6 +83,37 @@ function photoSetup(){
   return {...f,blob,files,fetches:()=>fetches};
 }
 
+test('Drive broadcast reads the selected file without requiring external HTTP access',()=>{
+  for(const imageUrl of ['https://www.vartana.id/api/product-image/DRIVE-POSTER','https://www.vartana.id/api/product-image?fileId=DRIVE-POSTER']){
+    const f=photoSetup();let readId='';
+    f.c.UrlFetchApp.fetch=()=>{throw Error('You do not have permission to call UrlFetchApp.fetch');};
+    f.c.DriveApp.getFileById=fileId=>{readId=fileId;return {getBlob:()=>f.blob};};
+    f.call({...f.draft,imageUrl});
+    assert.equal(readId,'DRIVE-POSTER');assert.equal(f.files.length,1);assert.equal(f.mail.length,0);
+  }
+});
+
+test('website photo authorization failure leaves the draft unsent with recovery instructions',()=>{
+  const f=photoSetup();
+  f.c.UrlFetchApp.fetch=()=>{throw Error('Required permissions: https://www.googleapis.com/auth/script.external_request');};
+  assert.throws(()=>f.call({...f.draft,imageUrl:'https://www.vartana.id/promo.png'}),/setupBroadcastPermissions/);
+  assert.equal(f.files.length,0);assert.equal(f.mail.length,0);
+  assert.equal(f.tables.MemberCampaigns.getLastRow(),1);
+});
+
+test('broadcast setup requires write access and prepares the photo folder before reporting success',()=>{
+  const f=photoSetup();let required=false,created=false;
+  f.c.UrlFetchApp.fetch=()=>({getResponseCode:()=>200});
+  f.c.ScriptApp={AuthMode:{FULL:'FULL'},requireScopes(mode,scopes){
+    assert.equal(mode,'FULL');assert.ok(scopes.includes('https://www.googleapis.com/auth/drive'));required=true;
+  }};
+  f.c.DriveApp.createFolder=name=>{assert.equal(required,true);assert.equal(name,'VARTANA_Broadcast_Images');created=true;return {getId:()=> 'READY-FOLDER'};};
+  assert.match(f.c.setupBroadcastPermissions(),/READY-FOLDER/);
+  assert.equal(created,true);assert.equal(f.mail.length,0);
+  f.c.ScriptApp.requireScopes=()=>{throw Error('Full Drive consent required');};
+  assert.throws(()=>f.c.setupBroadcastPermissions(),/Full Drive consent required/);
+});
+
 test('photo broadcast freezes an image once and sends embedded bytes with an escaped caption',()=>{
   const f=photoSetup(),draft={...f.draft,imageUrl:'https://www.vartana.id/promo.png',imageCaption:'Promo <b>spesial</b>'};
   const preview=f.call(draft).campaign;

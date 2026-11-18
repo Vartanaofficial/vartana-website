@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSessionToken, verifyAdminCredentials } from "@/lib/admin-auth";
+import {checkRateLimit, rateBucket, requestClient} from '@/lib/security-rate-limit';
 
 export const runtime = "nodejs";
 
@@ -8,6 +9,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const username = typeof body?.username === "string" ? body.username.trim() : "";
     const password = typeof body?.password === "string" ? body.password : "";
+
+    if (username.length > 254 || password.length > 256) {
+      return NextResponse.json({ok: false, message: 'Data login tidak valid.'}, {status: 400});
+    }
+    const limit = await checkRateLimit([
+      rateBucket('admin-login-account', username.toLowerCase(), 10, 900000),
+      rateBucket('admin-login-client', requestClient(request), 40, 900000),
+      rateBucket('admin-login-global', 'all', 200, 3600000),
+    ]);
+    if (!limit.allowed) return NextResponse.json({ok: false, message: 'Terlalu banyak percobaan masuk. Coba kembali nanti.'}, {
+      status: 429, headers: {'Retry-After': String(limit.retryAfter), 'Cache-Control': 'no-store'},
+    });
 
     if (!username || !password) {
       return NextResponse.json({ ok: false, message: "Masukkan username dan password." }, { status: 400 });
@@ -33,7 +46,8 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 8,
     });
     return response;
-  } catch {
-    return NextResponse.json({ ok: false, message: "Permintaan login tidak valid." }, { status: 400 });
+  } catch (error) {
+    const invalidJson = error instanceof SyntaxError;
+    return NextResponse.json({ok: false, message: invalidJson ? 'Permintaan login tidak valid.' : 'Pemeriksaan keamanan login belum tersedia. Coba lagi sebentar.'}, {status: invalidJson ? 400 : 503});
   }
 }

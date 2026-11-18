@@ -8,6 +8,12 @@ import { normalizeWhatsApp } from "@/lib/checkout-contact";
 
 import type {CheckoutReceipt} from "@/lib/order-confirmation";
 
+import {readIntegrationSettings} from '@/lib/integrations-server';
+import {paymentChoices} from '@/lib/integrations';
+
+import {productionDokuPayment,ensureDokuBackend} from '@/lib/doku-production';
+import {localDokuAdmin,localDokuCredentials,localDokuPayment} from '@/lib/local-doku';
+
 const pending = new Map<string, Promise<CheckoutReceipt>>();
 
 export async function POST(req: Request) {
@@ -16,7 +22,8 @@ export async function POST(req: Request) {
     const customer = body.customer || {};
     const phone = normalizeWhatsApp(customer.phone);
     const paymentMethod = body.paymentMethod || "bank_transfer";
-    if (!["bank_transfer", "qris"].includes(paymentMethod)) return NextResponse.json({message: "Pilih metode pembayaran yang tersedia."}, {status: 400});
+    const dokuLocal=paymentMethod==='doku'&&localDokuAdmin(req)&&!!localDokuCredentials();
+    if (!["bank_transfer", "qris", "doku"].includes(paymentMethod)) return NextResponse.json({message: "Pilih metode pembayaran yang tersedia."}, {status: 400});
     const fields = ["name", "email", "phone", "address", "provinceName", "cityName", "districtName", "districtId"];
     if (!fields.every(key => typeof customer[key] === "string" && customer[key].trim() && customer[key].length <= 1000)
       || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email) || !phone
@@ -28,20 +35,25 @@ export async function POST(req: Request) {
       const existing = (data.orders || []).find((order: { orderSerial: string; orderKey?: string }) => order.orderKey === orderKey || order.orderSerial === serial);
       if(existing){
         if(normalizeWhatsApp(existing.phone)!==phone)throw new Error('Pesanan ini tercatat untuk nomor lain.');
-        return {serial:existing.orderSerial,total:Number(existing.grandTotal),paymentMethod:existing.paymentMethod||paymentMethod,reservationUntil:existing.reservationUntil,details:existing};
+        const doku=existing.paymentMethod==='doku'?(dokuLocal?await localDokuPayment(orderKey,Number(existing.grandTotal)):await productionDokuPayment(orderKey,existing.orderSerial,Number(existing.grandTotal))):null;
+        return {...(doku?{dokuPaymentUrl:doku.paymentUrl,dokuInvoice:doku.invoice}:{}),serial:existing.orderSerial,total:Number(existing.grandTotal),paymentMethod:existing.paymentMethod||paymentMethod,reservationUntil:existing.reservationUntil,details:existing};
       }
+      const settings=(await readIntegrationSettings()).settings;
+      if(!dokuLocal&&!paymentChoices(settings).some(method=>method.id===paymentMethod))throw new Error('Metode pembayaran ini sedang nonaktif. Pilih metode lain.');
+      if(paymentMethod==='doku'&&!dokuLocal)await ensureDokuBackend();
       if(data.retailStockVersion!==1)throw new Error("Perbarui backend stok sebelum melanjutkan pembayaran.");
-      const quote = await checkoutQuote({ ...body, phone, districtId: customer.districtId, provinceName: customer.provinceName,cityName:customer.cityName,districtName:customer.districtName },{stock:data.retailStock?.retailStockVersion===1?data.retailStock:undefined,masterData:Array.isArray(data.products)&&Array.isArray(data.promotions)?{master:data.products,promoData:{promotions:data.promotions}}:undefined});
+      const quote = await checkoutQuote({ ...body, phone, districtId: customer.districtId, provinceName: customer.provinceName,cityName:customer.cityName,districtName:customer.districtName },{integrationSettings:settings,stock:data.retailStock?.retailStockVersion===1?data.retailStock:undefined,masterData:Array.isArray(data.products)&&Array.isArray(data.promotions)?{master:data.products,promoData:{promotions:data.promotions}}:undefined});
       if(quote.destination?.verified){customer.cityName=quote.destination.cityName;customer.provinceName=quote.destination.provinceName;customer.districtName=quote.destination.districtName;}
       if (!quote.shipping || quote.promoError) throw new Error(quote.promoError || "Pilih layanan pengiriman.");
       if (body.expectedTotal !== quote.total || body.shippingService !== quote.shipping.id) throw new Error("Harga atau ongkir berubah. Periksa ringkasan terbaru sebelum melanjutkan.");
+      if(dokuLocal&&(quote.total<1000||quote.total>100000))throw new Error('Uji lokal DOKU dibatasi total Rp1.000?Rp100.000.');
       if (data.retailOrderVersion !== 2) throw new Error("Sistem nomor order sedang diperbarui. Admin perlu deploy Apps Script versi terbaru sebelum checkout dilanjutkan.");
       const knownMember = (data.members || []).find((m: {phone: string}) => normalizeWhatsApp(String(m.phone)) === phone);
       let memberId = knownMember?.memberId || `VRT-${phone}`;
       const profileChanged=!knownMember||knownMember.name!==customer.name||knownMember.email!==customer.email||knownMember.addressDetail!==customer.address||knownMember.districtName!==customer.districtName||knownMember.cityName!==customer.cityName;
-      const memberProfile={memberId,name:customer.name,email:customer.email,phone:customer.phone,addressDetail:customer.address,districtName:customer.districtName,cityName:customer.cityName};
+      const memberProfile={createOnly:true,memberId,name:customer.name,email:customer.email,phone:customer.phone,addressDetail:customer.address,districtName:customer.districtName,cityName:customer.cityName};
       if(profileChanged&&data.checkoutWorkflowVersion!==3){
-        const member = await requestMasterScript("saveMember", { memberId, name: customer.name, email: customer.email, phone: customer.phone, addressDetail: customer.address, districtName: customer.districtName, cityName: customer.cityName });
+        const member = await requestMasterScript("saveMember", { createOnly:true,memberId, name: customer.name, email: customer.email, phone: customer.phone, addressDetail: customer.address, districtName: customer.districtName, cityName: customer.cityName });
         if (member.status !== "success" && member.success !== true) throw new Error("Data pelanggan belum tersimpan.");
         memberId=member.memberId||memberId;
       }
@@ -66,7 +78,8 @@ export async function POST(req: Request) {
       const result = await requestMasterScript("saveRetailOrderV3", { ...orderDetails, ...proof });
       if (result.status !== "success" && result.success !== true) throw new Error("Pesanan belum tersimpan.");
       const savedSerial = String(result.orderSerial || serial);
-      return { serial: savedSerial, total: quote.total, paymentMethod, reservationUntil:result.reservationUntil, details: { ...orderDetails, orderSerial: savedSerial } };
+      const doku=paymentMethod==='doku'?(dokuLocal?await localDokuPayment(orderKey,quote.total):await productionDokuPayment(orderKey,savedSerial,quote.total)):null;
+      return { ...(doku?{dokuPaymentUrl:doku.paymentUrl,dokuInvoice:doku.invoice}:{}),paymentMethods:quote.paymentMethods, serial: savedSerial, total: quote.total, paymentMethod, reservationUntil:result.reservationUntil, details: { ...orderDetails, orderSerial: savedSerial } };
     };
     const pendingKey=serial+':'+phone;
     let task = pending.get(pendingKey);

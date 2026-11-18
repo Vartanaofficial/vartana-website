@@ -278,7 +278,7 @@ export default function OperationsPage() {
           </div>
         )}
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {lastChecked ? <><section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <OperationsKpi
             label="Total Orders"
             value={String(filteredOrders.length)}
@@ -322,6 +322,7 @@ export default function OperationsPage() {
           onUpdated={()=>void fetchData()}
         />
 
+        </> : <section role="status" className="rounded-3xl border border-[#d8dfcf] bg-white p-8 text-[#36543b]"><h2 className="font-serif text-2xl">{loading?"Memuat data monitoring":"Data belum berhasil dimuat"}</h2><p className="mt-3 text-sm">{loading?"Mengambil pesanan dan member dari spreadsheet.":"Angka monitoring ditampilkan setelah koneksi berhasil. Isi spreadsheet tidak diubah."}</p><button type="button" disabled={loading} onClick={()=>void fetchData()} className="mt-5 rounded-full bg-[#214b36] px-5 py-3 text-sm text-white disabled:opacity-50">Coba muat ulang</button></section>}
         <footer className="pb-6 pt-1 text-center text-[10px] text-[#526158]">
           VARTANA Operations Monitoring • Data source: Admin API
         </footer>

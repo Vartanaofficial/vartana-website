@@ -1,11 +1,19 @@
 // CUSTOMER ORDER ACCESS V1: short-lived, rate-limited email verification bound to an HttpOnly browser session.
 function customerAccessSheet_(){return inventoryOperationsSheet_('CustomerOrderAccess',['Challenge ID','Phone','Session Hash','Recipient','Code Hash','Created At','Expires At','Attempts','State','Send State','Delivery ID','Verified Until','Updated At','Error']);}
 function customerAccessHash_(text){var key=PropertiesService.getScriptProperties().getProperty('VARTANA_ARTICLE_ADMIN_KEY');if(!key||key.length<32)throw new Error('Konfigurasi verifikasi belum siap.');return Utilities.computeHmacSha256Signature('ORDER-ACCESS\n'+text,key).map(function(v){return ('0'+((v+256)%256).toString(16)).slice(-2);}).join('');}
-function customerVerifiedPhone_(session){if(!/^[a-f0-9-]{36}$/i.test(String(session||'')))return '';var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CustomerOrderAccess');if(!sh)return '';var rows=sh.getDataRange().getValues(),hash=customerAccessHash_('SESSION:'+session);for(var i=rows.length-1;i>=1;i--)if(rows[i][2]===hash&&rows[i][8]==='VERIFIED'&&new Date(rows[i][11]).getTime()>Date.now())return String(rows[i][1]);return '';}
+function customerVerifiedIdentity_(session){
+ if(!/^[a-f0-9-]{36}$/i.test(String(session||'')))return null;
+ var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CustomerOrderAccess');if(!sh)return null;
+ var rows=sh.getDataRange().getValues(),hash=customerAccessHash_('SESSION:'+session);
+ for(var i=rows.length-1;i>=1;i--)if(rows[i][2]===hash&&rows[i][8]==='VERIFIED'&&new Date(rows[i][11]).getTime()>Date.now())return {phone:String(rows[i][1]),email:gamesRawEmail_(rows[i][3])};
+ return null;
+}
+function customerVerifiedPhone_(session){var identity=customerVerifiedIdentity_(session);return identity?identity.phone:'';}
 function customerChallengePublic_(row){return {success:true,customerOrdersVersion:2,challengeId:String(row[0]),maskedEmail:gamesMaskEmail_(gamesRawEmail_(row[3])),expiresAt:new Date(row[6]).toISOString(),retryAt:new Date(new Date(row[5]).getTime()+60000).toISOString(),deliveryStatus:String(row[9])};}
-function customerOrderRecipient_(raw){
+function customerOrderRecipient_(raw,type,query){
  var phone=customerOrderPhone_(raw),ss=SpreadsheetApp.getActiveSpreadsheet(),orders=vartanaReadOrders_(ss.getSheetByName(SHEET_ORDERS)).filter(function(o){return phone&&customerOrderPhone_(o.phone)===phone;}),email='';
- for(var i=orders.length-1;i>=0;i--){var candidate=gamesRawEmail_(orders[i].email);if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate)){email=candidate;break;}}
+ if(type==='serial')orders=orders.filter(function(order){return String(order.orderSerial).toUpperCase()===String(query||'').trim().toUpperCase();});
+ for(var i=0;i<orders.length;i++){var candidate=gamesRawEmail_(orders[i].email);if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate)){email=candidate;break;}}
  return {phone:phone,email:email,matchingOrders:orders.length};
 }
 function customerOrderAccessCheck_(raw){var result=customerOrderRecipient_(raw);return responseJSON({success:true,matchingOrders:result.matchingOrders,emailAvailable:!!result.email,maskedEmail:result.email?gamesMaskEmail_(result.email):'',inputDigits:String(raw||'').replace(/\D/g,'').length});}
@@ -14,8 +22,9 @@ function customerOrderAccess_(data){
  var sessionHash=customerAccessHash_('SESSION:'+session),now=Date.now(),lock=LockService.getScriptLock(),context;
  if(operation==='request'){
   var raw=String(d.phone||''),phone=customerOrderPhone_(raw);if(!phone||! /^[+\d\s()-]+$/.test(raw))throw new Error('Nomor WhatsApp tidak valid.');
-  if(customerVerifiedPhone_(session)===phone)return customerOrderHistory_({type:d.type||'phone',query:d.query||phone},phone);
-  var recipient=customerOrderRecipient_(phone),email=recipient.email;
+  var identity=customerVerifiedIdentity_(session);
+  if(identity&&identity.phone===phone&&d.type!=='serial')return customerOrderHistory_({type:d.type||'phone',query:d.query||phone},phone,identity.email);
+  var recipient=customerOrderRecipient_(phone,d.type,d.query),email=recipient.email;
   if(!email)throw new Error('Kode belum dapat dikirim. Periksa nomor WhatsApp yang digunakan saat belanja atau hubungi VARTANA.');
   lock.waitLock(20000);
   try{
@@ -43,5 +52,5 @@ function customerOrderAccess_(data){
    row[8]='VERIFIED';row[4]='';row[11]=new Date(now+900000);sh.getRange(index+1,1,1,14).setValues([row.slice(0,14)]);phone=String(row[1]);
   }
  }finally{lock.releaseLock();}
- return customerOrderHistory_({type:d.type||'phone',query:d.query||phone},phone);
+ return customerOrderHistory_({type:d.type||'phone',query:d.query||phone},phone,customerVerifiedIdentity_(session).email);
 }

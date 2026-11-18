@@ -30,3 +30,10 @@ test('personal puzzle voucher validates privately, caps product discount and ref
   await assert.rejects(checkoutQuote({items:[{sku:'TEA',quantity:1}],promoCode:'PUZ-ABC,SAVE20',phone:'081234567890'}),/sendiri/);
  }finally{global.fetch=originalFetch;for(const [key,value] of Object.entries({GOOGLE_SCRIPT_URL:oldUrl,ADMIN_SESSION_SECRET:oldSecret,BITESHIP_API_KEY:oldKey})){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
 });
+
+test('disabled shipping and payment integrations are removed from the server quote',async()=>{
+ const {defaultIntegrations}=require('../lib/integrations.ts');
+ const settings=defaultIntegrations().settings;settings.find(s=>s.id==='legacy_shipping').enabled=false;settings.find(s=>s.id==='bank_transfer').enabled=false;
+ const q=await checkoutQuote({items:[{sku:'TEA',quantity:1}],districtId:'test',provinceName:'BANTEN'},{integrationSettings:settings,masterData:{master:[{sku:'TEA',productName:'Tea',active:true,sellingPrice:50000}],promoData:{promotions:[]}},stock:{success:true,retailStockVersion:1,items:[{sku:'TEA',qty:5,reservedQty:0,availableQty:5}]}});
+ assert.deepEqual(q.rates,[]);assert.equal(q.shipping,null);assert.deepEqual(q.paymentMethods.map(s=>s.id),['qris']);
+});

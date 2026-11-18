@@ -1,3 +1,4 @@
+import {defaultIntegrations,paymentChoices,type IntegrationSetting} from './integrations';
 import {resolvePromoDestination,promoAreaError} from './promo-area';
 import {readCheckoutMaster} from './checkout-master';
 import { buildStoreCatalog } from "./store-catalog";
@@ -12,12 +13,13 @@ export type CheckoutItem = { sku: string; quantity: number };
 export type CheckoutInput = { items: CheckoutItem[]; promoCode?: string; phone?: string; orderKey?: string; districtId?: string; provinceName?: string; cityName?:string; districtName?:string; shippingService?: string };
 export type ShippingRate = { id: string; name: string; price: number; duration: string; estimated: boolean };
 
-async function shippingRates(districtId: string, provinceName: string, weight: number): Promise<ShippingRate[]> {
+async function shippingRates(districtId: string, provinceName: string, weight: number, originOverride?:string): Promise<ShippingRate[]> {
   const key = process.env.BITESHIP_API_KEY;
-  if (key && process.env.ORIGIN_DISTRICT_ID) {
+  const origin=originOverride||process.env.ORIGIN_DISTRICT_ID;
+  if (key && origin) {
     const response = await fetch("https://api.biteship.com/v1/rates/couriers", {
       method: "POST", headers: { Authorization: key, "Content-Type": "application/json" }, signal: AbortSignal.timeout(15000),
-      body: JSON.stringify({ origin_area_id: process.env.ORIGIN_DISTRICT_ID, destination_area_id: districtId, couriers: "jnt,jne", items: [{ name: "VARTANA", value: 1, weight, quantity: 1 }] }),
+      body: JSON.stringify({ origin_area_id: origin, destination_area_id: districtId, couriers: "jnt,jne", items: [{ name: "VARTANA", value: 1, weight, quantity: 1 }] }),
     });
     const data = await response.json();
     if (!response.ok || !Array.isArray(data.pricing) || !data.pricing.length) throw new Error("Tarif kurir belum tersedia untuk alamat ini.");
@@ -29,7 +31,7 @@ async function shippingRates(districtId: string, provinceName: string, weight: n
   return [{ id: "jnt-ez", name: "J&T EZ", price: price * Math.max(1, Math.ceil(weight / 1000)), duration: "2–5 hari", estimated: true }, { id: "jne-reg", name: "JNE REG", price: (price - 1000) * Math.max(1, Math.ceil(weight / 1000)), duration: "2–5 hari", estimated: true }];
 }
 
-export async function checkoutQuote(input: CheckoutInput,options:{freshMaster?:boolean;masterData?:{master:MasterProduct[];promoData:{promotions:Record<string,unknown>[]}};stock?:RetailStockReport}={}) {
+export async function checkoutQuote(input: CheckoutInput,options:{integrationSettings?:IntegrationSetting[];freshMaster?:boolean;masterData?:{master:MasterProduct[];promoData:{promotions:Record<string,unknown>[]}};stock?:RetailStockReport}={}) {
   if (!Array.isArray(input.items) || !input.items.length || input.items.length > 100) throw new Error("Keranjang masih kosong atau tidak valid.");
   const [{master,promoData},stock] = await Promise.all([options.masterData||readCheckoutMaster(options.freshMaster!==false),options.stock||readRetailStock(input.orderKey)]);
   const catalog = buildStoreCatalog(master);
@@ -62,11 +64,13 @@ export async function checkoutQuote(input: CheckoutInput,options:{freshMaster?:b
   const preliminary = evaluatePromoStack(promos,codes,lines,availableProducts,0,destination);
   assertRetailStock([...lines,...preliminary.rewards],stock);
   const weight = [...lines,...preliminary.rewards].reduce((sum, item) => sum + item.weight * item.quantity, 0);
-  const rates = input.districtId && input.provinceName ? await shippingRates(input.districtId, destination?.provinceName||input.provinceName, weight) : [];
+  const settings=options.integrationSettings||defaultIntegrations().settings;
+  const carrier=settings.find(s=>s.id==='legacy_shipping');
+  const rates = carrier?.enabled && input.districtId && input.provinceName ? await shippingRates(input.districtId, destination?.provinceName||input.provinceName, weight,carrier.originId) : [];
   const shipping = rates.find(r => r.id === input.shippingService) || rates[0] || null;
   const discount = evaluatePromoStack(promos,codes,lines,availableProducts,shipping?.price||0,destination);
   assertRetailStock([...lines,...discount.rewards],stock);
-  return { stock:stock.items.map(x=>({sku:x.sku,availableQty:x.availableQty})),destination, lines, subtotal, shipping, rates, productDiscount: discount.productDiscount, shippingDiscount: discount.shippingDiscount,
+  return { paymentMethods:paymentChoices(settings), stock:stock.items.map(x=>({sku:x.sku,availableQty:x.availableQty})),destination, lines, subtotal, shipping, rates, productDiscount: discount.productDiscount, shippingDiscount: discount.shippingDiscount,
     total: discount.total, rewardLines: discount.rewards, redeemTotal: discount.redeemTotal, appliedPromos: discount.applied,
     promoCode: discount.applied.map(p=>p.code).join(", "), promoError: discount.errors.join(" "),
     promos: promos.filter(p => promoInPeriod(p)).map(p => ({ shippingMode:p.shippingMode||'amount',area:p.area||'all',eligibleArea:!promoAreaError(p.area,destination),code: p.code, name: p.name, minSpend: p.minSpend, type: p.type, value: p.value, maxDiscount: p.maxDiscount,

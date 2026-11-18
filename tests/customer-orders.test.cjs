@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),{fixture}=require('./games-fixture.cjs'),load=require('./load-ts.cjs');
 const {customerOrderStep}=load('lib/customer-orders.ts');
-function historyFixture(){const f=fixture(),sheet=f.tables.Orders;f.c.customerVerifiedPhone_=()=> '6281234567890';
+function historyFixture(){const f=fixture(),sheet=f.tables.Orders;f.c.customerVerifiedIdentity_=()=>({phone:'6281234567890',email:'private@example.com'});
  const add=(serial,phone,status='MENUNGGU PEMBAYARAN',summary='Morning Energy [Box + Pouch] (2x) | Kurir J&T EZ | Catatan: secret address and private note')=>sheet.appendRow(['2026-11-12',serial,'SHARED-MEMBER','Private Name',phone,'private@example.com','Secret home address','TEA',summary,100000,13000,0,13000,113000,status,status==='DIKIRIM'?'JNT-123':'-']);
  const lookup=(type,query)=>f.c.customerOrderLookup_(f.signed('customerOrderLookup',{type,query}));return {...f,add,lookup};
 }
@@ -10,7 +10,7 @@ test('WhatsApp history matches normalized order phones, not shared Member IDs; r
  for(const value of ['Private Name','private@example.com','Secret home address','private note','SHARED-MEMBER','081299999999','VRT-OTHER'])assert.ok(!JSON.stringify(result).includes(value));assert.deepEqual(Array.from(Object.keys(result.history[0])).sort(),['createdAt','grandTotal','itemsSummary','orderSerial','resiJNT','status']);
 });
 test('serial lookup returns its product summary and legacy shifted rows recover money and status correctly',()=>{
- const f=historyFixture();f.add('VRT-RECENT','081234567890');f.tables.Orders.appendRow(['2026-11-11','VRT-LEGACY','SHARED-MEMBER','Name','081234567890','hidden@example.com','Secret address','Tea (2x)',85000,'DIKIRIM','JNT-OLD',0,13000,'','','']);
+ const f=historyFixture();f.add('VRT-RECENT','081234567890');f.tables.Orders.appendRow(['2026-11-11','VRT-LEGACY','SHARED-MEMBER','Name','081234567890','private@example.com','Secret address','Tea (2x)',85000,'DIKIRIM','JNT-OLD',0,13000,'','','']);
  const one=f.lookup('serial',' vrt-legacy ');assert.equal(one.history.length,1);assert.equal(one.history[0].itemsSummary,'Tea (2x)');assert.equal(one.history[0].grandTotal,85000);assert.equal(one.history[0].status,'DIKIRIM');assert.equal(one.history[0].resiJNT,'JNT-OLD');
 });
 test('spreadsheet phone cells that lost the leading zero still match 08 and +62 searches',()=>{const f=historyFixture();f.add('VRT-NUMERIC',81234567890);for(const query of ['081234567890','+6281234567890','81234567890']){const result=f.lookup('phone',query);assert.equal(result.total,1);assert.equal(result.history[0].orderSerial,'VRT-NUMERIC');}});

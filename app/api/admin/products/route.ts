@@ -1,3 +1,4 @@
+import {fetchScript as fetch} from '@/lib/script-fetch';
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminSessionToken } from "@/lib/admin-auth";
 import { calculatePromoPrice } from "@/lib/product-pricing";

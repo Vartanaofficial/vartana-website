@@ -14,3 +14,24 @@ test('numeric spreadsheet WhatsApp without zero receives OTP for all supported i
   const challenge=f.request({phone,query:phone});assert.equal(f.mail.length,1);assert.equal(f.mail[0].to,'owner@example.com');assert.equal(f.verify(challenge.challengeId,f.code(),{query:phone}).total,1);
  }
 });
+
+test('a new order with someone else’s phone cannot redirect history OTP or unlock older orders',()=>{
+ const f=accessFixture();
+ f.tables.Orders.appendRow(['','VRT-ATTACKER','M','Other','081234567890','attacker@example.com','','TEA','Other order',1,0,0,0,1,'MENUNGGU PEMBAYARAN','']);
+ const challenge=f.request();
+ assert.equal(f.mail[0].to,'owner@example.com');
+ const history=f.verify(challenge.challengeId,f.code());
+ assert.equal(history.total,1);
+ assert.equal(history.history[0].orderSerial,'VRT-TEST');
+});
+
+test('serial verification for another email grants access only to that email’s orders',()=>{
+ const f=accessFixture();
+ f.tables.Orders.appendRow(['','VRT-ATTACKER','M','Other','081234567890','attacker@example.com','','TEA','Other order',1,0,0,0,1,'MENUNGGU PEMBAYARAN','']);
+ const challenge=f.request({type:'serial',query:'VRT-ATTACKER'});
+ assert.equal(f.mail[0].to,'attacker@example.com');
+ const history=f.verify(challenge.challengeId,f.code(),{type:'phone',query:'081234567890'});
+ assert.equal(history.total,1);
+ assert.equal(history.history[0].orderSerial,'VRT-ATTACKER');
+ assert.equal(f.c.customerOrderLookup_(f.signed('customerOrderLookup',{type:'serial',query:'VRT-TEST',session})).found,false);
+});

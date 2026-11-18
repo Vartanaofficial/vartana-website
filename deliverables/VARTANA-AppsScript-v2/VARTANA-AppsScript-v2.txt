@@ -563,8 +563,18 @@ function doPost(e) {
     var ss =
       SpreadsheetApp.getActiveSpreadsheet();
 
-    var data =
-      JSON.parse(e.postData.contents);
+    var rawRequest = String(e && e.postData && e.postData.contents || '');
+    // Signed payloads can contain a legacy inner proof and ASCII-escaped Unicode.
+    if (rawRequest.length > 4 * 1024 * 1024) securityReject_();
+    var data = JSON.parse(rawRequest);
+    if (!data || typeof data !== 'object' || Array.isArray(data) || typeof data.action !== 'string') securityReject_();
+    if (securityPublicAction_(data.action)) return doGet({parameter:{action:data.action}});
+    securityVerifyRpc_(data);
+    delete data.rpcAuth;
+    if(data.action === "integrationSettings") return integrationSettings_(data);
+    if(data.action === "dokuPayments") return dokuPayments_(data);
+    if (data.action === 'securityRateLimit') return securityRateLimit_(data);
+    if (data.action === 'adminLogin' || data.action === 'verifySession') securityReject_();
     if(data.action==='updateOrder')throw new Error('Gunakan dashboard pesanan yang sudah diperbarui.');
     if(['saveInventory','saveRawMaterials','saveProductCosting'].indexOf(data.action)>=0){puzzleVerify_(data,data.action);if(JSON.stringify(data.puzzlePayload)!==JSON.stringify(puzzleOrderProof_(data)))throw new Error('Rincian persediaan tidak sesuai otorisasi.');}
     if(data.action==='retailReconciliation')return retailReconciliation_(data);
@@ -582,11 +592,11 @@ function doPost(e) {
     if (data.action === 'games') return gamesHandle_(data);
     if (data.action === 'gamesAdmin') return gamesAdminHandle_(data);
     if (data.action === 'gamesRewardEmail') return gamesRewardEmailHandle_(data);
-    if(data.action==='adminRead'){puzzleVerify_(data,'adminRead');if(data.puzzlePayload&&data.puzzlePayload.operation==='historyAccessCheck')return customerOrderAccessCheck_(data.puzzlePayload.phone);return doGet({parameter:{action:'getAdminData'},internalAdmin:true});}
+    if(data.action==='adminRead'){puzzleVerify_(data,'adminRead');if(data.puzzlePayload&&data.puzzlePayload.operation==='historyAccessCheck')return customerOrderAccessCheck_(data.puzzlePayload.phone);return doGet({parameter:{action:'getAdminData'},internalAdmin:true,internalSecurity:true});}
     if (data.action === 'getCheckoutContext'){puzzleVerify_(data,'getCheckoutContext');return getCheckoutContext_(data.puzzlePayload);}
     // Explicit read RPCs share the same response contracts as GET. They never
     // fall through into order creation when master data is requested via POST.
-    if (['getProductStock','getProducts','getPricing','getPromotions','getStoreCatalog','getIngredients','getAdminData','fetchOrders','getInventory','getInventoryCapabilities','getCatalogTranslations','getRawMaterials','getProductCosting','getArticles'].indexOf(data.action)>=0 || String(data.action||'').indexOf('getKonsinyasi')===0) return doGet({parameter:{action:data.action}});
+    if (['getProductStock','getProducts','getPricing','getPromotions','getStoreCatalog','getIngredients','getAdminData','fetchOrders','getInventory','getInventoryCapabilities','getCatalogTranslations','getPublicContentTranslations','getRawMaterials','getProductCosting','getArticles'].indexOf(data.action)>=0 || String(data.action||'').indexOf('getKonsinyasi')===0) return doGet({parameter:{action:data.action},internalSecurity:true});
 
 
     // ========================================================
@@ -887,6 +897,8 @@ function doPost(e) {
 // ============================================================
 
 function doGet(e) {
+  if (!e || (!e.internalSecurity && !securityPublicAction_(String(e.parameter && e.parameter.action || "")))) return responseJSON({success:false,found:false,message:"Otorisasi backend diperlukan."});
+  if (e.parameter.action === "getSecurityCapabilities") return responseJSON({success:true,securityVersion:1});
 
   try {
     if(e&&e.parameter&&e.parameter.action==='getCustomerAccountCapabilities')return responseJSON({success:true,customerAccountVersion:1});
@@ -3753,7 +3765,7 @@ function puzzleVerify_(data,action){
  if(provided.length!==expected.length)throw new Error('Otorisasi puzzle tidak valid.');
  for(var i=0;i<expected.length;i++)diff|=expected.charCodeAt(i)^provided.charCodeAt(i);if(diff)throw new Error('Otorisasi puzzle tidak valid.');
 }
-function puzzleOrderProof_(data){var clean={};Object.keys(data).forEach(function(k){if(['action','authTime','authSignature','authEncoding','puzzlePayload'].indexOf(k)<0)clean[k]=data[k];});return clean;}
+function puzzleOrderProof_(data){var clean={};Object.keys(data).forEach(function(k){if(['action','authTime','authSignature','authEncoding','rpcAuth','puzzlePayload'].indexOf(k)<0)clean[k]=data[k];});return clean;}
 function puzzlePhone_(value){var p=String(value||'').replace(/\D/g,'');if(p.charAt(0)==='0')p='62'+p.slice(1);return /^628\d{8,11}$/.test(p)?p:'';}
 function puzzleMove_(board,tile){var at=board.indexOf(tile),empty=board.indexOf(0);if(!Number.isInteger(tile)||tile<1||tile>8||at<0||Math.abs(Math.floor(at/3)-Math.floor(empty/3))+Math.abs(at%3-empty%3)!==1)throw new Error('Langkah puzzle tidak valid.');board[empty]=tile;board[at]=0;}
 function puzzleSolved_(board){return board.join(',')==='1,2,3,4,5,6,7,8,0';}
@@ -3842,6 +3854,8 @@ function vartanaSaveMember_(data,alreadyLocked){
   if(!sheet.getLastRow())sheet.getRange(1,1,1,8).setValues([['Timestamp','Member ID','Nama','Email','No. WA','Tgl Lahir','Alamat','Kecamatan/Kota']]);
   var rows=sheet.getDataRange().getValues(),row=-1,old=[];
   for(var i=1;i<rows.length;i++)if(customerOrderPhone_(rows[i][4])===phone){row=i+1;old=rows[i];break;}
+  if(row>0&&data.createOnly===true)return responseJSON({status:'success',success:true,memberId:String(old[1]),unchanged:true});
+  if(row>0&&alreadyLocked!==true&&gamesRawEmail_(data.memberVerifiedEmail)!==gamesRawEmail_(old[3]))throw new Error('Verifikasi email member diperlukan.');
   var memberId=row>0?String(old[1]||'VRT-'+phone):String(data.memberId||'VRT-'+phone);
   if(row<0&&rows.slice(1).some(function(r){return String(r[1])===memberId&&customerOrderPhone_(r[4])!==phone;}))throw new Error('Member ID sudah dipakai nomor lain.');
   function field(value,previous){if(value===undefined||value===null||String(value).trim()===''||value==='-')return previous||'-';var text=String(value).trim();return /^[=+@-]/.test(text)?"'"+text:text;}
@@ -3872,6 +3886,187 @@ function vartanaProductRows_(sheet){
  var columns=Math.min(26,sheet.getMaxColumns()),values=[[]];
  groups.forEach(function(group){var rows=sheet.getRange(group.start,1,group.end-group.start+1,columns).getValues();rows.forEach(function(row){values.push(row);});});
  return values;
+}
+
+// SECURITY V1: all data operations are authenticated before dispatch or sheet access.
+function securityPublicAction_(action) {
+  return ['getSecurityCapabilities','getGameCapabilities','getCustomerAccountCapabilities',
+    'getRetailStockCapabilities','getCustomerOrdersCapabilities','getOrderEmailCapabilities',
+    'getInventoryCapabilities'].indexOf(action) >= 0;
+}
+
+function securityReject_() {
+  throw new Error('Otorisasi backend diperlukan.');
+}
+
+function securityVerifyRpc_(data) {
+  var auth = data.rpcAuth || {};
+  var now = Date.now();
+  if (auth.version !== 1 || !/^\d{13}$/.test(String(auth.timestamp || '')) ||
+      Math.abs(now - Number(auth.timestamp)) > 300000 ||
+      !/^[a-f0-9-]{36}$/i.test(String(auth.nonce || '')) ||
+      !/^[a-f0-9]{64}$/.test(String(auth.signature || ''))) securityReject_();
+  var properties = PropertiesService.getScriptProperties();
+  var key = properties.getProperty('VARTANA_RPC_SECRET') || properties.getProperty('VARTANA_ARTICLE_ADMIN_KEY');
+  if (!key || key.length < 32) securityReject_();
+  var clean = {};
+  Object.keys(data).forEach(function(name) { if (name !== 'rpcAuth') clean[name] = data[name]; });
+  var serialized = JSON.stringify(clean).replace(/[\u007f-\uffff]/g, function(character) {
+    return '\\u' + ('0000' + character.charCodeAt(0).toString(16)).slice(-4);
+  });
+  var message = ['VARTANA-RPC-V1', auth.timestamp, auth.nonce, serialized].join('\n');
+  var expected = Utilities.computeHmacSha256Signature(message, key).map(function(value) {
+    return ('0' + ((value + 256) % 256).toString(16)).slice(-2);
+  }).join('');
+  var difference = 0;
+  for (var i = 0; i < expected.length; i++) difference |= expected.charCodeAt(i) ^ auth.signature.charCodeAt(i);
+  if (difference) securityReject_();
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sheet = inventoryOperationsSheet_('SecurityNonces', ['Nonce', 'Expires At']);
+    var rows = sheet.getDataRange().getValues();
+    for (var r = 1; r < rows.length; r++) {
+      if (String(rows[r][0]) === auth.nonce) throw new Error('Permintaan sudah digunakan. Muat ulang status sebelum mencoba lagi.');
+    }
+    // Remove expired entries in contiguous runs, keeping storage bounded.
+    if (rows.length > 1000) {
+      for (var end = rows.length - 1; end >= 1;) {
+        if (new Date(rows[end][1]).getTime() > now) { end--; continue; }
+        var start = end;
+        while (start > 1 && new Date(rows[start - 1][1]).getTime() <= now) start--;
+        sheet.deleteRows(start + 1, end - start + 1);
+        end = start - 1;
+      }
+    }
+    if (sheet.getLastRow() > 15000) throw new Error('Backend sedang sibuk. Coba kembali sebentar.');
+    sheet.appendRow([auth.nonce, new Date(Number(auth.timestamp) + 300001)]);
+  } finally { lock.releaseLock(); }
+}
+
+function securityRateLimit_(data) {
+  if (!Array.isArray(data.buckets) || !data.buckets.length || data.buckets.length > 4) throw new Error('Batas permintaan tidak valid.');
+  data.buckets.forEach(function(bucket) {
+    if (!/^[a-f0-9]{64}$/.test(String(bucket.key || '')) ||
+        !Number.isInteger(bucket.limit) || bucket.limit < 1 || bucket.limit > 1000 ||
+        !Number.isInteger(bucket.windowMs) || bucket.windowMs < 1000 || bucket.windowMs > 3600000) throw new Error('Batas permintaan tidak valid.');
+  });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var now = Date.now();
+    var sheet = inventoryOperationsSheet_('SecurityRateLimits', ['Bucket', 'Expires At', 'Count']);
+    var rows = sheet.getDataRange().getValues();
+    var plans = data.buckets.map(function(bucket) {
+      var index = -1;
+      for (var r = 1; r < rows.length; r++) if (String(rows[r][0]) === bucket.key) index = r;
+      var active = index >= 0 && new Date(rows[index][1]).getTime() > now;
+      return {bucket: bucket, index: index, count: active ? Number(rows[index][2]) : 0,
+        until: active ? new Date(rows[index][1]).getTime() : now + bucket.windowMs};
+    });
+    var retryAfter = 0;
+    plans.forEach(function(plan) { if (plan.count >= plan.bucket.limit) retryAfter = Math.max(retryAfter, Math.ceil((plan.until - now) / 1000)); });
+    if (retryAfter) return responseJSON({success: true, allowed: false, retryAfter: retryAfter});
+    plans.forEach(function(plan) {
+      var row = plan.index >= 0 ? plan.index + 1 : sheet.getLastRow() + 1;
+      if (plan.index < 0) {
+        for (var i = 1; i < rows.length; i++) {
+          if (new Date(rows[i][1]).getTime() <= now) { row = i + 1; rows[i][1] = new Date(plan.until); break; }
+        }
+      }
+      if (row > 10000) throw new Error('Backend sedang sibuk. Coba kembali sebentar.');
+      sheet.getRange(row, 1, 1, 3).setValues([[plan.bucket.key, new Date(plan.until), plan.count + 1]]);
+      rows[row - 1] = [plan.bucket.key, new Date(plan.until), plan.count + 1];
+    });
+    return responseJSON({success: true, allowed: true, retryAfter: 0});
+  } finally { lock.releaseLock(); }
+}
+
+// Non-secret provider preferences share the existing admin preferences sheet.
+function integrationSettings_(data) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('AdminPreferences');
+  function read() {
+    var rows = sheet ? sheet.getDataRange().getValues() : [];
+    for (var i = 1; i < rows.length; i++) if (rows[i][0] === 'integrations') {
+      return {row: i + 1, document: JSON.parse(String(rows[i][1]))};
+    }
+    return {row: 0, document: null};
+  }
+  if (data.operation === 'read') return responseJSON({success: true, document: read().document});
+  if (data.operation !== 'save' || !Array.isArray(data.settings) || data.settings.length !== 6) throw new Error('Pengaturan integrasi tidak valid.');
+  var allowed = ['bank_transfer', 'qris', 'doku', 'ipaymu', 'legacy_shipping', 'kiriminaja'];
+  var supported = ['bank_transfer', 'qris', 'legacy_shipping','doku'];
+  var seen = {};
+  var settings = data.settings.map(function(value) {
+    if (!value || allowed.indexOf(value.id) < 0 || seen[value.id] || typeof value.enabled !== 'boolean' ||
+        ['sandbox', 'production'].indexOf(value.environment) < 0 || typeof value.label !== 'string' ||
+        !value.label.trim() || value.label.length > 60 || typeof value.originId !== 'string' ||
+        (value.originId && !/^[a-zA-Z0-9_-]{1,100}$/.test(value.originId))) throw new Error('Pengaturan layanan tidak valid.');
+    if (value.enabled && supported.indexOf(value.id) < 0) throw new Error('Adapter layanan belum tersedia.');
+    if(value.id==='doku'&&value.enabled&&value.environment!=='production')throw new Error('DOKU production memerlukan environment production.');
+    seen[value.id] = true;
+    return {id: value.id, enabled: value.enabled, environment: value.environment, label: value.label.trim(), originId: value.originId};
+  });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    // Refresh the sheet reference and revision after obtaining the shared lock.
+    sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('AdminPreferences');
+    var current = read();
+    if (String(data.expectedRevision || '') !== (current.document ? current.document.revision : '')) throw new Error('Pengaturan berubah di perangkat lain. Muat ulang sebelum menyimpan.');
+    var document = {revision: Utilities.getUuid(), settings: settings};
+    if (!sheet) sheet = inventoryOperationsSheet_('AdminPreferences', ['Key', 'Value JSON', 'Revision', 'Updated At']);
+    sheet.getRange(current.row || sheet.getLastRow() + 1, 1, 1, 4).setValues([['integrations', JSON.stringify(document), document.revision, new Date()]]);
+    return responseJSON({success: true, document: document});
+  } finally { lock.releaseLock(); }
+}
+
+// Private RPC only. Shared lock serializes invoice claims and verified notifications.
+function dokuPaymentSheet_(){return inventoryOperationsSheet_('DokuPayments',['Order Key','Order Serial','Invoice','Amount','Request ID','State','Payment URL','Created At','Updated At','Paid At','Review Note']);}
+function dokuPaymentOrder_(key){var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),rows=sheet?sheet.getDataRange().getValues():[],headers=rows[0]||[],col=headers.indexOf('Order Key');for(var i=1;i<rows.length;i++)if(col>=0&&String(rows[i][col])===key){var order=vartanaReadOrders_(sheet).filter(function(o){return o.orderSerial===String(rows[i][1]);})[0];return {sheet:sheet,row:i+1,headers:headers,order:order};}throw new Error('Pesanan DOKU tidak ditemukan.');}
+function dokuPayments_(data){
+ if(data.operation==='capabilities')return responseJSON({success:true,dokuVersion:1});
+ var lock=LockService.getScriptLock();lock.waitLock(20000);
+ try{
+  var sheet=dokuPaymentSheet_(),rows=sheet.getDataRange().getValues(),found=-1;
+  for(var i=1;i<rows.length;i++)if(data.invoice?String(rows[i][2])===data.invoice:String(rows[i][0])===data.orderKey){found=i+1;break;}
+  if(data.operation==='reserve'){
+   if(!/^[a-f0-9-]{36}$/i.test(String(data.orderKey||''))||!/^VRTD[A-F0-9]{26}$/.test(String(data.invoice||''))||!Number.isSafeInteger(data.amount)||data.amount<1000)throw new Error('Identitas pembayaran tidak valid.');
+   var stored=dokuPaymentOrder_(data.orderKey),o=stored.order;
+   if(!o||o.paymentMethod!=='doku'||Number(o.grandTotal)!==data.amount||o.orderSerial!==data.orderSerial)throw new Error('Nominal atau metode pembayaran tidak cocok dengan pesanan.');
+   if(found>0){var old=rows[found-1];if(Number(old[3])!==data.amount||String(old[2])!==data.invoice)throw new Error('Identitas tagihan berubah.');return responseJSON({success:true,claimed:false,invoice:String(old[2]),paymentUrl:String(old[6]||''),state:String(old[5])});}
+   if(o.status!=='MENUNGGU PEMBAYARAN')throw new Error('Pesanan tidak menunggu pembayaran.');
+   var until=stored.headers.indexOf('Stock Reservation Until'),raw=until<0?'':stored.sheet.getRange(stored.row,until+1).getValue();if(!raw||new Date(raw).getTime()<=Date.now())throw new Error('Batas reservasi stok berakhir. Buat pesanan baru sebelum membayar.');
+   sheet.appendRow([data.orderKey,o.orderSerial,data.invoice,data.amount,data.orderKey,'REQUESTED','',new Date(),new Date(),'','']);
+   return responseJSON({success:true,claimed:true,invoice:data.invoice,requestId:data.orderKey});
+  }
+  if(found<0)throw new Error('Invoice DOKU belum terdaftar.');
+  var record=rows[found-1];
+  if(data.operation==='status')return responseJSON({success:true,state:String(record[5]),paid:['PAID','PAID_REVIEW'].indexOf(String(record[5]))>=0,review:String(record[5])==='PAID_REVIEW'});
+  if(data.operation==='link'){
+   if(!/^https:\/\/(?:[a-z0-9-]+\.)*doku\.com\//i.test(String(data.paymentUrl||'')))throw new Error('Alamat pembayaran tidak valid.');
+   if(record[6]&&String(record[6])!==data.paymentUrl)throw new Error('Link tagihan sudah tercatat.');
+   sheet.getRange(found,7).setValue(data.paymentUrl);if(['PAID','PAID_REVIEW'].indexOf(String(record[5]))<0)sheet.getRange(found,6).setValue('CREATED');sheet.getRange(found,9).setValue(new Date());return responseJSON({success:true});
+  }
+  if(data.operation!=='notification')throw new Error('Operasi pembayaran tidak valid.');
+  if(Number(record[3])!==data.amount||['SUCCESS','PENDING','FAILED','EXPIRED','TIMEOUT','REDIRECT','REFUNDED'].indexOf(data.status)<0||!/^[a-f0-9]{64}$/i.test(String(data.eventHash||''))||!String(data.eventId||'')||String(data.eventId).length>128)throw new Error('Notifikasi pembayaran tidak valid.');
+  var events=inventoryOperationsSheet_('DokuPaymentEvents',['Event ID','Payload Hash','Invoice','Status','State','Created At','Updated At']),er=events.getDataRange().getValues(),eventRow=-1;
+  for(var j=1;j<er.length;j++)if(String(er[j][0])===data.eventId){if(String(er[j][1])!==data.eventHash)throw new Error('ID notifikasi digunakan untuk payload berbeda.');eventRow=j+1;if(er[j][4]==='APPLIED')return responseJSON({success:true,duplicate:true});break;}
+  if(eventRow<0){events.appendRow([data.eventId,data.eventHash,data.invoice,data.status,'PENDING',new Date(),new Date()]);eventRow=events.getLastRow();}
+  var email=null;
+  if(data.status==='SUCCESS'){
+   var source=dokuPaymentOrder_(String(record[0])),order=source.order;if(!order||order.paymentMethod!=='doku'||Number(order.grandTotal)!==data.amount)throw new Error('Rincian pembayaran tidak cocok dengan order.');
+   var review='';
+   if(order.status==='MENUNGGU PEMBAYARAN'){
+    try{retailCheckStatusStock_(source.sheet,source.row,order.orderSerial);}catch(error){review='Pembayaran diterima DOKU; stok perlu rekonsiliasi admin.';}
+    if(!review){source.sheet.getRange(source.row,source.headers.indexOf('Status')+1).setValue('PEMBAYARAN DITERIMA');order.status='PEMBAYARAN DITERIMA';}
+    else{var cols=checkoutColumns_(source.sheet,['Status Rekonsiliasi']);source.sheet.getRange(source.row,cols['Status Rekonsiliasi']).setValue(review);}
+   }
+   if(order.status==='PEMBAYARAN DITERIMA')email=orderEmailQueue_(order,'PEMBAYARAN DITERIMA');
+   var state=review||String(record[5])==='PAID_REVIEW'?'PAID_REVIEW':'PAID';sheet.getRange(found,6).setValue(state);if(!record[9])sheet.getRange(found,10).setValue(new Date());if(review)sheet.getRange(found,11).setValue(review);
+  }else if(['PAID','PAID_REVIEW'].indexOf(String(record[5]))<0&&data.status!=='FAILED')sheet.getRange(found,6).setValue(data.status);
+  sheet.getRange(found,9).setValue(new Date());events.getRange(eventRow,5).setValue('APPLIED');events.getRange(eventRow,7).setValue(new Date());return responseJSON({success:true,email:email});
+ }finally{lock.releaseLock();}
 }
 
 // ORDER CUSTOMER EMAILS V1: durable per-stage queue; mail never holds the stock lock.
@@ -4274,11 +4469,19 @@ function retailReconciliation_(data){
 // CUSTOMER ORDER ACCESS V1: short-lived, rate-limited email verification bound to an HttpOnly browser session.
 function customerAccessSheet_(){return inventoryOperationsSheet_('CustomerOrderAccess',['Challenge ID','Phone','Session Hash','Recipient','Code Hash','Created At','Expires At','Attempts','State','Send State','Delivery ID','Verified Until','Updated At','Error']);}
 function customerAccessHash_(text){var key=PropertiesService.getScriptProperties().getProperty('VARTANA_ARTICLE_ADMIN_KEY');if(!key||key.length<32)throw new Error('Konfigurasi verifikasi belum siap.');return Utilities.computeHmacSha256Signature('ORDER-ACCESS\n'+text,key).map(function(v){return ('0'+((v+256)%256).toString(16)).slice(-2);}).join('');}
-function customerVerifiedPhone_(session){if(!/^[a-f0-9-]{36}$/i.test(String(session||'')))return '';var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CustomerOrderAccess');if(!sh)return '';var rows=sh.getDataRange().getValues(),hash=customerAccessHash_('SESSION:'+session);for(var i=rows.length-1;i>=1;i--)if(rows[i][2]===hash&&rows[i][8]==='VERIFIED'&&new Date(rows[i][11]).getTime()>Date.now())return String(rows[i][1]);return '';}
+function customerVerifiedIdentity_(session){
+ if(!/^[a-f0-9-]{36}$/i.test(String(session||'')))return null;
+ var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CustomerOrderAccess');if(!sh)return null;
+ var rows=sh.getDataRange().getValues(),hash=customerAccessHash_('SESSION:'+session);
+ for(var i=rows.length-1;i>=1;i--)if(rows[i][2]===hash&&rows[i][8]==='VERIFIED'&&new Date(rows[i][11]).getTime()>Date.now())return {phone:String(rows[i][1]),email:gamesRawEmail_(rows[i][3])};
+ return null;
+}
+function customerVerifiedPhone_(session){var identity=customerVerifiedIdentity_(session);return identity?identity.phone:'';}
 function customerChallengePublic_(row){return {success:true,customerOrdersVersion:2,challengeId:String(row[0]),maskedEmail:gamesMaskEmail_(gamesRawEmail_(row[3])),expiresAt:new Date(row[6]).toISOString(),retryAt:new Date(new Date(row[5]).getTime()+60000).toISOString(),deliveryStatus:String(row[9])};}
-function customerOrderRecipient_(raw){
+function customerOrderRecipient_(raw,type,query){
  var phone=customerOrderPhone_(raw),ss=SpreadsheetApp.getActiveSpreadsheet(),orders=vartanaReadOrders_(ss.getSheetByName(SHEET_ORDERS)).filter(function(o){return phone&&customerOrderPhone_(o.phone)===phone;}),email='';
- for(var i=orders.length-1;i>=0;i--){var candidate=gamesRawEmail_(orders[i].email);if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate)){email=candidate;break;}}
+ if(type==='serial')orders=orders.filter(function(order){return String(order.orderSerial).toUpperCase()===String(query||'').trim().toUpperCase();});
+ for(var i=0;i<orders.length;i++){var candidate=gamesRawEmail_(orders[i].email);if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate)){email=candidate;break;}}
  return {phone:phone,email:email,matchingOrders:orders.length};
 }
 function customerOrderAccessCheck_(raw){var result=customerOrderRecipient_(raw);return responseJSON({success:true,matchingOrders:result.matchingOrders,emailAvailable:!!result.email,maskedEmail:result.email?gamesMaskEmail_(result.email):'',inputDigits:String(raw||'').replace(/\D/g,'').length});}
@@ -4287,8 +4490,9 @@ function customerOrderAccess_(data){
  var sessionHash=customerAccessHash_('SESSION:'+session),now=Date.now(),lock=LockService.getScriptLock(),context;
  if(operation==='request'){
   var raw=String(d.phone||''),phone=customerOrderPhone_(raw);if(!phone||! /^[+\d\s()-]+$/.test(raw))throw new Error('Nomor WhatsApp tidak valid.');
-  if(customerVerifiedPhone_(session)===phone)return customerOrderHistory_({type:d.type||'phone',query:d.query||phone},phone);
-  var recipient=customerOrderRecipient_(phone),email=recipient.email;
+  var identity=customerVerifiedIdentity_(session);
+  if(identity&&identity.phone===phone&&d.type!=='serial')return customerOrderHistory_({type:d.type||'phone',query:d.query||phone},phone,identity.email);
+  var recipient=customerOrderRecipient_(phone,d.type,d.query),email=recipient.email;
   if(!email)throw new Error('Kode belum dapat dikirim. Periksa nomor WhatsApp yang digunakan saat belanja atau hubungi VARTANA.');
   lock.waitLock(20000);
   try{
@@ -4316,7 +4520,7 @@ function customerOrderAccess_(data){
    row[8]='VERIFIED';row[4]='';row[11]=new Date(now+900000);sh.getRange(index+1,1,1,14).setValues([row.slice(0,14)]);phone=String(row[1]);
   }
  }finally{lock.releaseLock();}
- return customerOrderHistory_({type:d.type||'phone',query:d.query||phone},phone);
+ return customerOrderHistory_({type:d.type||'phone',query:d.query||phone},phone,customerVerifiedIdentity_(session).email);
 }
 
 // CUSTOMER ACCOUNTS V1: signed server RPC only. Password KDF runs on Node, never in browser or Apps Script.
@@ -4436,9 +4640,10 @@ function customerAccount_(data){
 // CUSTOMER ORDER LOOKUP V1: read-only, phone matching never expands via Member ID.
 function customerOrderPhone_(value){var digits=String(value||'').replace(/\D/g,'');if(/^8\d{8,11}$/.test(digits))digits='62'+digits;return puzzlePhone_(digits);}
 function customerOrderLookup_(data){
- puzzleVerify_(data,'customerOrderLookup');var d=data.puzzlePayload||{},allowedPhone=customerVerifiedPhone_(d.session);if(!allowedPhone)throw new Error('Verifikasi email diperlukan sebelum melihat riwayat pesanan.');return customerOrderHistory_(d,allowedPhone);
+ puzzleVerify_(data,'customerOrderLookup');var d=data.puzzlePayload||{},identity=customerVerifiedIdentity_(d.session);if(!identity)throw new Error('Verifikasi email diperlukan sebelum melihat riwayat pesanan.');return customerOrderHistory_(d,identity.phone,identity.email);
 }
-function customerOrderHistory_(d,allowedPhone){
+function customerOrderHistory_(d,allowedPhone,allowedEmail){
+ if(!allowedEmail)throw new Error('Verifikasi email diperlukan sebelum melihat riwayat pesanan.');
  var type=String(d.type||''),query=String(d.query||'').trim();
  if(['phone','serial'].indexOf(type)<0||query.length>150)throw new Error('Pilih pencarian WhatsApp atau nomor pesanan.');
  var phone=type==='phone'?customerOrderPhone_(query):'',serial=type==='serial'?query.toUpperCase():'';
@@ -4446,7 +4651,7 @@ function customerOrderHistory_(d,allowedPhone){
  if(type==='serial'&&!/^[A-Z0-9][A-Z0-9/-]{2,149}$/.test(serial))throw new Error('Masukkan nomor pesanan yang tercantum pada konfirmasi belanja.');
  if(type==='phone'&&phone!==allowedPhone)throw new Error('Verifikasi nomor ini terlebih dahulu.');
  var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),orders=vartanaReadOrders_(sheet),seen={},matches=[];
- for(var i=orders.length-1;i>=0;i--){var o=orders[i],id=String(o.orderSerial||'').trim();if(customerOrderPhone_(o.phone)!==allowedPhone||(type==='phone'?customerOrderPhone_(o.phone)!==phone:id.toUpperCase()!==serial))continue;if(seen[id.toUpperCase()])continue;seen[id.toUpperCase()]=true;matches.push(o);}
+ for(var i=orders.length-1;i>=0;i--){var o=orders[i],id=String(o.orderSerial||'').trim();if(gamesRawEmail_(o.email)!==allowedEmail||customerOrderPhone_(o.phone)!==allowedPhone||(type==='phone'?customerOrderPhone_(o.phone)!==phone:id.toUpperCase()!==serial))continue;if(seen[id.toUpperCase()])continue;seen[id.toUpperCase()]=true;matches.push(o);}
  var history=matches.slice(0,100).map(function(o){
   // Checkout notes may contain private data. Only product-related summary segments are returned.
   var items=String(o.itemsSummary||'').split(/\s*\|\s*/).filter(function(part,index){return index===0||!/^(?:catatan\s*:|kurir\s|promo\s[^:]*:)/i.test(part.trim());}).join(' | ');

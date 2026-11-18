@@ -1,0 +1,38 @@
+// Non-secret provider preferences share the existing admin preferences sheet.
+function integrationSettings_(data) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('AdminPreferences');
+  function read() {
+    var rows = sheet ? sheet.getDataRange().getValues() : [];
+    for (var i = 1; i < rows.length; i++) if (rows[i][0] === 'integrations') {
+      return {row: i + 1, document: JSON.parse(String(rows[i][1]))};
+    }
+    return {row: 0, document: null};
+  }
+  if (data.operation === 'read') return responseJSON({success: true, document: read().document});
+  if (data.operation !== 'save' || !Array.isArray(data.settings) || data.settings.length !== 6) throw new Error('Pengaturan integrasi tidak valid.');
+  var allowed = ['bank_transfer', 'qris', 'doku', 'ipaymu', 'legacy_shipping', 'kiriminaja'];
+  var supported = ['bank_transfer', 'qris', 'legacy_shipping','doku'];
+  var seen = {};
+  var settings = data.settings.map(function(value) {
+    if (!value || allowed.indexOf(value.id) < 0 || seen[value.id] || typeof value.enabled !== 'boolean' ||
+        ['sandbox', 'production'].indexOf(value.environment) < 0 || typeof value.label !== 'string' ||
+        !value.label.trim() || value.label.length > 60 || typeof value.originId !== 'string' ||
+        (value.originId && !/^[a-zA-Z0-9_-]{1,100}$/.test(value.originId))) throw new Error('Pengaturan layanan tidak valid.');
+    if (value.enabled && supported.indexOf(value.id) < 0) throw new Error('Adapter layanan belum tersedia.');
+    if(value.id==='doku'&&value.enabled&&value.environment!=='production')throw new Error('DOKU production memerlukan environment production.');
+    seen[value.id] = true;
+    return {id: value.id, enabled: value.enabled, environment: value.environment, label: value.label.trim(), originId: value.originId};
+  });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    // Refresh the sheet reference and revision after obtaining the shared lock.
+    sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('AdminPreferences');
+    var current = read();
+    if (String(data.expectedRevision || '') !== (current.document ? current.document.revision : '')) throw new Error('Pengaturan berubah di perangkat lain. Muat ulang sebelum menyimpan.');
+    var document = {revision: Utilities.getUuid(), settings: settings};
+    if (!sheet) sheet = inventoryOperationsSheet_('AdminPreferences', ['Key', 'Value JSON', 'Revision', 'Updated At']);
+    sheet.getRange(current.row || sheet.getLastRow() + 1, 1, 1, 4).setValues([['integrations', JSON.stringify(document), document.revision, new Date()]]);
+    return responseJSON({success: true, document: document});
+  } finally { lock.releaseLock(); }
+}

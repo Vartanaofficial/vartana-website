@@ -1,3 +1,4 @@
+import {fetchScript as fetch} from '@/lib/script-fetch';
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";

@@ -1,0 +1,93 @@
+// SECURITY V1: all data operations are authenticated before dispatch or sheet access.
+function securityPublicAction_(action) {
+  return ['getSecurityCapabilities','getGameCapabilities','getCustomerAccountCapabilities',
+    'getRetailStockCapabilities','getCustomerOrdersCapabilities','getOrderEmailCapabilities',
+    'getInventoryCapabilities'].indexOf(action) >= 0;
+}
+
+function securityReject_() {
+  throw new Error('Otorisasi backend diperlukan.');
+}
+
+function securityVerifyRpc_(data) {
+  var auth = data.rpcAuth || {};
+  var now = Date.now();
+  if (auth.version !== 1 || !/^\d{13}$/.test(String(auth.timestamp || '')) ||
+      Math.abs(now - Number(auth.timestamp)) > 300000 ||
+      !/^[a-f0-9-]{36}$/i.test(String(auth.nonce || '')) ||
+      !/^[a-f0-9]{64}$/.test(String(auth.signature || ''))) securityReject_();
+  var properties = PropertiesService.getScriptProperties();
+  var key = properties.getProperty('VARTANA_RPC_SECRET') || properties.getProperty('VARTANA_ARTICLE_ADMIN_KEY');
+  if (!key || key.length < 32) securityReject_();
+  var clean = {};
+  Object.keys(data).forEach(function(name) { if (name !== 'rpcAuth') clean[name] = data[name]; });
+  var serialized = JSON.stringify(clean).replace(/[\u007f-\uffff]/g, function(character) {
+    return '\\u' + ('0000' + character.charCodeAt(0).toString(16)).slice(-4);
+  });
+  var message = ['VARTANA-RPC-V1', auth.timestamp, auth.nonce, serialized].join('\n');
+  var expected = Utilities.computeHmacSha256Signature(message, key).map(function(value) {
+    return ('0' + ((value + 256) % 256).toString(16)).slice(-2);
+  }).join('');
+  var difference = 0;
+  for (var i = 0; i < expected.length; i++) difference |= expected.charCodeAt(i) ^ auth.signature.charCodeAt(i);
+  if (difference) securityReject_();
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sheet = inventoryOperationsSheet_('SecurityNonces', ['Nonce', 'Expires At']);
+    var rows = sheet.getDataRange().getValues();
+    for (var r = 1; r < rows.length; r++) {
+      if (String(rows[r][0]) === auth.nonce) throw new Error('Permintaan sudah digunakan. Muat ulang status sebelum mencoba lagi.');
+    }
+    // Remove expired entries in contiguous runs, keeping storage bounded.
+    if (rows.length > 1000) {
+      for (var end = rows.length - 1; end >= 1;) {
+        if (new Date(rows[end][1]).getTime() > now) { end--; continue; }
+        var start = end;
+        while (start > 1 && new Date(rows[start - 1][1]).getTime() <= now) start--;
+        sheet.deleteRows(start + 1, end - start + 1);
+        end = start - 1;
+      }
+    }
+    if (sheet.getLastRow() > 15000) throw new Error('Backend sedang sibuk. Coba kembali sebentar.');
+    sheet.appendRow([auth.nonce, new Date(Number(auth.timestamp) + 300001)]);
+  } finally { lock.releaseLock(); }
+}
+
+function securityRateLimit_(data) {
+  if (!Array.isArray(data.buckets) || !data.buckets.length || data.buckets.length > 4) throw new Error('Batas permintaan tidak valid.');
+  data.buckets.forEach(function(bucket) {
+    if (!/^[a-f0-9]{64}$/.test(String(bucket.key || '')) ||
+        !Number.isInteger(bucket.limit) || bucket.limit < 1 || bucket.limit > 1000 ||
+        !Number.isInteger(bucket.windowMs) || bucket.windowMs < 1000 || bucket.windowMs > 3600000) throw new Error('Batas permintaan tidak valid.');
+  });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var now = Date.now();
+    var sheet = inventoryOperationsSheet_('SecurityRateLimits', ['Bucket', 'Expires At', 'Count']);
+    var rows = sheet.getDataRange().getValues();
+    var plans = data.buckets.map(function(bucket) {
+      var index = -1;
+      for (var r = 1; r < rows.length; r++) if (String(rows[r][0]) === bucket.key) index = r;
+      var active = index >= 0 && new Date(rows[index][1]).getTime() > now;
+      return {bucket: bucket, index: index, count: active ? Number(rows[index][2]) : 0,
+        until: active ? new Date(rows[index][1]).getTime() : now + bucket.windowMs};
+    });
+    var retryAfter = 0;
+    plans.forEach(function(plan) { if (plan.count >= plan.bucket.limit) retryAfter = Math.max(retryAfter, Math.ceil((plan.until - now) / 1000)); });
+    if (retryAfter) return responseJSON({success: true, allowed: false, retryAfter: retryAfter});
+    plans.forEach(function(plan) {
+      var row = plan.index >= 0 ? plan.index + 1 : sheet.getLastRow() + 1;
+      if (plan.index < 0) {
+        for (var i = 1; i < rows.length; i++) {
+          if (new Date(rows[i][1]).getTime() <= now) { row = i + 1; rows[i][1] = new Date(plan.until); break; }
+        }
+      }
+      if (row > 10000) throw new Error('Backend sedang sibuk. Coba kembali sebentar.');
+      sheet.getRange(row, 1, 1, 3).setValues([[plan.bucket.key, new Date(plan.until), plan.count + 1]]);
+      rows[row - 1] = [plan.bucket.key, new Date(plan.until), plan.count + 1];
+    });
+    return responseJSON({success: true, allowed: true, retryAfter: 0});
+  } finally { lock.releaseLock(); }
+}

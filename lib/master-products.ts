@@ -1,7 +1,8 @@
 import type { MasterProduct } from "./store-catalog";
-import {fetchGoogle} from './google-fetch';
+import {fetchScript} from './script-fetch';
 import {createHmac} from 'node:crypto';
 import {RPC_AUTH_ENCODING,serializeSignedPayload} from './rpc-payload';
+import {retryLegacyOrder} from './legacy-order-transport';
 
 export function masterScriptUrl() {
   const raw = process.env.GOOGLE_SCRIPT_URL || process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL;
@@ -20,14 +21,18 @@ export async function requestMasterScript(action: string, payload?: Record<strin
   // stays a safe legacy GET before invoking a newly deployed feature.
   const post=!!payload||(!options.legacyGet&&action!=='getGameCapabilities');
   if (!post) url.searchParams.set("action", action);
-  const response = await fetchGoogle(url, {
+  const response = await fetchScript(url, {
     method: post ? "POST" : "GET", signal: AbortSignal.timeout(30000),
     // Request an uncompressed response; the transport also handles compression.
     headers:{"Accept-Encoding":"identity",...(post?{"Content-Type":"text/plain;charset=utf-8"}:{})},
     ...(post ? { body: serializeSignedPayload({ ...payload, action }) } : {}),
   });
   if (!response.ok) {await response.body?.cancel();throw new Error(`Apps Script HTTP ${response.status}`);}
-  const data = await response.json();
+  let data = await response.json();
+  if(data.status==='error'&&((action==='saveRetailOrderV3'&&String(data.message||'').includes('Rincian stok pesanan tidak sesuai otorisasi server.'))||(['saveInventory','saveRawMaterials','saveProductCosting'].includes(action)&&String(data.message||'').includes('Rincian persediaan tidak sesuai otorisasi.')))){
+    const compatible=await retryLegacyOrder(url,{...payload,action});
+    if(compatible){if(!compatible.ok){await compatible.body?.cancel();throw new Error('Apps Script HTTP '+compatible.status);}data=await compatible.json();}
+  }
   if (data.success === false || data.status === "error" || data.error) throw new Error(data.message || "Apps Script menolak permintaan.");
   return data;
 }

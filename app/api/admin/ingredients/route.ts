@@ -1,3 +1,4 @@
+import {fetchScript as fetch} from '@/lib/script-fetch';
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminSessionToken } from "@/lib/admin-auth";
 
@@ -14,7 +15,7 @@ function isAdmin(request: NextRequest): boolean {
 }
 
 function getScriptUrl(): URL | null {
-  const raw = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL;
+  const raw = process.env.GOOGLE_SCRIPT_URL || process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL;
   if (!raw) return null;
   try {
     const url = new URL(raw);

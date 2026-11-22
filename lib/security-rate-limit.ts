@@ -37,17 +37,9 @@ export async function checkRateLimit(buckets: RateBucket[]): Promise<{allowed: b
   return {allowed: result.allowed, retryAfter: Number(result.retryAfter) || 1};
 }
 
-export async function requestBodyWithinLimit(request: Request, maxBytes = 300000) {
-  if (Number(request.headers.get('content-length') || 0) > maxBytes) return false;
-  const reader = request.clone().body?.getReader();
-  if (!reader) return true;
-  let size = 0;
-  try {
-    while (true) {
-      const chunk = await reader.read();
-      if (chunk.done) return true;
-      size += chunk.value.byteLength;
-      if (size > maxBytes) { void reader.cancel(); return false; }
-    }
-  } finally { reader.releaseLock(); }
+// Reading even a cloned stream in Proxy can drain the forwarded POST on Netlify.
+export function requestBodyWithinLimit(request: Request, maxBytes = 300000) {
+  const length = request.headers.get('content-length');
+  if (length === null) return !request.body;
+  return /^\d+$/.test(length) && Number(length) <= maxBytes;
 }

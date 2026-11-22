@@ -1,6 +1,13 @@
 [build]
   command = "npm run build"
-  publish = ".next"
+  publish = ".next-netlify"
 
 [build.environment]
   NODE_VERSION = "22"
+  VARTANA_NETLIFY_BUILD = "1"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[[plugins]]
+  package = "./netlify/plugins/windows-edge-build"

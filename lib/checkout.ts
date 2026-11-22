@@ -17,6 +17,7 @@ async function shippingRates(districtId: string, provinceName: string, weight: n
   const key = process.env.BITESHIP_API_KEY;
   const origin=originOverride||process.env.ORIGIN_DISTRICT_ID;
   if (key && origin) {
+    try {
     const response = await fetch("https://api.biteship.com/v1/rates/couriers", {
       method: "POST", headers: { Authorization: key, "Content-Type": "application/json" }, signal: AbortSignal.timeout(15000),
       body: JSON.stringify({ origin_area_id: origin, destination_area_id: districtId, couriers: "jnt,jne", items: [{ name: "VARTANA", value: 1, weight, quantity: 1 }] }),
@@ -24,6 +25,9 @@ async function shippingRates(districtId: string, provinceName: string, weight: n
     const data = await response.json();
     if (!response.ok || !Array.isArray(data.pricing) || !data.pricing.length) throw new Error("Tarif kurir belum tersedia untuk alamat ini.");
     return data.pricing.map((r: Record<string, string | number>) => ({ id: `${r.courier_code}-${r.courier_service_code}`, name: `${r.courier_name} ${r.courier_service_name}`, price: Number(r.price), duration: String(r.duration || ""), estimated: false }));
+    } catch {
+      // Continue with the clearly labelled regional estimate.
+    }
   }
   const name = provinceName.toLowerCase();
   const price = /banten|jakarta|jawa barat/.test(name) ? 13000 : /jawa|yogyakarta/.test(name) ? 18000 : /maluku|papua/.test(name) ? 65000 : /kalimantan|sulawesi/.test(name) ? 42000 : 28000;

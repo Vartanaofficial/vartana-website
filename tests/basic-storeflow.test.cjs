@@ -21,3 +21,43 @@ test('historical sales reconciliation updates sold/bonus counts without affectin
  const rows=f.c.retailReconciliation_(f.signed('retailReconciliation',{operation:'list'})).rows,body={operation:'save',orderSerial:'OLD',expectedFingerprint:rows[0].fingerprint,requestId:key,items:[{sku:'TEA',quantity:2,kind:'sold'},{sku:'TEA',quantity:1,kind:'bonus'}]},save=()=>f.c.retailReconciliation_(f.signed('retailReconciliation',body));assert.equal(save().success,true);assert.equal(save().duplicate,true);const report=f.c.productStockReport_();assert.equal(report.unmappedOrders,0);assert.equal(report.items[0].soldQty,2);assert.equal(report.items[0].bonusQty,1);assert.equal(report.items[0].qty,7);assert.equal(report.items[0].availableQty,7);assert.equal(f.tables.InventoryLedger.rows.length,2);
 });
 test('legacy HTTP write/read paths cannot bypass signed stock checks or disclose all customer orders',()=>{const f=fixture();for(const action of ['saveOrder','updateOrder','saveInventory','getCheckoutContext','getAdminData']){const result=f.c.doPost({postData:{contents:JSON.stringify({action,orderSerial:'BAD',phone:'081234567890',grandTotal:0,subtotalProducts:0})}});assert.ok(result.status==='error'||result.found===false);assert.equal(result.orders,undefined);}assert.equal(f.tables.Orders.rows.length,1);assert.equal(f.c.doGet({parameter:{action:'getAdminData'}}).orders,undefined);});
+
+test('Midtrans verifies a fixed invoice, reconciles once, and keeps DOKU records separate', () => {
+ const f=fixture();
+ f.c.getProducts=()=>[{sku:'TEA',active:true,productName:'Tea'}];
+ const sheets=f.c.inventorySheets_();
+ f.c.inventoryCommit_(sheets,f.c.inventoryState_(sheets),'OPEN',[{kind:'finished',id:'TEA',qty:3}],'Opening');
+ const body={retailStockVersion:1,orderKey:key,orderSerial:'MIDTRANS-TEST',paymentMethod:'midtrans',phone:'081234567890',email:'internal@example.com',customerName:'Internal',itemsSummary:'Tea (1x)',inventoryItems:[{sku:'TEA',quantity:1}],subtotalProducts:50000,grandTotal:50000,rewardItems:[]};
+ const order=f.c.saveRetailOrderV3_({...body,...f.signed('saveOrder',body)});
+ const invoice='VRTM'+'A'.repeat(26);
+ const payment=(operation,extra={})=>f.c.dokuPayments_({operation,...extra},'midtrans');
+ assert.equal(payment('capabilities').midtransVersion,1);
+ assert.equal(payment('reserve',{orderKey:key,orderSerial:order.orderSerial,invoice,amount:50000}).claimed,true);
+ assert.equal(payment('reserve',{orderKey:key,orderSerial:order.orderSerial,invoice,amount:50000}).claimed,false);
+ assert.throws(()=>payment('link',{invoice,paymentUrl:'https://app.midtrans.com.example.com/pay'}));
+ assert.equal(payment('link',{invoice,paymentUrl:'https://app.midtrans.com/snap/v2/vtweb/token'}).success,true);
+ const notice={invoice,amount:50000,status:'SUCCESS',eventId:'event-1',eventHash:'b'.repeat(64)};
+ assert.throws(()=>payment('notification',{...notice,amount:49999}));
+ assert.equal(payment('notification',notice).success,true);
+ assert.equal(payment('notification',notice).duplicate,true);
+ assert.equal(payment('status',{orderKey:key}).paid,true);
+ assert.equal(f.c.retailStockSnapshot_('').items[0].availableQty,2);
+ assert.throws(()=>f.c.dokuPayments_({operation:'status',orderKey:key}));
+});
+
+test('Midtrans webhook uses the separate signature secret from Access Keys', () => {
+ const {createHash}=require('node:crypto'),{verifyMidtransNotification}=load('lib/midtrans.ts');
+ const old=process.env.MIDTRANS_SIGNATURE_SECRET_KEY,secret='test-signature-secret';
+ process.env.MIDTRANS_SIGNATURE_SECRET_KEY=secret;
+ try {
+  const order_id='VRTM'+'A'.repeat(26),status_code='200',gross_amount='50000.00';
+  const sign=key=>createHash('sha512').update(order_id+status_code+gross_amount+key).digest('hex');
+  const payload={order_id,status_code,gross_amount,signature_key:sign(secret)};
+  assert.equal(verifyMidtransNotification(payload),order_id);
+  assert.throws(()=>verifyMidtransNotification({...payload,signature_key:sign('different-server-key')}));
+  assert.throws(()=>verifyMidtransNotification({...payload,gross_amount:'49000.00'}));
+ } finally {
+  if(old===undefined) delete process.env.MIDTRANS_SIGNATURE_SECRET_KEY;
+  else process.env.MIDTRANS_SIGNATURE_SECRET_KEY=old;
+ }
+});

@@ -1,44 +1,47 @@
 // Private RPC only. Shared lock serializes invoice claims and verified notifications.
-function dokuPaymentSheet_(){return inventoryOperationsSheet_('DokuPayments',['Order Key','Order Serial','Invoice','Amount','Request ID','State','Payment URL','Created At','Updated At','Paid At','Review Note']);}
+function dokuPaymentSheet_(midtrans){return inventoryOperationsSheet_(midtrans?'MidtransPayments':'DokuPayments',['Order Key','Order Serial','Invoice','Amount','Request ID','State','Payment URL','Created At','Updated At','Paid At','Review Note']);}
 function dokuPaymentOrder_(key){var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ORDERS),rows=sheet?sheet.getDataRange().getValues():[],headers=rows[0]||[],col=headers.indexOf('Order Key');for(var i=1;i<rows.length;i++)if(col>=0&&String(rows[i][col])===key){var order=vartanaReadOrders_(sheet).filter(function(o){return o.orderSerial===String(rows[i][1]);})[0];return {sheet:sheet,row:i+1,headers:headers,order:order};}throw new Error('Pesanan DOKU tidak ditemukan.');}
-function dokuPayments_(data){
- if(data.operation==='capabilities')return responseJSON({success:true,dokuVersion:1});
+function dokuPayments_(data,provider){
+ var midtrans=provider==='midtrans',method=midtrans?'midtrans':'doku';
+ if(data.operation==='capabilities')return responseJSON(midtrans?{success:true,midtransVersion:1}:{success:true,dokuVersion:1});
  var lock=LockService.getScriptLock();lock.waitLock(20000);
  try{
-  var sheet=dokuPaymentSheet_(),rows=sheet.getDataRange().getValues(),found=-1;
+  var sheet=dokuPaymentSheet_(midtrans),rows=sheet.getDataRange().getValues(),found=-1;
   for(var i=1;i<rows.length;i++)if(data.invoice?String(rows[i][2])===data.invoice:String(rows[i][0])===data.orderKey){found=i+1;break;}
   if(data.operation==='reserve'){
-   if(!/^[a-f0-9-]{36}$/i.test(String(data.orderKey||''))||!/^VRTD[A-F0-9]{26}$/.test(String(data.invoice||''))||!Number.isSafeInteger(data.amount)||data.amount<1000)throw new Error('Identitas pembayaran tidak valid.');
+   if(!/^[a-f0-9-]{36}$/i.test(String(data.orderKey||''))||!(midtrans?/^VRTM[A-F0-9]{26}$/:/^VRTD[A-F0-9]{26}$/).test(String(data.invoice||''))||!Number.isSafeInteger(data.amount)||data.amount<1000)throw new Error('Identitas pembayaran tidak valid.');
    var stored=dokuPaymentOrder_(data.orderKey),o=stored.order;
-   if(!o||o.paymentMethod!=='doku'||Number(o.grandTotal)!==data.amount||o.orderSerial!==data.orderSerial)throw new Error('Nominal atau metode pembayaran tidak cocok dengan pesanan.');
-   if(found>0){var old=rows[found-1];if(Number(old[3])!==data.amount||String(old[2])!==data.invoice)throw new Error('Identitas tagihan berubah.');return responseJSON({success:true,claimed:false,invoice:String(old[2]),paymentUrl:String(old[6]||''),state:String(old[5])});}
+   if(!o||o.paymentMethod!==method||Number(o.grandTotal)!==data.amount||o.orderSerial!==data.orderSerial)throw new Error('Nominal atau metode pembayaran tidak cocok dengan pesanan.');
+   if(found>0){var old=rows[found-1];if(Number(old[3])!==data.amount||String(old[2])!==data.invoice)throw new Error('Identitas tagihan berubah.');if(midtrans&&!old[6]&&o.status==='MENUNGGU PEMBAYARAN'&&new Date(old[8]).getTime()<Date.now()-30000){var expiry=new Date(o.reservationUntil).getTime();if(expiry-Date.now()>=300000){sheet.getRange(found,9).setValue(new Date());return responseJSON({success:true,claimed:true,reservationUntil:new Date(expiry).toISOString()});}}return responseJSON({success:true,claimed:false,invoice:String(old[2]),paymentUrl:String(old[6]||''),state:String(old[5])});}
    if(o.status!=='MENUNGGU PEMBAYARAN')throw new Error('Pesanan tidak menunggu pembayaran.');
    var until=stored.headers.indexOf('Stock Reservation Until'),raw=until<0?'':stored.sheet.getRange(stored.row,until+1).getValue();if(!raw||new Date(raw).getTime()<=Date.now())throw new Error('Batas reservasi stok berakhir. Buat pesanan baru sebelum membayar.');
+   if(midtrans&&new Date(raw).getTime()-Date.now()<300000)throw new Error('Waktu pembayaran hampir habis.');
    sheet.appendRow([data.orderKey,o.orderSerial,data.invoice,data.amount,data.orderKey,'REQUESTED','',new Date(),new Date(),'','']);
-   return responseJSON({success:true,claimed:true,invoice:data.invoice,requestId:data.orderKey});
+   return responseJSON({success:true,claimed:true,invoice:data.invoice,requestId:data.orderKey,reservationUntil:new Date(raw).toISOString()});
   }
   if(found<0)throw new Error('Invoice DOKU belum terdaftar.');
   var record=rows[found-1];
   if(data.operation==='status')return responseJSON({success:true,state:String(record[5]),paid:['PAID','PAID_REVIEW'].indexOf(String(record[5]))>=0,review:String(record[5])==='PAID_REVIEW'});
   if(data.operation==='link'){
-   if(!/^https:\/\/(?:[a-z0-9-]+\.)*doku\.com\//i.test(String(data.paymentUrl||'')))throw new Error('Alamat pembayaran tidak valid.');
+   if(!(midtrans?/^https:\/\/app(?:\.sandbox)?\.midtrans\.com\//i:/^https:\/\/(?:[a-z0-9-]+\.)*doku\.com\//i).test(String(data.paymentUrl||'')))throw new Error('Alamat pembayaran tidak valid.');
    if(record[6]&&String(record[6])!==data.paymentUrl)throw new Error('Link tagihan sudah tercatat.');
    sheet.getRange(found,7).setValue(data.paymentUrl);if(['PAID','PAID_REVIEW'].indexOf(String(record[5]))<0)sheet.getRange(found,6).setValue('CREATED');sheet.getRange(found,9).setValue(new Date());return responseJSON({success:true});
   }
   if(data.operation!=='notification')throw new Error('Operasi pembayaran tidak valid.');
   if(Number(record[3])!==data.amount||['SUCCESS','PENDING','FAILED','EXPIRED','TIMEOUT','REDIRECT','REFUNDED'].indexOf(data.status)<0||!/^[a-f0-9]{64}$/i.test(String(data.eventHash||''))||!String(data.eventId||'')||String(data.eventId).length>128)throw new Error('Notifikasi pembayaran tidak valid.');
-  var events=inventoryOperationsSheet_('DokuPaymentEvents',['Event ID','Payload Hash','Invoice','Status','State','Created At','Updated At']),er=events.getDataRange().getValues(),eventRow=-1;
+  var events=inventoryOperationsSheet_(midtrans?'MidtransPaymentEvents':'DokuPaymentEvents',['Event ID','Payload Hash','Invoice','Status','State','Created At','Updated At']),er=events.getDataRange().getValues(),eventRow=-1;
   for(var j=1;j<er.length;j++)if(String(er[j][0])===data.eventId){if(String(er[j][1])!==data.eventHash)throw new Error('ID notifikasi digunakan untuk payload berbeda.');eventRow=j+1;if(er[j][4]==='APPLIED')return responseJSON({success:true,duplicate:true});break;}
   if(eventRow<0){events.appendRow([data.eventId,data.eventHash,data.invoice,data.status,'PENDING',new Date(),new Date()]);eventRow=events.getLastRow();}
   var email=null;
   if(data.status==='SUCCESS'){
-   var source=dokuPaymentOrder_(String(record[0])),order=source.order;if(!order||order.paymentMethod!=='doku'||Number(order.grandTotal)!==data.amount)throw new Error('Rincian pembayaran tidak cocok dengan order.');
+   var source=dokuPaymentOrder_(String(record[0])),order=source.order;if(!order||order.paymentMethod!==method||Number(order.grandTotal)!==data.amount)throw new Error('Rincian pembayaran tidak cocok dengan order.');
    var review='';
    if(order.status==='MENUNGGU PEMBAYARAN'){
-    try{retailCheckStatusStock_(source.sheet,source.row,order.orderSerial);}catch(error){review='Pembayaran diterima DOKU; stok perlu rekonsiliasi admin.';}
+    try{retailCheckStatusStock_(source.sheet,source.row,order.orderSerial);}catch(error){review='Pembayaran diterima '+(midtrans?'Midtrans':'DOKU')+'; stok perlu rekonsiliasi admin.';}
     if(!review){source.sheet.getRange(source.row,source.headers.indexOf('Status')+1).setValue('PEMBAYARAN DITERIMA');order.status='PEMBAYARAN DITERIMA';}
     else{var cols=checkoutColumns_(source.sheet,['Status Rekonsiliasi']);source.sheet.getRange(source.row,cols['Status Rekonsiliasi']).setValue(review);}
    }
+   if(midtrans&&/BATAL|EXPIRED|KEDALUWARSA/i.test(order.status)){review='Pembayaran Midtrans diterima setelah pesanan ditutup. Perlu pemeriksaan admin.';var reviewCols=checkoutColumns_(source.sheet,['Status Rekonsiliasi']);source.sheet.getRange(source.row,reviewCols['Status Rekonsiliasi']).setValue(review);}
    if(order.status==='PEMBAYARAN DITERIMA')email=orderEmailQueue_(order,'PEMBAYARAN DITERIMA');
    var state=review||String(record[5])==='PAID_REVIEW'?'PAID_REVIEW':'PAID';sheet.getRange(found,6).setValue(state);if(!record[9])sheet.getRange(found,10).setValue(new Date());if(review)sheet.getRange(found,11).setValue(review);
   }else if(['PAID','PAID_REVIEW'].indexOf(String(record[5]))<0&&data.status!=='FAILED')sheet.getRange(found,6).setValue(data.status);

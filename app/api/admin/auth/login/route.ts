@@ -5,8 +5,13 @@ import {checkRateLimit, rateBucket, requestClient} from '@/lib/security-rate-lim
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  let body;
   try {
-    const body = await request.json();
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ok: false, message: 'Data login belum terbaca. Muat ulang halaman lalu coba lagi.'}, {status: 400});
+  }
+  try {
     const username = typeof body?.username === "string" ? body.username.trim() : "";
     const password = typeof body?.password === "string" ? body.password : "";
 
@@ -46,8 +51,7 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 8,
     });
     return response;
-  } catch (error) {
-    const invalidJson = error instanceof SyntaxError;
-    return NextResponse.json({ok: false, message: invalidJson ? 'Permintaan login tidak valid.' : 'Pemeriksaan keamanan login belum tersedia. Coba lagi sebentar.'}, {status: invalidJson ? 400 : 503});
+  } catch {
+    return NextResponse.json({ok: false, message: 'Pemeriksaan keamanan login belum tersedia. Coba lagi sebentar.'}, {status: 503});
   }
 }

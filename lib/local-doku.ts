@@ -3,7 +3,7 @@ import {validateDokuCredentials,type DokuCredentials} from './doku-checkout';
 import {readFile,writeFile,rename} from 'node:fs/promises';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
-import {createDokuPayment,checkDokuPayment} from './doku-checkout';
+import {createDokuPayment,checkDokuPayment,DokuAuthenticationError} from './doku-checkout';
 const runtime=globalThis as typeof globalThis&{vartanaLocalDoku?:DokuCredentials};
 export function localDokuAdmin(request:Request){
  if(process.env.NODE_ENV!=='development'||!['localhost','127.0.0.1','[::1]'].includes(new URL(request.url).hostname))return false;
@@ -19,10 +19,10 @@ async function save(rows:Trial[]){await writeFile(file+'.tmp',JSON.stringify(row
 export async function localDokuPayment(id:string,amount:number){
  const credentials=localDokuCredentials();if(!credentials)throw new Error('Siapkan credential DOKU untuk sesi lokal terlebih dahulu.');
  const task=queue.catch(()=>{}).then(async()=>{const rows=await read(),old=rows.find(row=>row.id===id);
- if(old){if(old.amount!==amount)throw new Error('Nominal transaksi berubah.');if(old.paymentUrl)return {paymentUrl:old.paymentUrl,invoice:old.invoice};throw new Error('Hasil tagihan sebelumnya belum pasti. Periksa invoice '+old.invoice+' di dashboard DOKU; jangan membuat tagihan ulang.');}
- if(rows.some(row=>Date.now()-row.createdAt<60000))throw new Error('Tunggu satu menit sebelum transaksi uji berikutnya.');
- const row:Trial={id,amount,invoice:'VRTT'+createHash('sha256').update(id).digest('hex').slice(0,26).toUpperCase(),createdAt:Date.now(),state:'REQUESTED'};rows.push(row);await save(rows);
- try{const result=await createDokuPayment(credentials,row.invoice,amount,id);row.paymentUrl=result.paymentUrl;row.state='CREATED';await save(rows);return {paymentUrl:result.paymentUrl,invoice:row.invoice};}catch{row.state='UNCERTAIN';await save(rows);throw new Error('Permintaan DOKU belum terkonfirmasi. Periksa invoice '+row.invoice+' pada dashboard DOKU sebelum mengulangi.');}
+ if(old){if(old.amount!==amount)throw new Error('Nominal transaksi berubah.');if(old.paymentUrl)return {paymentUrl:old.paymentUrl,invoice:old.invoice};if(old.state!=='AUTH_REJECTED')throw new Error('Hasil tagihan sebelumnya belum pasti. Periksa invoice '+old.invoice+' di dashboard DOKU; jangan membuat tagihan ulang.');}
+ if(!old&&rows.some(row=>Date.now()-row.createdAt<60000))throw new Error('Tunggu satu menit sebelum transaksi uji berikutnya.');
+ const row:Trial=old||{id,amount,invoice:'VRTT'+createHash('sha256').update(id).digest('hex').slice(0,26).toUpperCase(),createdAt:Date.now(),state:'REQUESTED'};if(!old)rows.push(row);row.state='REQUESTED';await save(rows);
+ try{const result=await createDokuPayment(credentials,row.invoice,amount,id);row.paymentUrl=result.paymentUrl;row.state='CREATED';await save(rows);return {paymentUrl:result.paymentUrl,invoice:row.invoice};}catch(error){if(error instanceof DokuAuthenticationError){row.state='AUTH_REJECTED';await save(rows);throw error;}row.state='UNCERTAIN';await save(rows);throw new Error('Permintaan DOKU belum terkonfirmasi. Periksa invoice '+row.invoice+' pada dashboard DOKU sebelum mengulangi.');}
  });queue=task;return task;
 }
 export async function localDokuStatus(id:string){

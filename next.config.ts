@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  distDir: process.env.VARTANA_NETLIFY_BUILD === "1" ? ".next-netlify" : ".next",
 };
 
 export default nextConfig;

@@ -9,9 +9,9 @@ function integrationSettings_(data) {
     return {row: 0, document: null};
   }
   if (data.operation === 'read') return responseJSON({success: true, document: read().document});
-  if (data.operation !== 'save' || !Array.isArray(data.settings) || data.settings.length !== 6) throw new Error('Pengaturan integrasi tidak valid.');
-  var allowed = ['bank_transfer', 'qris', 'doku', 'ipaymu', 'legacy_shipping', 'kiriminaja'];
-  var supported = ['bank_transfer', 'qris', 'legacy_shipping','doku'];
+  if (data.operation !== 'save' || !Array.isArray(data.settings) || [6, 7].indexOf(data.settings.length) < 0) throw new Error('Pengaturan integrasi tidak valid.');
+  var allowed = ['bank_transfer', 'qris', 'doku', 'midtrans', 'ipaymu', 'legacy_shipping', 'kiriminaja'];
+  var supported = ['bank_transfer', 'qris', 'legacy_shipping','doku','midtrans'];
   var seen = {};
   var settings = data.settings.map(function(value) {
     if (!value || allowed.indexOf(value.id) < 0 || seen[value.id] || typeof value.enabled !== 'boolean' ||

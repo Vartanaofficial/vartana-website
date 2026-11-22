@@ -16,10 +16,16 @@ export function dokuPaymentUrl(input:unknown){
  if(url.protocol!=='https:'||url.username||url.password||!(url.hostname==='doku.com'||url.hostname.endsWith('.doku.com')))throw new Error('Alamat pembayaran DOKU tidak valid.');
  return url.toString();
 }
+export class DokuAuthenticationError extends Error {}
+
 export async function createDokuPayment(credentials:DokuCredentials,invoice:string,amount:number,requestId:string,send:typeof fetch=fetch,options:{notificationUrl?:string;callbackUrl?:string}={}){
  if(!/^VRT[TD][A-F0-9]{26}$/.test(invoice)||!Number.isSafeInteger(amount)||amount<1000||amount>999999999999||!/^[a-f0-9-]{36}$/i.test(requestId))throw new Error('Nominal atau identitas transaksi uji tidak valid.');
  const target='/checkout/v1/payment',body=JSON.stringify({order:{amount,invoice_number:invoice,currency:'IDR',...(options.callbackUrl?{callback_url:options.callbackUrl}:{})},payment:{payment_due_date:30},...(options.notificationUrl?{additional_info:{override_notification_url:options.notificationUrl}}:{})});
  const response=await send('https://api.doku.com'+target,{method:'POST',headers:dokuHeaders(credentials,target,body,requestId),body,signal:AbortSignal.timeout(20000),redirect:'error',cache:'no-store'});
+ if(response.status===401||response.status===403){
+   await response.body?.cancel();
+   throw new DokuAuthenticationError('DOKU menolak akses (HTTP '+response.status+'). Periksa Client ID dan Active Secret Key pada pengaturan sesi yang sedang digunakan.');
+ }
  if(!response.ok){await response.body?.cancel();throw new Error('DOKU production menolak permintaan (HTTP '+response.status+'). Periksa credential dan aktivasi DOKU Checkout.');}
  const data=await response.json(),result=data.response;
  if(result?.order?.invoice_number!==invoice||Number(result?.order?.amount)!==amount)throw new Error('Identitas atau nominal respons DOKU tidak cocok. Periksa dashboard sebelum mencoba lagi.');

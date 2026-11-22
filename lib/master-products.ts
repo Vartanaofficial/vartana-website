@@ -42,3 +42,15 @@ export async function readMasterProducts(): Promise<MasterProduct[]> {
   if (!Array.isArray(data.products)) throw new Error("Respons master produk tidak valid.");
   return data.products;
 }
+
+let previewProducts: {source: string; expires: number; promise: Promise<MasterProduct[]>} | undefined;
+export function readPreviewProducts() {
+  const source = masterScriptUrl().href;
+  if (previewProducts?.source === source && previewProducts.expires > Date.now()) return previewProducts.promise;
+  const entry = {source, expires: Infinity, promise: readMasterProducts()};
+  previewProducts = entry;
+  void entry.promise.then(() => { entry.expires = Date.now() + 30_000; }, () => {
+    if (previewProducts === entry) previewProducts = undefined;
+  });
+  return entry.promise;
+}

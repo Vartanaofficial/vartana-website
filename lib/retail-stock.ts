@@ -9,3 +9,17 @@ export async function readRetailStock(orderKey=''):Promise<RetailStockReport>{
 }
 export function withRetailStock(products:Product[],stock:RetailStockReport):Product[]{const map=new Map(stock.items.map(s=>[s.sku,s]));return products.map(p=>{const variants=p.variants?.map(v=>{const s=map.get(v.sku||''),known=s?.qty!==null&&s?.qty!==undefined;return {...v,stockKnown:known,stockAvailable:known&&s&&Number.isFinite(s.availableQty)?Math.max(0,Math.floor(s.availableQty)):0};});return {...p,variants,status:variants?.some(v=>v.stockKnown&&(v.stockAvailable||0)>0)?'READY STOCK':'STOK HABIS'};});}
 export function assertRetailStock(items:{sku:string;quantity:number}[],stock:RetailStockReport){const demand=new Map<string,number>(),map=new Map(stock.items.map(s=>[s.sku,s]));for(const x of items)demand.set(x.sku,(demand.get(x.sku)||0)+x.quantity);for(const [sku,qty] of demand){const s=map.get(sku),available=s&&s.qty!==null?Math.max(0,Math.floor(s.availableQty)):0;if(qty>available)throw new Error(`Stok ${sku} tidak cukup. Tersedia ${available} kemasan. Perbarui keranjang.`);}}
+
+const previewStock = new Map<string, {expires: number; promise: Promise<RetailStockReport>}>();
+export function readPreviewStock(orderKey = '') {
+  const key = (process.env.GOOGLE_SCRIPT_URL || process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || '') + ':' + orderKey;
+  const cached = previewStock.get(key);
+  if (cached && cached.expires > Date.now()) return cached.promise;
+  if (previewStock.size >= 100) previewStock.delete(previewStock.keys().next().value!);
+  const entry = {expires: Infinity, promise: readRetailStock(orderKey)};
+  previewStock.set(key, entry);
+  void entry.promise.then(() => { entry.expires = Date.now() + 10_000; }, () => {
+    if (previewStock.get(key) === entry) previewStock.delete(key);
+  });
+  return entry.promise;
+}

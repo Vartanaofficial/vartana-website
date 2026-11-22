@@ -13,9 +13,9 @@ export async function proxy(request: NextRequest) {
     if (internal) response.headers.set('Cache-Control', 'no-store, private');
     return response;
   }
-  if(pathname==='/api/payments/doku/notification'&&request.method==='POST'){
+  if(['/api/payments/doku/notification','/api/payments/midtrans/notification'].includes(pathname)&&request.method==='POST'){
     if(!await requestBodyWithinLimit(request))return NextResponse.json({message:'Payload too large'},{status:413});
-    return forward(); // Exact route verifies DOKU HMAC before any private RPC.
+    return forward(); // Each notification route verifies its provider signature before any private RPC.
   }
   if (isApi && mutation) {
     if (!sameOriginRequest(request)) return NextResponse.json({message: 'Asal permintaan tidak valid.'}, {status: 403});

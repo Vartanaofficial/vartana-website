@@ -1,4 +1,4 @@
-export type IntegrationId = 'bank_transfer' | 'qris' | 'doku' | 'ipaymu' | 'legacy_shipping' | 'kiriminaja';
+export type IntegrationId = 'bank_transfer' | 'qris' | 'doku' | 'midtrans' | 'ipaymu' | 'legacy_shipping' | 'kiriminaja';
 export type IntegrationSetting = {
   id: IntegrationId;
   enabled: boolean;
@@ -7,7 +7,7 @@ export type IntegrationSetting = {
   originId: string;
 };
 export type IntegrationDocument = {revision: string; settings: IntegrationSetting[]};
-export type PaymentChoice = {id: 'bank_transfer' | 'qris' | 'doku'; label: string};
+export type PaymentChoice = {id: 'bank_transfer' | 'qris' | 'doku' | 'midtrans'; label: string};
 
 export const integrationProviders = [
   {id:'bank_transfer', category:'payment', name:'Transfer BCA', description:'Pembayaran transfer dengan konfirmasi tim VARTANA.', supported:true, variables:[]},
@@ -16,11 +16,12 @@ export const integrationProviders = [
   {id:'ipaymu', category:'payment', name:'iPaymu', description:'Pilihan gateway pembayaran alternatif.', supported:false, variables:['IPAYMU_VA','IPAYMU_API_KEY']},
   {id:'legacy_shipping', category:'shipping', name:'Pengiriman existing', description:'J&T dan JNE melalui tarif existing atau estimasi wilayah.', supported:true, variables:['BITESHIP_API_KEY','ORIGIN_DISTRICT_ID']},
   {id:'kiriminaja', category:'shipping', name:'KiriminAja', description:'Agregator ongkir, pengiriman dan tracking.', supported:false, variables:['KIRIMINAJA_API_KEY']},
+  {id:'midtrans', category:'payment', name:'Midtrans', description:'Pembayaran online melalui Midtrans Snap.', supported:true, variables:['MIDTRANS_SERVER_KEY','MIDTRANS_SIGNATURE_SECRET_KEY']},
 ] as const;
 
 export function defaultIntegrations(): IntegrationDocument {
   return {revision:'', settings:integrationProviders.map(provider=>({id:provider.id,
-    enabled:provider.supported&&provider.id!=='doku', environment:provider.supported?'production':'sandbox', label:provider.name, originId:''}))};
+    enabled:provider.supported&&provider.id!=='doku'&&provider.id!=='midtrans', environment:provider.supported?'production':'sandbox', label:provider.name, originId:''}))};
 }
 
 export function validateIntegrations(raw: unknown): IntegrationSetting[] {
@@ -40,6 +41,8 @@ export function validateIntegrations(raw: unknown): IntegrationSetting[] {
 }
 
 export function paymentChoices(settings: IntegrationSetting[]): PaymentChoice[] {
+  const midtrans=settings.find(setting=>setting.id==='midtrans'&&setting.enabled);
+  if(midtrans)return [{id:'midtrans',label:midtrans.label}];
   const doku=settings.find(setting=>setting.id==='doku'&&setting.enabled);if(doku)return [{id:'doku',label:doku.label}];
   return settings.filter((setting): setting is IntegrationSetting & {id:PaymentChoice['id']}=>
     setting.enabled && ['bank_transfer','qris'].includes(setting.id)).map(setting=>({id:setting.id,label:setting.label}));

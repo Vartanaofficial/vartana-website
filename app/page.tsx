@@ -16,6 +16,7 @@ import CustomerOrdersModal from "@/app/components/CustomerOrdersModal";
 import { BotanicalSprig } from "@/app/checkout/CheckoutVisuals";
 import "./storefront.css";
 import {readClientJson} from '@/lib/client-reads';
+import { useCart } from "@/lib/use-cart";
 import { readCart, writeCart } from "@/lib/cart-storage";
 import { SPICES_DATA, type SpiceDetail } from "@/lib/spices";
 
@@ -24,11 +25,6 @@ type LocalizedText = Record<Language, string>;
 
 
 
-type CartItem = {
-  product: Product;
-  selectedVariant: ProductVariant;
-  quantity: number;
-};
 
 type ShippingOption = {
   company: string;
@@ -355,8 +351,7 @@ export default function Home() {
   const productLinkApplied = useRef(false);
 
   // CART & CHECKOUT STATES
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [cartReady, setCartReady] = useState(false);
+  const cart = useCart();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState<"cart" | "form" | "payment">("cart");
   const [formError, setFormError] = useState("");
@@ -430,8 +425,6 @@ export default function Home() {
   const freePouchesCount = Math.floor(countTenBagPouches / 3);
   const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  useEffect(() => { setCart(readCart()); setCartReady(true); }, []);
-  useEffect(() => { if (cartReady) writeCart(cart); }, [cart, cartReady]);
 
   useEffect(() => {
     if(!languageReady)return;
@@ -442,7 +435,7 @@ export default function Home() {
       if (pending) return;
       pending = true;
       try {
-        const data = await readClientJson<{success:boolean;products:Product[];translationAvailable?:boolean;message?:string}>(`/api/catalog?lang=${language}`);
+        const data = await readClientJson<{success:boolean;products:Product[];translationAvailable?:boolean;message?:string}>(`/api/catalog?lang=${language}`, 15000, catalogReload > 0, 25000);
         if (data.success !== true || !Array.isArray(data.products)) throw new Error(data.message || "Katalog belum bisa dimuat.");
         if (!active) return;
         const latest: Product[] = data.products;
@@ -451,12 +444,6 @@ export default function Home() {
 
         setTranslationAvailable(data.translationAvailable !== false);
         setCatalogError("");
-        // Refresh prices and remove products taken down by admin from open carts.
-        setCart(previous => previous.flatMap(item => {
-          const updated = latest.find(p => p.id === item.product.id);
-          const variant = updated?.variants?.find(v => v.sku === item.selectedVariant.sku);
-          return updated && variant ? [{ ...item, product: updated, selectedVariant: variant }] : [];
-        }));
       } catch (error) {
         if (active) setCatalogError(error instanceof Error ? error.message : "Katalog belum bisa dimuat.");
       } finally {
@@ -468,7 +455,7 @@ export default function Home() {
     const timer = window.setInterval(() => { if(document.visibilityState==='visible')void refreshCatalog(); }, 60000);
     const onFocus = () => void refreshCatalog();
     window.addEventListener("focus", onFocus);
-    return () => { active = false; controller.abort(); window.clearInterval(timer); window.removeEventListener("focus", onFocus); };
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener("focus", onFocus); };
   }, [catalogReload, language, languageReady]);
 
   // AUTO-FILL PROFILE MEMBER & WILAYAH LENGKAP VIA NO HP
@@ -784,32 +771,30 @@ export default function Home() {
     if (item.status !== "READY STOCK" || qty <= 0) return;
     const variantToSave = item.variants?.[selectedVariantIndex] || item.variants?.[0];
     if (!variantToSave || catalogLoading || catalogError) return;
-    const inCart=cart.filter(ci=>ci.selectedVariant.sku===variantToSave.sku).reduce((sum,ci)=>sum+ci.quantity,0);if(inCart+qty>(variantToSave.stockAvailable||0)){setFormError("Stok kemasan ini tidak cukup. Periksa stok terbaru di katalog.");setIsCartOpen(true);return;}
+    if (!variantToSave.sku) return;
+    setFormError("");
+    const current = readCart();
+    const inCart=current.filter(ci=>ci.selectedVariant.sku===variantToSave.sku).reduce((sum,ci)=>sum+ci.quantity,0);if(inCart+qty>Math.min(999,variantToSave.stockAvailable||0)){setFormError("Stok kemasan ini tidak cukup. Periksa stok terbaru di katalog.");setIsCartOpen(true);return;}
 
-    setCart((prev) => {
-      const existing = prev.find((ci) => ci.product.id === item.id && ci.selectedVariant.size === variantToSave.size);
-      if (existing) {
-        return prev.map((ci) => (ci.product.id === item.id && ci.selectedVariant.size === variantToSave.size ? { ...ci, quantity: ci.quantity + qty } : ci));
-      }
-      return [...prev, { product: item, selectedVariant: variantToSave, quantity: qty }];
-    });
+    const existing = current.find(item => item.selectedVariant.sku === variantToSave.sku);
+    const next = { product: item, selectedVariant: variantToSave, quantity: inCart + qty };
+    try {
+      writeCart(existing ? current.map(line => line === existing ? next : line) : [...current, next]);
+    } catch {
+      setFormError("Keranjang tidak bisa disimpan di browser ini.");
+    }
     setIsCartOpen(true);
     setCheckoutStep("cart");
   };
 
-  const updateCartQuantity = (id: string, variantSize: string, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((ci) => {
-          if (ci.product.id === id && ci.selectedVariant.size === variantSize) {
-            const available=products.flatMap(p=>p.variants||[]).find(v=>v.sku===ci.selectedVariant.sku)?.stockAvailable||0;
-            const newQty = delta>0?Math.min(ci.quantity+delta,available):ci.quantity+delta;
-            return newQty > 0 ? { ...ci, quantity: newQty } : null;
-          }
-          return ci;
-        })
-        .filter((ci): ci is CartItem => ci !== null),
-    );
+  const updateCartQuantity = (sku: string, delta: number) => {
+    const available = products.flatMap(product => product.variants || []).find(variant => variant.sku === sku)?.stockAvailable;
+    writeCart(readCart().map(item => {
+      if (item.selectedVariant.sku !== sku) return item;
+      const limit = available ?? item.selectedVariant.stockAvailable ?? 0;
+      if (delta > 0 && item.quantity >= Math.min(limit, 999)) return item;
+      return { ...item, quantity: item.quantity + delta };
+    }).filter(item => item.quantity > 0));
   };
 
   const totalItemsInCart = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -955,15 +940,16 @@ export default function Home() {
           <button type="button" aria-label="Tutup keranjang" className="absolute inset-0" onClick={() => setIsCartOpen(false)} />
           <div role="dialog" aria-modal="true" aria-labelledby="cart-title" className="relative flex h-full w-full max-w-md flex-col bg-[#FBF9F4] p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-[#16382A]/10 pb-5"><h3 id="cart-title" className="font-serif text-2xl text-[#16382A]">{t.cart.title}</h3><button type="button" aria-label="Tutup" onClick={() => setIsCartOpen(false)} className="rounded-full bg-[#16382A]/5 px-3 py-1">?</button></div>
+            {formError && <p role="alert" className="mt-3 text-sm text-[#8a3a25]">{formError}</p>}
             <div className="flex-1 space-y-4 overflow-y-auto py-6">
               {!cart.length ? <p className="py-12 text-center text-sm text-[#627067]">{t.cart.empty}</p> : cart.map(item => (
                 <div key={item.selectedVariant.sku} className="flex gap-4 rounded-2xl border border-[#16382A]/10 bg-white p-4">
                   <ProductImage src={item.selectedVariant.image || item.product.image || ""} alt={item.product.name} className="h-20 w-20 shrink-0 rounded-xl bg-[#F6F3EC] p-2" />
-                  <div className="min-w-0 flex-1"><h4 className="font-serif text-lg text-[#16382A]">{item.product.name}</h4><p className="mt-1 text-[10px] text-[#8E6E2E]">{item.selectedVariant.size}</p><p className="mt-2 text-xs font-bold text-[#16382A]">{formatRupiah(item.selectedVariant.priceValue)}</p><div className="mt-3 inline-flex items-center gap-4 rounded-full border border-[#16382A]/10 px-3 py-1"><button type="button" aria-label="Kurangi jumlah" onClick={() => updateCartQuantity(item.product.id,item.selectedVariant.size,-1)}>-</button><span className="text-xs">{item.quantity}</span><button type="button" aria-label="Tambah jumlah" onClick={() => updateCartQuantity(item.product.id,item.selectedVariant.size,1)}>+</button></div></div>
+                  <div className="min-w-0 flex-1"><h4 className="font-serif text-lg text-[#16382A]">{item.product.name}</h4><p className="mt-1 text-[10px] text-[#8E6E2E]">{item.selectedVariant.size}</p><p className="mt-2 text-xs font-bold text-[#16382A]">{formatRupiah(item.selectedVariant.priceValue)}</p><div className="mt-3 inline-flex items-center gap-4 rounded-full border border-[#16382A]/10 px-3 py-1"><button type="button" aria-label="Kurangi jumlah" onClick={() => updateCartQuantity(item.selectedVariant.sku!,-1)}>-</button><span className="text-xs">{item.quantity}</span><button type="button" aria-label="Tambah jumlah" onClick={() => updateCartQuantity(item.selectedVariant.sku!,1)}>+</button></div></div>
                 </div>
               ))}
             </div>
-            {!!cart.length && <div className="border-t border-[#16382A]/10 pt-5"><div className="mb-5 flex items-center justify-between"><span className="text-xs text-[#627067]">Subtotal produk</span><strong className="font-serif text-2xl text-[#16382A]">{formatRupiah(subtotalPrice)}</strong></div><Link href="/checkout" onClick={() => writeCart(cart)} className="block rounded-full bg-[#16382A] px-6 py-4 text-center text-xs font-semibold uppercase tracking-widest text-white">Lanjut ke checkout ?</Link><p className="mt-3 text-center text-[11px] text-[#627067]">Alamat, pengiriman, dan promo di halaman checkout.</p></div>}
+            {!!cart.length && <div className="border-t border-[#16382A]/10 pt-5"><div className="mb-5 flex items-center justify-between"><span className="text-xs text-[#627067]">Subtotal produk</span><strong className="font-serif text-2xl text-[#16382A]">{formatRupiah(subtotalPrice)}</strong></div><Link href="/checkout" className="block rounded-full bg-[#16382A] px-6 py-4 text-center text-xs font-semibold uppercase tracking-widest text-white">Lanjut ke checkout ?</Link><p className="mt-3 text-center text-[11px] text-[#627067]">Alamat, pengiriman, dan promo di halaman checkout.</p></div>}
           </div>
         </div>
       )}
@@ -1214,7 +1200,6 @@ export default function Home() {
                   )}
 
                   <div className="mt-8 flex items-center gap-4">
-                    <span className="text-xs text-[#D8C28B]">{(currentVariant.stockAvailable||0)>0?`Tersedia ${currentVariant.stockAvailable} kemasan`:'Stok kemasan ini belum tersedia'}</span>
                     <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#D8C28B]">{t.product.weight}</span>
                     <span className="rounded-full border border-white/15 bg-white/[0.03] px-4 py-1.5 text-[11px] text-white/80">{currentVariant.weightGram ? `${currentVariant.bagCount ? `${currentVariant.bagCount} Tea Bags / ` : ""}${currentVariant.weightGram} g` : product.quantityInfo}</span>
                   </div>

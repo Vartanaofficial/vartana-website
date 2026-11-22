@@ -11,6 +11,7 @@ import type {CheckoutReceipt} from "@/lib/order-confirmation";
 import {readIntegrationSettings} from '@/lib/integrations-server';
 import {paymentChoices} from '@/lib/integrations';
 
+import {ensureMidtransBackend, midtransPayment} from '@/lib/midtrans';
 import {productionDokuPayment,ensureDokuBackend} from '@/lib/doku-production';
 import {localDokuAdmin,localDokuCredentials,localDokuPayment} from '@/lib/local-doku';
 
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
     const phone = normalizeWhatsApp(customer.phone);
     const paymentMethod = body.paymentMethod || "bank_transfer";
     const dokuLocal=paymentMethod==='doku'&&localDokuAdmin(req)&&!!localDokuCredentials();
-    if (!["bank_transfer", "qris", "doku"].includes(paymentMethod)) return NextResponse.json({message: "Pilih metode pembayaran yang tersedia."}, {status: 400});
+    if (!["bank_transfer", "qris", "doku", "midtrans"].includes(paymentMethod)) return NextResponse.json({message: "Pilih metode pembayaran yang tersedia."}, {status: 400});
     const fields = ["name", "email", "phone", "address", "provinceName", "cityName", "districtName", "districtId"];
     if (!fields.every(key => typeof customer[key] === "string" && customer[key].trim() && customer[key].length <= 1000)
       || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email) || !phone
@@ -36,16 +37,23 @@ export async function POST(req: Request) {
       if(existing){
         if(normalizeWhatsApp(existing.phone)!==phone)throw new Error('Pesanan ini tercatat untuk nomor lain.');
         const doku=existing.paymentMethod==='doku'?(dokuLocal?await localDokuPayment(orderKey,Number(existing.grandTotal)):await productionDokuPayment(orderKey,existing.orderSerial,Number(existing.grandTotal))):null;
-        return {...(doku?{dokuPaymentUrl:doku.paymentUrl,dokuInvoice:doku.invoice}:{}),serial:existing.orderSerial,total:Number(existing.grandTotal),paymentMethod:existing.paymentMethod||paymentMethod,reservationUntil:existing.reservationUntil,details:existing};
+        const midtransPaymentUrl = existing.paymentMethod === 'midtrans' ? await midtransPayment(orderKey, existing.orderSerial, Number(existing.grandTotal), req.url) : undefined;
+        return {midtransPaymentUrl,...(doku?{dokuPaymentUrl:doku.paymentUrl,dokuInvoice:doku.invoice}:{}),serial:existing.orderSerial,total:Number(existing.grandTotal),paymentMethod:existing.paymentMethod||paymentMethod,reservationUntil:existing.reservationUntil,details:existing};
       }
       const settings=(await readIntegrationSettings()).settings;
       if(!dokuLocal&&!paymentChoices(settings).some(method=>method.id===paymentMethod))throw new Error('Metode pembayaran ini sedang nonaktif. Pilih metode lain.');
+      if (paymentMethod === 'midtrans') {
+        const midtrans = settings.find(setting => setting.id === 'midtrans' && setting.enabled);
+        if (!midtrans) throw new Error('Midtrans sedang nonaktif.');
+        await ensureMidtransBackend(midtrans.environment);
+      }
       if(paymentMethod==='doku'&&!dokuLocal)await ensureDokuBackend();
       if(data.retailStockVersion!==1)throw new Error("Perbarui backend stok sebelum melanjutkan pembayaran.");
       const quote = await checkoutQuote({ ...body, phone, districtId: customer.districtId, provinceName: customer.provinceName,cityName:customer.cityName,districtName:customer.districtName },{integrationSettings:settings,stock:data.retailStock?.retailStockVersion===1?data.retailStock:undefined,masterData:Array.isArray(data.products)&&Array.isArray(data.promotions)?{master:data.products,promoData:{promotions:data.promotions}}:undefined});
       if(quote.destination?.verified){customer.cityName=quote.destination.cityName;customer.provinceName=quote.destination.provinceName;customer.districtName=quote.destination.districtName;}
       if (!quote.shipping || quote.promoError) throw new Error(quote.promoError || "Pilih layanan pengiriman.");
       if (body.expectedTotal !== quote.total || body.shippingService !== quote.shipping.id) throw new Error("Harga atau ongkir berubah. Periksa ringkasan terbaru sebelum melanjutkan.");
+      if (paymentMethod === 'midtrans' && (!Number.isSafeInteger(quote.total) || quote.total < 1000)) throw new Error('Total pembayaran Midtrans minimal Rp1.000.');
       if(dokuLocal&&(quote.total<1000||quote.total>100000))throw new Error('Uji lokal DOKU dibatasi total Rp1.000?Rp100.000.');
       if (data.retailOrderVersion !== 2) throw new Error("Sistem nomor order sedang diperbarui. Admin perlu deploy Apps Script versi terbaru sebelum checkout dilanjutkan.");
       const knownMember = (data.members || []).find((m: {phone: string}) => normalizeWhatsApp(String(m.phone)) === phone);
@@ -79,7 +87,8 @@ export async function POST(req: Request) {
       if (result.status !== "success" && result.success !== true) throw new Error("Pesanan belum tersimpan.");
       const savedSerial = String(result.orderSerial || serial);
       const doku=paymentMethod==='doku'?(dokuLocal?await localDokuPayment(orderKey,quote.total):await productionDokuPayment(orderKey,savedSerial,quote.total)):null;
-      return { ...(doku?{dokuPaymentUrl:doku.paymentUrl,dokuInvoice:doku.invoice}:{}),paymentMethods:quote.paymentMethods, serial: savedSerial, total: quote.total, paymentMethod, reservationUntil:result.reservationUntil, details: { ...orderDetails, orderSerial: savedSerial } };
+      const midtransPaymentUrl = paymentMethod === 'midtrans' ? await midtransPayment(orderKey, savedSerial, quote.total, req.url) : undefined;
+      return { midtransPaymentUrl, ...(doku?{dokuPaymentUrl:doku.paymentUrl,dokuInvoice:doku.invoice}:{}),paymentMethods:quote.paymentMethods, serial: savedSerial, total: quote.total, paymentMethod, reservationUntil:result.reservationUntil, details: { ...orderDetails, orderSerial: savedSerial } };
     };
     const pendingKey=serial+':'+phone;
     let task = pending.get(pendingKey);

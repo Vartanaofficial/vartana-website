@@ -1,15 +1,15 @@
 import { translateCatalog } from "@/lib/catalog-translation";
 import { NextResponse } from "next/server";
-import { readMasterProducts } from "@/lib/master-products";
+import { readPreviewProducts } from "@/lib/master-products";
 import { buildStoreCatalog } from "@/lib/store-catalog";
-import {readRetailStock,withRetailStock} from '@/lib/retail-stock';
+import {readPreviewStock,withRetailStock} from '@/lib/retail-stock';
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
-    const [master,stock]=await Promise.all([readMasterProducts(),readRetailStock()]);
+    const [master,stock]=await Promise.all([readPreviewProducts(),readPreviewStock()]);
     let products = withRetailStock(buildStoreCatalog(master),stock);
     let translationAvailable = true;
     if (new URL(request.url).searchParams.get("lang") === "en") {

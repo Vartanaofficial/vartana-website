@@ -9,7 +9,13 @@ export async function POST(request: Request) {
   try {
     const raw = await request.text();
     if (Buffer.byteLength(raw) > 100_000) return NextResponse.json({success: false}, {status: 413});
-    invoice = verifyMidtransNotification(JSON.parse(raw));
+    const payload = JSON.parse(raw);
+    // The dashboard sends a synthetic order that cannot affect a VARTANA payment.
+    if (typeof payload?.order_id === 'string' &&
+        /^payment_notif_test_M\d+_[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(payload.order_id)) {
+      return NextResponse.json({success: true, test: true});
+    }
+    invoice = verifyMidtransNotification(payload);
   } catch {
     return NextResponse.json({success: false}, {status: 401});
   }

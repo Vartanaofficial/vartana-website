@@ -2,6 +2,9 @@
 'use client';
 import {ViewTransition, type ReactNode} from 'react';
 import {usePathname} from 'next/navigation';
+import {installViewTransitionGuard} from './view-transition-guard';
+
+installViewTransitionGuard();
 
 // Visual-only page transition for public routes. Admin screens keep a stable key so they never animate.
 export default function RouteTransition({children}:{children:ReactNode}){

@@ -35,7 +35,8 @@ async function fetchShippingRates(districtId: string, provinceName: string, weig
   return [{ id: "jnt-ez", name: "J&T EZ", price: price * Math.max(1, Math.ceil(weight / 1000)), duration: "2–5 hari", estimated: true }, { id: "jne-reg", name: "JNE REG", price: (price - 1000) * Math.max(1, Math.ceil(weight / 1000)), duration: "2–5 hari", estimated: true }];
 }
 
-// Reuse a recent carrier quote for the same destination, origin and parcel weight.
+// Reuse a recent carrier quote (10 minutes) for the same destination, origin and parcel weight,
+// so the order step charges exactly what the customer was just shown without another carrier call.
 const recentRates = new Map<string, {until: number; rates: Promise<ShippingRate[]>}>();
 function shippingRates(districtId: string, provinceName: string, weight: number, originOverride?: string) {
   const carrierConfigured = process.env.BITESHIP_API_KEY && (originOverride || process.env.ORIGIN_DISTRICT_ID);
@@ -50,7 +51,7 @@ function shippingRates(districtId: string, provinceName: string, weight: number,
   function forget() { if (recentRates.get(key) === entry) recentRates.delete(key); }
   void rates.then(result => {
     if (result.some(rate => rate.estimated)) forget();
-    else entry.until = Date.now() + 30_000;
+    else entry.until = Date.now() + 10 * 60_000;
   }, forget);
   return rates;
 }

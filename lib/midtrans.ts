@@ -1,4 +1,5 @@
 import {createHash, timingSafeEqual} from 'node:crypto';
+import {after} from 'next/server';
 import {requestMasterScript} from './master-products';
 
 export type MidtransEnvironment = 'sandbox' | 'production';
@@ -18,6 +19,19 @@ function credentials(environment?: MidtransEnvironment) {
   }};
 }
 
+export type MidtransSnapConfig = {clientKey: string; scriptUrl: string};
+
+// Public Snap settings for embedding payment inside the VARTANA checkout. Returns undefined
+// (and checkout falls back to the Midtrans redirect) unless the client key matches the server key environment.
+export function midtransSnapConfig(): MidtransSnapConfig | undefined {
+  const clientKey = process.env.MIDTRANS_CLIENT_KEY?.trim();
+  const serverKey = process.env.MIDTRANS_SERVER_KEY?.trim();
+  if (!clientKey || !serverKey) return undefined;
+  const sandbox = serverKey.startsWith('SB-Mid-server-');
+  if (!/^[A-Za-z0-9_-]+$/.test(clientKey) || !clientKey.startsWith(sandbox ? 'SB-Mid-client-' : 'Mid-client-')) return undefined;
+  return {clientKey, scriptUrl: sandbox ? 'https://app.sandbox.midtrans.com/snap/snap.js' : 'https://app.midtrans.com/snap/snap.js'};
+}
+
 function signatureSecret() {
   const secret = process.env.MIDTRANS_SIGNATURE_SECRET_KEY?.trim();
   if (!secret) throw new Error('Signature Secret Key Midtrans belum dipasang.');
@@ -29,15 +43,24 @@ export async function ensureMidtransBackend(environment: MidtransEnvironment) {
   credentials(environment);
   signatureSecret();
   const source = process.env.GOOGLE_SCRIPT_URL || process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || '';
+  await warmMidtransBackend(source);
+}
+
+// Starts (or reuses) the Apps Script capability check so it can overlap other checkout reads.
+// The result is cached for 10 minutes; a failed check is forgotten so the next order retries it.
+export function warmMidtransBackend(source = process.env.GOOGLE_SCRIPT_URL || process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || '') {
   if (capability?.source === source && capability.until > Date.now()) return capability.check;
   const check = requestMasterScript('midtransPayments', {operation: 'capabilities'}).then(result => {
     if (result.midtransVersion !== 1) throw new Error('Backend Midtrans belum siap. Perbarui deployment Apps Script.');
   });
-  const entry = {source, until: Date.now() + 60_000, check};
+  const entry = {source, until: Date.now() + 10 * 60_000, check};
   capability = entry;
-  try { await check; }
-  catch (error) { if (capability === entry) capability = undefined; throw error; }
+  check.catch(() => { if (capability === entry) capability = undefined; });
+  return check;
 }
+
+// Payment links created by this server instance, so a retry never waits on the background save below.
+const recentLinks = new Map<string, {url: string; until: number}>();
 
 export function midtransInvoice(orderKey: string) {
   return 'VRTM' + createHash('sha256').update(orderKey).digest('hex').slice(0, 26).toUpperCase();
@@ -51,6 +74,8 @@ export async function midtransPayment(orderKey: string, orderSerial: string, amo
   const claim = savedClaim ?? await requestMasterScript('midtransPayments', {operation: 'reserve', orderKey, orderSerial, invoice, amount});
   if (["PAID", "PAID_REVIEW"].includes(claim.state)) return undefined;
   if (claim.paymentUrl) return String(claim.paymentUrl);
+  const recent = recentLinks.get(invoice);
+  if (recent && recent.until > Date.now()) return recent.url;
   if (!claim.claimed) throw new Error('Tagihan Midtrans sedang disiapkan. Coba lagi untuk pesanan yang sama.');
   const until = Date.parse(claim.reservationUntil || "");
   const duration = Math.floor((until - Date.now()) / 60_000);
@@ -71,7 +96,12 @@ export async function midtransPayment(orderKey: string, orderSerial: string, amo
   if (!response.ok || typeof data.redirect_url !== 'string' || new URL(data.redirect_url).origin !== config.app) {
     throw new Error('Midtrans belum bisa membuat tagihan. Coba lagi untuk pesanan yang sama.');
   }
-  await requestMasterScript('midtransPayments', {operation: 'link', invoice, paymentUrl: data.redirect_url});
+  // The customer is sent to Midtrans immediately; recording the link for "continue payment"
+  // happens after the response so it no longer adds a Google round trip to checkout.
+  if (recentLinks.size >= 200) recentLinks.delete(recentLinks.keys().next().value!);
+  recentLinks.set(invoice, {url: data.redirect_url, until: Date.now() + duration * 60_000});
+  after(() => requestMasterScript('midtransPayments', {operation: 'link', invoice, paymentUrl: data.redirect_url})
+    .catch(error => console.error('Midtrans link save failed:', invoice, error instanceof Error ? error.message : 'Unknown error')));
   return data.redirect_url;
 }
 

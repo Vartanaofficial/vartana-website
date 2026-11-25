@@ -11,7 +11,7 @@ import type {CheckoutReceipt} from "@/lib/order-confirmation";
 import {readIntegrationSettings} from '@/lib/integrations-server';
 import {paymentChoices} from '@/lib/integrations';
 
-import {ensureMidtransBackend, midtransInvoice, midtransPayment} from '@/lib/midtrans';
+import {ensureMidtransBackend, midtransInvoice, midtransPayment, midtransSnapConfig, warmMidtransBackend} from '@/lib/midtrans';
 import {productionDokuPayment,ensureDokuBackend} from '@/lib/doku-production';
 import {localDokuAdmin,localDokuCredentials,localDokuPayment} from '@/lib/local-doku';
 
@@ -32,6 +32,8 @@ export async function POST(req: Request) {
     const orderKey = String(body.orderKey);
     const serial = `VRT-${orderKey.replaceAll("-", "").toUpperCase()}`;
     const execute = async () => {
+      // Overlap the Midtrans readiness check with the checkout reads instead of running it afterwards.
+      if (paymentMethod === 'midtrans') warmMidtransBackend().catch(() => { /* surfaced by ensureMidtransBackend below */ });
       const settingsRead = readIntegrationSettings().then(
         value => ({value, error: null}),
         (error: unknown) => ({value: null, error}),
@@ -42,7 +44,7 @@ export async function POST(req: Request) {
         if(normalizeWhatsApp(existing.phone)!==phone)throw new Error('Pesanan ini tercatat untuk nomor lain.');
         const doku=existing.paymentMethod==='doku'?(dokuLocal?await localDokuPayment(orderKey,Number(existing.grandTotal)):await productionDokuPayment(orderKey,existing.orderSerial,Number(existing.grandTotal))):null;
         const midtransPaymentUrl = existing.paymentMethod === 'midtrans' ? await midtransPayment(orderKey, existing.orderSerial, Number(existing.grandTotal), req.url) : undefined;
-        return {midtransPaymentUrl,...(doku?{dokuPaymentUrl:doku.paymentUrl,dokuInvoice:doku.invoice}:{}),serial:existing.orderSerial,total:Number(existing.grandTotal),paymentMethod:existing.paymentMethod||paymentMethod,reservationUntil:existing.reservationUntil,details:existing};
+        return {midtransPaymentUrl,...(midtransPaymentUrl?{midtransSnap:midtransSnapConfig()}:{}),...(doku?{dokuPaymentUrl:doku.paymentUrl,dokuInvoice:doku.invoice}:{}),serial:existing.orderSerial,total:Number(existing.grandTotal),paymentMethod:existing.paymentMethod||paymentMethod,reservationUntil:existing.reservationUntil,details:existing};
       }
       const integration = await settingsRead;
       if (!integration.value) throw integration.error;
@@ -94,7 +96,7 @@ export async function POST(req: Request) {
       const savedSerial = String(result.orderSerial || serial);
       const doku=paymentMethod==='doku'?(dokuLocal?await localDokuPayment(orderKey,quote.total):await productionDokuPayment(orderKey,savedSerial,quote.total)):null;
       const midtransPaymentUrl = paymentMethod === 'midtrans' ? await midtransPayment(orderKey, savedSerial, quote.total, req.url, result.midtransClaim) : undefined;
-      return { midtransPaymentUrl, ...(doku?{dokuPaymentUrl:doku.paymentUrl,dokuInvoice:doku.invoice}:{}),paymentMethods:quote.paymentMethods, serial: savedSerial, total: quote.total, paymentMethod, reservationUntil:result.reservationUntil, details: { ...orderDetails, orderSerial: savedSerial } };
+      return { midtransPaymentUrl, ...(midtransPaymentUrl?{midtransSnap:midtransSnapConfig()}:{}), ...(doku?{dokuPaymentUrl:doku.paymentUrl,dokuInvoice:doku.invoice}:{}),paymentMethods:quote.paymentMethods, serial: savedSerial, total: quote.total, paymentMethod, reservationUntil:result.reservationUntil, details: { ...orderDetails, orderSerial: savedSerial } };
     };
     const pendingKey=serial+':'+phone;
     let task = pending.get(pendingKey);

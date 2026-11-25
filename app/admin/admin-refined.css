@@ -1,0 +1,158 @@
+/* ==========================================================================
+   VARTANA Admin — "Ruang VARTANA" refined layer (visual only)
+   Palette: forest, moss, sage, turmeric, ginger, clay, lemongrass on cream.
+   ========================================================================== */
+.admin-workspace{
+ --forest:#0f2e22;--forest-2:#173d2b;--moss:#4f6b45;--sage:#c9d4b8;--sage-mist:#e6ecdc;
+ --cream:#f8f5ee;--gold:#b69245;--gold-soft:#d8c28b;--turmeric:#d9a33a;--turmeric-mist:#f6e7c2;
+ --ginger:#b4653f;--clay:#ecd3bd;--lemongrass:#b9bd6d;--lemon-mist:#eef0d6;--teal:#2f6b58;--teal-mist:#dcebe5;
+ --ease:cubic-bezier(.16,1,.3,1);--ease-io:cubic-bezier(.77,0,.18,1);--spring:cubic-bezier(.34,1.4,.64,1);
+ --font-serif:var(--font-display),Georgia,"Times New Roman",serif;
+ font-family:var(--font-geist-sans),system-ui,sans-serif;
+ position:relative;isolation:isolate;background:var(--cream)!important;
+}
+/* Living aurora behind the workspace */
+.admin-workspace:before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none;
+ background:
+  radial-gradient(closest-side at 15% 20%,#dfe8d4,transparent),
+  radial-gradient(closest-side at 85% 15%,#f6e7c2b0,transparent),
+  radial-gradient(closest-side at 70% 85%,#ecd3bd90,transparent),
+  radial-gradient(closest-side at 20% 80%,#dcebe5b0,transparent);
+ animation:adm-aurora 38s ease-in-out infinite alternate}
+.admin-workspace:after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.4;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E")}
+
+.admin-content :is(h1,h2,.font-serif),.admin-sidebar-heading h2{font-family:var(--font-serif)!important;font-optical-sizing:auto;font-variation-settings:"SOFT" 50}
+.admin-content h1{font-weight:350!important;letter-spacing:-.03em}
+.admin-content h2{font-weight:400}
+
+/* ---------- Brand bar: glass + living gold hairline ---------- */
+.admin-workspace .admin-brandbar{background:#fbf9f3cc!important;backdrop-filter:blur(20px) saturate(1.4);border-bottom:0;box-shadow:0 10px 30px -20px #173d2b30}
+.admin-workspace .admin-brandbar:after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:linear-gradient(90deg,transparent,var(--lemongrass),var(--turmeric),var(--ginger),var(--turmeric),var(--lemongrass),transparent);background-size:200% 100%;animation:adm-sheen 9s linear infinite;opacity:.8}
+.admin-workspace .admin-page-label{border-left-color:#b6924540}
+.admin-workspace .admin-page-label small{color:var(--ginger);letter-spacing:.24em}
+.admin-workspace .admin-page-label>span{font:italic 400 19px/1.1 var(--font-serif);letter-spacing:-.01em;color:var(--forest-2);animation:adm-label .7s var(--ease) backwards}
+.admin-workspace .admin-top-actions>a,.admin-workspace .admin-top-actions>button{border-radius:99px;background:#fffdf8b0;border-color:#c9d4b8;transition:background .4s var(--ease),color .4s,border-color .4s,transform .4s var(--spring),box-shadow .4s}
+.admin-workspace .admin-top-actions>a:hover,.admin-workspace .admin-top-actions>button:hover{background:var(--forest-2);color:#fbf6e6;border-color:var(--forest-2);transform:translateY(-2px);box-shadow:0 12px 24px -12px #173d2b80}
+
+/* ---------- Sidebar: forest drawer with gold indicator ---------- */
+.admin-workspace .admin-sidebar{background:linear-gradient(180deg,#fbf9f3f2,#f1eee3f2)!important;backdrop-filter:blur(18px);border-right:1px solid #b6924530}
+@media(min-width:1200px){
+ .admin-workspace .admin-sidebar{transition:transform .55s var(--ease),visibility .55s,box-shadow .55s}
+ .admin-workspace .admin-sidebar:is(.is-peeking,.is-open,.is-pinned){box-shadow:30px 0 80px -30px #173d2b50}
+ .admin-workspace .admin-content{transition:margin-left .55s var(--ease)}
+}
+.admin-workspace .admin-sidebar-heading{background:radial-gradient(circle at 100% 0,#d9a33a55,transparent 60%),radial-gradient(circle at 0 100%,#b4653f40,transparent 60%),linear-gradient(140deg,var(--forest),#2f5a43)!important;border:0!important;box-shadow:0 20px 40px -20px #0f2e22a0!important}
+.admin-workspace .admin-sidebar-heading:after{animation:adm-leaf 12s ease-in-out infinite alternate}
+.admin-workspace .admin-sidebar-heading h2{font-weight:300!important;font-style:italic}
+.admin-workspace .admin-nav-search input{border-radius:12px;transition:border-color .3s,box-shadow .3s}
+.admin-workspace .admin-nav-search input:focus{border-color:var(--turmeric);box-shadow:0 0 0 4px #d9a33a26;outline:0}
+.admin-workspace .admin-nav-group{border-bottom:1px dashed #b6924540}
+.admin-workspace .admin-nav-group h3{display:flex;align-items:center;gap:8px}
+.admin-workspace .admin-nav-group h3:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--c,var(--moss))}
+.admin-workspace .admin-nav-group:nth-child(1){--c:var(--teal)}
+.admin-workspace .admin-nav-group:nth-child(2){--c:var(--turmeric)}
+.admin-workspace .admin-nav-group:nth-child(3){--c:var(--ginger)}
+.admin-workspace .admin-nav-group:nth-child(4){--c:var(--moss)}
+.admin-workspace .admin-nav-group:nth-child(5){--c:var(--lemongrass)}
+.admin-workspace .admin-nav-group:nth-child(6){--c:#8b7997}
+.admin-workspace .admin-nav-group h3{color:var(--forest-2)!important;opacity:.75}
+.admin-workspace .admin-nav-group a{position:relative;transition:background .35s var(--ease),color .35s,transform .45s var(--spring),border-color .35s}
+.admin-workspace .admin-nav-group a .admin-nav-dot{transition:width .45s var(--spring),background .3s,border-radius .3s}
+.admin-workspace .admin-nav-group a:hover{background:#ffffffb0;border-color:#b6924533;transform:translateX(4px)}
+.admin-workspace .admin-nav-group a:hover .admin-nav-dot{width:14px;border-radius:4px;background:var(--c,var(--moss));border-color:transparent}
+.admin-workspace .admin-nav-group a[aria-current=page]{background:radial-gradient(circle at 100% 0,#d9a33a40,transparent 60%),linear-gradient(110deg,var(--forest),#2f5a43)!important;color:#fbf6e6!important;box-shadow:0 12px 24px -12px #0f2e22b0!important}
+.admin-workspace .admin-nav-group a[aria-current=page]:before{content:"";position:absolute;left:-16px;top:20%;bottom:20%;width:3px;border-radius:0 3px 3px 0;background:linear-gradient(var(--turmeric),var(--ginger));animation:adm-grow-y .6s var(--ease) backwards}
+.admin-workspace .admin-nav-group a[aria-current=page] .admin-nav-dot{width:14px;border-radius:4px;background:var(--turmeric)!important;border-color:transparent!important}
+/* Items cascade in when the drawer opens */
+.admin-workspace .admin-sidebar:is(.is-peeking,.is-open) .admin-nav-group{animation:adm-cascade .6s var(--ease) backwards}
+.admin-workspace .admin-sidebar:is(.is-peeking,.is-open) .admin-nav-group:nth-child(2){animation-delay:.04s}
+.admin-workspace .admin-sidebar:is(.is-peeking,.is-open) .admin-nav-group:nth-child(3){animation-delay:.08s}
+.admin-workspace .admin-sidebar:is(.is-peeking,.is-open) .admin-nav-group:nth-child(4){animation-delay:.12s}
+.admin-workspace .admin-sidebar:is(.is-peeking,.is-open) .admin-nav-group:nth-child(5){animation-delay:.16s}
+.admin-workspace .admin-sidebar:is(.is-peeking,.is-open) .admin-nav-group:nth-child(6){animation-delay:.2s}
+.admin-workspace .admin-edge-trigger{background:linear-gradient(160deg,#2f5a43,var(--forest))!important;color:var(--gold-soft)!important;border:0!important;box-shadow:0 12px 24px -10px #0f2e22a0!important;transition:transform .45s var(--spring),width .45s var(--ease)}
+.admin-workspace .admin-edge-trigger:hover{transform:translateX(4px) scale(1.05)}
+.admin-workspace .admin-nav-backdrop{background:#0f2e2240!important;backdrop-filter:blur(4px) saturate(1.2);animation:adm-fade .4s var(--ease)}
+.admin-workspace .admin-all-modules{color:var(--ginger)}
+
+/* ---------- Page entrance: every navigation feels alive ---------- */
+.admin-content>main{animation:adm-page .75s var(--ease) backwards}
+.admin-content>main>*{animation:adm-rise .8s var(--ease) backwards}
+.admin-content>main>:nth-child(1){animation-delay:.04s}
+.admin-content>main>:nth-child(2){animation-delay:.1s}
+.admin-content>main>:nth-child(3){animation-delay:.16s}
+.admin-content>main>:nth-child(4){animation-delay:.22s}
+.admin-content>main>:nth-child(5){animation-delay:.28s}
+.admin-content>main>:nth-child(n+6){animation-delay:.34s}
+.admin-content .grid>:is(div,section,article,a,button){animation:adm-pop .7s var(--ease) backwards}
+.admin-content .grid>:nth-child(2){animation-delay:.05s}.admin-content .grid>:nth-child(3){animation-delay:.1s}.admin-content .grid>:nth-child(4){animation-delay:.15s}.admin-content .grid>:nth-child(5){animation-delay:.2s}.admin-content .grid>:nth-child(6){animation-delay:.25s}.admin-content .grid>:nth-child(n+7){animation-delay:.3s}
+
+/* ---------- Hero headers: forest aurora ---------- */
+.admin-content>main>header.bg-\[\#143b2b\],.admin-content :is(header,section,div).bg-\[\#173d2b\].rounded-3xl,.admin-content :is(header,section,div).bg-\[\#173d2b\].rounded-2xl,.admin-workspace .admin-content .inventory-hero{
+ position:relative;overflow:hidden;
+ background:radial-gradient(ellipse 50% 90% at 100% 0,#d9a33a40,transparent 70%),radial-gradient(ellipse 50% 90% at 0 100%,#b4653f35,transparent 70%),radial-gradient(ellipse 60% 80% at 40% 0,#4f6b4570,transparent 70%),var(--forest)!important;
+ background-size:140% 140%!important;animation:adm-rise .8s var(--ease) backwards,adm-drift 22s ease-in-out infinite alternate!important;
+ box-shadow:0 30px 60px -35px #0f2e22c0!important}
+.admin-content>main>div>header{position:relative;overflow:hidden;border:0!important;background:radial-gradient(ellipse 45% 100% at 100% 0,#f6e7c2,transparent 70%),radial-gradient(ellipse 40% 100% at 0 100%,#dcebe5,transparent 70%),linear-gradient(120deg,#f2f5ea,#fbf7ec)!important;box-shadow:0 1px 0 #b6924530,0 24px 50px -36px #173d2b70!important}
+.admin-content>main>div>header:after,.admin-content>main>header.bg-\[\#143b2b\]:after{content:"";position:absolute;left:24px;right:24px;bottom:0;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--lemongrass),var(--turmeric),var(--ginger));transform-origin:left;animation:adm-grow 1.2s .3s var(--ease) backwards}
+
+/* ---------- Cards: elevated paper with colourful accents ---------- */
+.admin-content :is(div,section,article).rounded-2xl.bg-white,.admin-content :is(div,section,article).rounded-3xl.bg-white{border-color:#16382a12!important;box-shadow:0 1px 0 #ffffff inset,0 18px 40px -32px #173d2b60!important;transition:transform .5s var(--ease),box-shadow .5s var(--ease),border-color .4s}
+.admin-content .grid>:is(div,section,article).rounded-2xl.bg-white:hover{transform:translateY(-4px);box-shadow:0 26px 50px -30px #173d2b80!important;border-color:#b6924550!important}
+/* KPI tiles in grids get rotating spice accents */
+.admin-content .grid>div.rounded-2xl.bg-white{--tint:var(--sage-mist);--accent:var(--moss);position:relative;background:linear-gradient(160deg,#fff 55%,var(--tint))!important}
+.admin-content .grid>div.rounded-2xl.bg-white:nth-child(5n+2){--tint:var(--turmeric-mist);--accent:var(--turmeric)}
+.admin-content .grid>div.rounded-2xl.bg-white:nth-child(5n+3){--tint:var(--clay);--accent:var(--ginger)}
+.admin-content .grid>div.rounded-2xl.bg-white:nth-child(5n+4){--tint:var(--teal-mist);--accent:var(--teal)}
+.admin-content .grid>div.rounded-2xl.bg-white:nth-child(5n+5){--tint:var(--lemon-mist);--accent:var(--lemongrass)}
+.admin-content .grid>div.rounded-2xl.bg-white:before{content:"";position:absolute;left:18px;top:-1px;right:18px;height:3px;border-radius:0 0 3px 3px;background:linear-gradient(90deg,var(--accent),transparent);transform-origin:left;animation:adm-grow 1s .3s var(--ease) backwards}
+.admin-content .grid>div.rounded-2xl.bg-white p.font-serif{font-weight:400!important;letter-spacing:-.02em}
+
+/* ---------- Buttons: forest with travelling sheen ---------- */
+.admin-content button:is([class*="bg-[#173d2b]"],[class*="bg-[#214b36]"],[class*="bg-[#16382A]"]):not(:disabled),
+.admin-content a:is([class*="bg-[#173d2b]"],[class*="bg-[#214b36]"],[class*="bg-[#16382A]"]){
+ background-image:linear-gradient(110deg,transparent 35%,#ffffff26 50%,transparent 65%)!important;background-size:250% 100%!important;background-position:100% 0!important;background-repeat:no-repeat!important;
+ transition:background-position .9s var(--ease),transform .35s var(--spring),box-shadow .35s!important}
+.admin-content button:is([class*="bg-[#173d2b]"],[class*="bg-[#214b36]"],[class*="bg-[#16382A]"]):not(:disabled):hover,
+.admin-content a:is([class*="bg-[#173d2b]"],[class*="bg-[#214b36]"],[class*="bg-[#16382A]"]):hover{background-position:-50% 0!important;transform:translateY(-2px);box-shadow:0 14px 26px -14px #0f2e22b0!important}
+.admin-content button:not(:disabled):active{transform:scale(.97)}
+
+/* ---------- Forms ---------- */
+.admin-content :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea){transition:border-color .3s,box-shadow .3s,background .3s}
+.admin-content :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea):focus{border-color:var(--turmeric)!important;box-shadow:0 0 0 4px #d9a33a24!important;background-color:#fffdf8;outline:0}
+.admin-content input[type=checkbox],.admin-content input[type=radio]{accent-color:var(--moss)}
+
+/* ---------- Tables ---------- */
+.admin-content table thead{background:linear-gradient(100deg,var(--sage-mist),var(--turmeric-mist) 60%,var(--clay))!important}
+.admin-content thead th{color:var(--forest-2);letter-spacing:.09em}
+.admin-content tbody tr{transition:background .3s,box-shadow .3s}
+.admin-content tbody tr:hover{background-color:#f6e7c240!important;box-shadow:inset 3px 0 0 var(--turmeric)}
+
+/* ---------- Dialogs ---------- */
+.admin-content [role=dialog],.admin-workspace [role=dialog]{animation:adm-dialog .5s var(--spring) backwards;box-shadow:0 50px 100px -40px #0f2e22b0}
+.admin-content .fixed.inset-0:is([class*="bg-black"],[class*="bg-[#"]){backdrop-filter:blur(6px) saturate(1.2);animation:adm-fade .35s var(--ease) backwards}
+
+/* ---------- Footer ---------- */
+.admin-workspace .admin-workspace-footer{border-top:0;position:relative;font-family:var(--font-serif);font-style:italic;font-size:12px;letter-spacing:.02em;color:var(--moss)}
+.admin-workspace .admin-workspace-footer:before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+
+/* Scrollbars */
+.admin-workspace *{scrollbar-width:thin;scrollbar-color:#b6924580 transparent}
+
+@keyframes adm-aurora{0%{transform:translate(0,0) rotate(0)}50%{transform:translate(4%,-3%) rotate(4deg)}100%{transform:translate(-3%,4%) rotate(-3deg)}}
+@keyframes adm-sheen{to{background-position:-200% 0}}
+@keyframes adm-label{from{opacity:0;translate:0 8px;filter:blur(4px)}}
+@keyframes adm-leaf{from{rotate:-20deg}to{rotate:10deg;translate:-12px 6px}}
+@keyframes adm-grow{from{transform:scaleX(0)}}
+@keyframes adm-grow-y{from{transform:scaleY(0)}}
+@keyframes adm-cascade{from{opacity:0;translate:-18px 0}}
+@keyframes adm-fade{from{opacity:0}}
+@keyframes adm-page{from{opacity:0}}
+@keyframes adm-rise{from{opacity:0;translate:0 18px;filter:blur(4px)}}
+@keyframes adm-pop{from{opacity:0;translate:0 14px;scale:.97}}
+@keyframes adm-drift{0%{background-position:0% 0%}100%{background-position:100% 100%}}
+@keyframes adm-dialog{from{opacity:0;scale:.94;translate:0 16px}}
+
+@media(prefers-reduced-motion:reduce){
+ .admin-workspace:before,.admin-workspace *,.admin-workspace *:before,.admin-workspace *:after{animation:none!important}
+}

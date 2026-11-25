@@ -13,3 +13,33 @@
 .admin-menu-panel .admin-portal-logout{border-color:#bfcbb6;color:#395440}.admin-menu-panel .admin-portal-logout:hover{background:#e5ebdb;color:#173d2b}
 @media(max-width:600px){.admin-portal .admin-menu-panel{padding:17px;border-radius:23px}.admin-menu-visual{height:130px}.admin-menu-copy{padding:17px;min-height:155px}.admin-menu-title{font-size:21px}.admin-menu-category{font-size:7px;left:17px;letter-spacing:.1em}.admin-menu-symbol{left:17px;top:18px;width:53px;height:53px}.admin-menu-symbol svg{width:28px;height:28px}}
 @media(prefers-reduced-motion:reduce){.admin-portal .admin-menu-card,.admin-menu-visual>img{transition:none}.admin-portal .admin-menu-card:hover{transform:none}}
+
+/* ---------- Portal: living forest + spice cards (visual only) ---------- */
+.admin-portal{--ease:cubic-bezier(.16,1,.3,1);--spring:cubic-bezier(.34,1.4,.64,1);--turmeric:#d9a33a;--ginger:#b4653f;font-family:var(--font-geist-sans),system-ui,sans-serif}
+.admin-portal .font-serif,.admin-portal h1,.admin-portal h2,.admin-menu-title,.admin-menu-panel .admin-menu-heading h2{font-family:var(--font-display),Georgia,serif!important;font-weight:300!important;font-variation-settings:"SOFT" 60}
+.admin-portal h1{letter-spacing:-.035em}
+.admin-portal>div:first-child>div{animation:portal-orb 20s ease-in-out infinite alternate}
+.admin-portal>div:first-child>div:last-child{animation-duration:26s;animation-direction:alternate-reverse}
+.admin-portal:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(closest-side at 80% 20%,#d9a33a26,transparent),radial-gradient(closest-side at 15% 85%,#b4653f22,transparent);animation:portal-breathe 14s ease-in-out infinite alternate}
+.admin-portal h1{animation:portal-mask 1.3s .1s var(--ease) backwards}
+.admin-portal .admin-menu-panel{animation:portal-rise 1s .25s var(--ease) backwards;background:linear-gradient(150deg,#fbf9f3,#eef2e4 60%,#f6ead2)!important}
+.admin-portal .admin-menu-card{transition:transform .6s var(--spring),box-shadow .6s var(--ease),border-color .4s;animation:portal-card .8s var(--ease) backwards}
+.admin-portal .admin-menu-card:nth-child(2){animation-delay:.35s}.admin-portal .admin-menu-card:nth-child(3){animation-delay:.42s}.admin-portal .admin-menu-card:nth-child(4){animation-delay:.49s}.admin-portal .admin-menu-card:nth-child(5){animation-delay:.56s}.admin-portal .admin-menu-card:nth-child(6){animation-delay:.63s}.admin-portal .admin-menu-card:nth-child(7){animation-delay:.7s}.admin-portal .admin-menu-card:nth-child(8){animation-delay:.77s}.admin-portal .admin-menu-card:nth-child(n+9){animation-delay:.84s}
+.admin-portal .admin-menu-card:nth-child(1){animation-delay:.28s}
+.admin-portal .admin-menu-card:hover{transform:translateY(-8px) rotate(-.4deg);box-shadow:0 40px 60px -35px #0f2e22a0;border-color:var(--turmeric)}
+.admin-menu-visual{background:radial-gradient(circle at 85% 10%,#ffffff70,transparent 50%),linear-gradient(120deg,#dfe8d4,#9fb895)}
+.admin-menu-visual.tone-gold{background:radial-gradient(circle at 85% 10%,#ffffff70,transparent 50%),linear-gradient(120deg,#f6e7c2,#d9a33a)}
+.admin-menu-visual.tone-oat{background:radial-gradient(circle at 85% 10%,#ffffff70,transparent 50%),linear-gradient(120deg,#f3e3d3,#cf9a7a)}
+.admin-menu-orbit{animation:portal-spin 40s linear infinite}
+.admin-menu-card:hover .admin-menu-orbit{animation-duration:8s}
+.admin-menu-symbol{transition:transform .6s var(--spring)}
+.admin-menu-card:hover .admin-menu-symbol{transform:scale(1.08) rotate(-6deg)}
+.admin-menu-arrow{transition:transform .5s var(--spring),background .3s,color .3s}
+.admin-menu-card:hover .admin-menu-arrow{transform:rotate(45deg);background:#0f2e22;color:#f6e7c2}
+@keyframes portal-orb{from{translate:0 0}to{translate:60px -40px}}
+@keyframes portal-breathe{from{opacity:.6}to{opacity:1}}
+@keyframes portal-mask{from{opacity:0;clip-path:inset(0 0 100% 0);translate:0 .4em}to{opacity:1;clip-path:inset(-20% -5% -20% -5%);translate:0 0}}
+@keyframes portal-rise{from{opacity:0;translate:0 40px;filter:blur(6px)}}
+@keyframes portal-card{from{opacity:0;translate:0 30px;scale:.96}}
+@keyframes portal-spin{to{rotate:360deg}}
+@media(prefers-reduced-motion:reduce){.admin-portal *,.admin-portal:before{animation:none!important}}

@@ -10,6 +10,8 @@ import InventoryMaterialEditor from "./InventoryMaterialEditor";
 import InventoryMaterialSettings from "./InventoryMaterialSettings";
 import InventoryBatches,{type InventoryBatch} from './InventoryBatches';
 import {useCallback,useEffect,useState,type FormEvent} from 'react';
+import {clearAdminSnapshots,readAdminSnapshot,writeAdminSnapshot} from '@/lib/client-snapshot';
+type InventoryPayload=Awaited<ReturnType<Response['json']>>;
 type Item={batches?:InventoryBatch[];unassignedQty?:number;usableQty?:number;kind:'material'|'finished';id:string;name:string;unit:string;category?:string;qty:number|null;minimum:number;maximum:number|null;unitCost:number;value:number|null;low:boolean;capacity?:number|null;capacityReason?:string};
 type History={batchId?:string;date:string;eventId:string;id:string;qty:number;note:string};
 const money=(n:number)=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(n);
@@ -32,8 +34,10 @@ export default function Inventory({team=false}:{team?:boolean}){
  const [materialFlow,setMaterialFlow]=useState<'opening'|'stocktake'|'manage'>('manage'),[batchMode,setBatchMode]=useState<'opening'|'stocktake'|'manage'>('manage');
  const [materialSettings,setMaterialSettings]=useState<Item|null>(null);
  const [spreadsheetUrl,setSpreadsheetUrl]=useState(''),[workflowVersion,setWorkflowVersion]=useState(0);
- const load=useCallback(async()=>{try{const r=await fetch('/api/admin/inventory',{cache:'no-store'}),d=await r.json();if(!r.ok||!d.success)throw Error(d.message||'Stok belum dimuat.');setSpreadsheetUrl(typeof d.spreadsheetUrl==='string'&&d.spreadsheetUrl.startsWith('https://docs.google.com/spreadsheets/')?d.spreadsheetUrl:'');setWorkflowVersion(d.materialWorkflowVersion||0);setMaterials(d.materials);setFinished(d.finished);setHistory(d.history||[]);setVersion(d.inventoryVersion);setBulkVersion(d.bulkFinishedVersion||0);setReady(true);return true;}catch(e){setMessage(e instanceof Error?e.message:'Gagal memuat stok.');return false;}},[]);
- useEffect(()=>{void load();},[load]);
+ const apply=useCallback((d:InventoryPayload)=>{setSpreadsheetUrl(typeof d.spreadsheetUrl==='string'&&d.spreadsheetUrl.startsWith('https://docs.google.com/spreadsheets/')?d.spreadsheetUrl:'');setWorkflowVersion(d.materialWorkflowVersion||0);setMaterials(d.materials);setFinished(d.finished);setHistory(d.history||[]);setVersion(d.inventoryVersion);setBulkVersion(d.bulkFinishedVersion||0);setReady(true);},[]);
+ const load=useCallback(async()=>{try{const r=await fetch('/api/admin/inventory',{cache:'no-store'}),d=await r.json();if(r.status===401)clearAdminSnapshots();if(!r.ok||!d.success)throw Error(d.message||'Stok belum dimuat.');apply(d);writeAdminSnapshot('inventory',d);return true;}catch(e){setMessage(e instanceof Error?e.message:'Gagal memuat stok.');return false;}},[apply]);
+ // Show the last balances from this tab instantly; the live read below always replaces them.
+ useEffect(()=>{const cached=readAdminSnapshot<InventoryPayload>('inventory');if(cached?.success)apply(cached);void load();},[apply,load]);
  useEffect(()=>{if(!edit)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';const close=(e:KeyboardEvent)=>{if(e.key==='Escape'&&!busy)setEdit(null);};document.addEventListener('keydown',close);return()=>{document.body.style.overflow=previous;document.removeEventListener('keydown',close);};},[edit,busy]);
  function changeMass(next:'gram'|'kg'){if(edit?.unit==='gram'){const old=massUnit==='kg'?1000:1,n=next==='kg'?1000:1;setQty(v=>v===''?'':String(Number(v)*old/n));setMinimum(v=>v===''?'':String(Number(v)*old/n));setMaximum(v=>v===''?'':String(Number(v)*old/n));setPrice(v=>v===''?'':String(Number(v)*n/old));setRequestId(clientId());}if(edit?.unit==='gram')setEditUnit(next);setMassUnit(next);}
  function archive(i:Item){setArchiveTargets([i]);setArchiveResults([]);}

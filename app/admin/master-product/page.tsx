@@ -8,6 +8,7 @@ import ProductResearch from "./ProductResearch";
 import CatalogStock from "./CatalogStock";
 import ProductImage from "@/app/components/ProductImage";
 import { productImageUrl } from "@/lib/product-image";
+import { clearAdminSnapshots, readAdminSnapshot, writeAdminSnapshot } from "@/lib/client-snapshot";
 
 type PackageType = "Jar" | "Box" | "Sachet" | "Pcs" | "Pouch" | "Pack";
 
@@ -177,7 +178,10 @@ export default function MasterProductPage() {
   const [savingIngredient, setSavingIngredient] = useState(false);
 
   const loadProducts = useCallback(async () => {
-    setLoading(true);
+    // Show this tab's last product list instantly; the live read below always replaces it.
+    const cached = readAdminSnapshot<typeof products>("products");
+    if (cached) setProducts(current => current.length ? current : cached);
+    setLoading(!cached);
 
     setError("");
 
@@ -186,9 +190,12 @@ export default function MasterProductPage() {
 
       const data = await response.json();
 
+      if (response.status === 401) clearAdminSnapshots();
       if (!response.ok || data.success !== true) throw new Error(data.message || "Gagal mengambil data produk.");
 
-      setProducts(Array.isArray(data.products) ? data.products : []);
+      const latest = Array.isArray(data.products) ? data.products : [];
+      setProducts(latest);
+      writeAdminSnapshot("products", latest);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal mengambil master produk. Periksa sesi admin.");
     } finally {

@@ -4,6 +4,7 @@ import {useEffect,useState} from 'react';
 import Link from 'next/link';
 import type {Product,ProductVariant} from '@/lib/products';
 import {readClientJson} from '@/lib/client-reads';
+import {readSnapshot,writeSnapshot} from '@/lib/client-snapshot';
 import {readCart,writeCart} from '@/lib/cart-storage';
 import {useCart} from '@/lib/use-cart';
 import {PublicIcon} from '../components/PublicNavigation';
@@ -15,7 +16,7 @@ export default function Catalog(){
  const [products,setProducts]=useState<Product[]>([]),[catalogState,setCatalogState]=useState({language:'',reload:-1,message:''}),[search,setSearch]=useState(''),[reload,setReload]=useState(0),[choices,setChoices]=useState<Record<string,string>>({}),[notice,setNotice]=useState(''),[added,setAdded]=useState(''),[notificationId,setNotificationId]=useState(0);
  const cart=useCart(),count=cart.reduce((sum,item)=>sum+item.quantity,0),total=cart.reduce((sum,item)=>sum+item.quantity*item.selectedVariant.priceValue,0);
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>{setNotice('');setAdded('');},4500);return()=>clearTimeout(timer);},[notice,notificationId]);
- useEffect(()=>{if(!languageReady)return;let active=true;readClientJson<{success:boolean;products:Product[]}>('/api/catalog?lang='+language,15000,reload>0,25000).then(data=>{if(!Array.isArray(data.products))throw new Error('Respons katalog belum lengkap.');if(active){setProducts(data.products);setCatalogState({language,reload,message:data.products.length?'':'Belum ada produk yang tersedia.'});}}).catch(e=>{if(active)setCatalogState({language,reload,message:e instanceof Error?e.message:'Katalog belum bisa dimuat.'});});return()=>{active=false;};},[reload,language,languageReady]);
+ useEffect(()=>{if(!languageReady)return;let active=true;const snapshotKey='vartana-catalog:'+language,snapshot=readSnapshot<Product[]>(snapshotKey,'local',24*60*60*1000);if(snapshot?.length)void Promise.resolve().then(()=>{if(!active)return;setProducts(current=>current.length?current:snapshot);setCatalogState(current=>current.language===language&&current.reload===reload?current:{language,reload,message:''});});readClientJson<{success:boolean;products:Product[]}>('/api/catalog?lang='+language,15000,reload>0,25000).then(data=>{if(!Array.isArray(data.products))throw new Error('Respons katalog belum lengkap.');if(active){setProducts(data.products);writeSnapshot(snapshotKey,'local',data.products);setCatalogState({language,reload,message:data.products.length?'':'Belum ada produk yang tersedia.'});}}).catch(e=>{if(active)setCatalogState({language,reload,message:e instanceof Error?e.message:'Katalog belum bisa dimuat.'});});return()=>{active=false;};},[reload,language,languageReady]);
  const loading=catalogState.language!==language||catalogState.reload!==reload;
  const message=loading?"Memuat katalog?":catalogState.message;
  const visible=products.filter(product=>(product.name+' '+product.ingredients.map(i=>i[language]||i.id).join(' ')).toLowerCase().includes(search.toLowerCase()));

@@ -16,6 +16,7 @@ import CustomerOrdersModal from "@/app/components/CustomerOrdersModal";
 import { BotanicalSprig } from "@/app/checkout/CheckoutVisuals";
 import "./storefront.css";
 import {readClientJson} from '@/lib/client-reads';
+import {readSnapshot,writeSnapshot} from "@/lib/client-snapshot";
 import { useCart } from "@/lib/use-cart";
 import { readCart, writeCart } from "@/lib/cart-storage";
 import { SPICES_DATA, type SpiceDetail } from "@/lib/spices";
@@ -431,6 +432,10 @@ export default function Home() {
     let active = true;
     let pending = false;
     const controller = new AbortController();
+    // Paint the last-known catalog instantly; fresh data replaces it as soon as it arrives.
+    const snapshotKey = `vartana-catalog:${language}`;
+    const snapshot = readSnapshot<Product[]>(snapshotKey, "local", 24 * 60 * 60 * 1000);
+    if (snapshot?.length) void Promise.resolve().then(() => { if (!active) return; setProducts(current => current.length ? current : snapshot); setCatalogLoading(false); });
     async function refreshCatalog() {
       if (pending) return;
       pending = true;
@@ -440,6 +445,7 @@ export default function Home() {
         if (!active) return;
         const latest: Product[] = data.products;
         setProducts(latest);
+        writeSnapshot(snapshotKey, "local", latest);
         if(!productLinkApplied.current){const id=new URLSearchParams(window.location.search).get('produk'),index=latest.findIndex(p=>p.id===id);if(index>=0){setSelectedProduct(index);setSelectedVariantIndex(0);productLinkApplied.current=true;}}
 
         setTranslationAvailable(data.translationAvailable !== false);

@@ -5,6 +5,7 @@ import {readPreviewIntegrationSettings} from '@/lib/integrations-server';
 
 import {readCheckoutMaster} from '@/lib/checkout-master';
 import {readPreviewStock} from '@/lib/retail-stock';
+import {warmMidtransBackend} from '@/lib/midtrans';
 
 export async function POST(req: Request) {
   try {
@@ -14,6 +15,8 @@ export async function POST(req: Request) {
     const [config, masterData, stock] = await Promise.all([
       readPreviewIntegrationSettings(), readCheckoutMaster(false), readPreviewStock(typeof input.orderKey === "string" && /^[a-f0-9-]{36}$/i.test(input.orderKey) ? input.orderKey : ""),
     ]);
+    // While the customer reviews the summary, prepare the Midtrans readiness check for the order step.
+    if (config.settings.some(setting => setting.id === 'midtrans' && setting.enabled)) warmMidtransBackend().catch(() => { /* re-checked when the order is placed */ });
     const quote = await checkoutQuote(input, {integrationSettings:config.settings, masterData, stock});
     return NextResponse.json(quote, {headers:{'Cache-Control':'no-store'}});
   }

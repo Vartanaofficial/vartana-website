@@ -23,6 +23,7 @@ import type { PostalOption } from "@/lib/postal-codes";
 
 import {readClientJson} from '@/lib/client-reads';
 import {requestCheckoutQuote,requestCheckoutOrder} from '@/lib/checkout-client';
+import { preconnect } from "react-dom";
 
 type Region = { id: string; name: string };
 const money = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
@@ -158,6 +159,9 @@ export default function CheckoutPage() {
     return p.type==='percent'?'Diskon '+p.value+'%':p.type==='shipping'?(p.shippingMode==='free'?'Gratis ongkir':'Potongan ongkir '+money(p.value))+(p.area==='jabodetabek'?' / Jabodetabek':''):'Potongan belanja '+money(p.value);
   }
 
+  // Open the connection to Midtrans early so the redirect after saving the order starts faster.
+  if (activePaymentMethod === 'midtrans') { preconnect('https://app.midtrans.com'); preconnect('https://app.sandbox.midtrans.com'); }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!quote?.shipping || quotedKey !== quoteKey || loading || saving || orderSubmitting.current || !!error || quote.promoError) return;
@@ -174,7 +178,9 @@ export default function CheckoutPage() {
         const {notes,...profile}=customer;void notes;
         void fetch('/api/customer/account',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'saveProfile',profile}),keepalive:true}).catch(()=>{/* Profile saving must never interrupt payment. */});
       }
-      const gatewayUrl = data.midtransPaymentUrl || data.dokuPaymentUrl;
+      // With a Snap client key, Midtrans is embedded in the VARTANA receipt view instead of leaving the site.
+      const gatewayUrl = data.midtransPaymentUrl && data.midtransSnap ? undefined : data.midtransPaymentUrl || data.dokuPaymentUrl;
+      if (process.env.NODE_ENV === 'development' && data.midtransPaymentUrl && !data.midtransSnap) console.warn('[midtrans-embed] fallback ke redirect: server tidak mengirim konfigurasi Snap (cek MIDTRANS_CLIENT_KEY)');
       if (gatewayUrl) {
         window.location.assign(gatewayUrl);
         return;

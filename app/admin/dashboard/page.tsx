@@ -10,6 +10,7 @@ import { normalizeWhatsApp } from "@/lib/checkout-contact";
 
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState, useEffect, useMemo } from "react";
+import { clearAdminSnapshots } from "@/lib/client-snapshot";
 
 type OrderItem = {
   paymentMethod?: string;
@@ -124,6 +125,7 @@ function AdminDashboardContent() {
     try {
       const response = await fetch("/api/admin/auth/logout", { method: "POST" });
       if (!response.ok) throw new Error("Logout gagal. Coba lagi.");
+      clearAdminSnapshots();
       setIsAuthenticated(false); setIsProfitAuthenticated(false); setOrders([]); setMembers([]);
       setInputUsername(""); setInputAccessCode(""); setProfitUsername(""); setProfitPin("");
       window.location.href = "/admin-access";

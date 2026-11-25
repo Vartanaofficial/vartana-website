@@ -6,6 +6,7 @@ import AdminMenuGrid from "./AdminMenuGrid";
 import "./admin-portal.css";
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import { clearAdminSnapshots } from "@/lib/client-snapshot";
 
 const menus = [
  {title:'Integrasi API',description:'Aktifkan pembayaran dan pengiriman dalam satu tempat.',href:'/admin/integrations',number:'13',symbol:''},
@@ -132,6 +133,7 @@ export default function AdminAccessPage() {
         method: "POST",
         credentials: "same-origin",
       });
+      clearAdminSnapshots();
 
       if (!response.ok) {
         setError("Logout gagal. Silakan coba lagi.");

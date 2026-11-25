@@ -15,7 +15,13 @@ export async function GET(request: Request) {
     if (new URL(request.url).searchParams.get("lang") === "en") {
       try { const translated = await translateCatalog(products); products = translated.products; translationAvailable = translated.pending === 0; } catch { translationAvailable = false; }
     }
-    return NextResponse.json({ success: true, products, translationAvailable }, { headers: { "Cache-Control": "no-store", "Netlify-Vary": "query=lang" } });
+    return NextResponse.json({ success: true, products, translationAvailable }, {
+      headers: {
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "Netlify-CDN-Cache-Control": "public, durable, s-maxage=30, stale-while-revalidate=60",
+        "Netlify-Vary": "query=lang",
+      },
+    });
   } catch (error) {
     console.error("Catalog read failed:", error instanceof Error ? error.message : "Unknown error");
     return NextResponse.json({ success: false, message: "Katalog belum bisa dimuat. Coba lagi sebentar." }, { status: 502, headers: { "Cache-Control": "no-store" } });

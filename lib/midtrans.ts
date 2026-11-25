@@ -43,14 +43,16 @@ export function midtransInvoice(orderKey: string) {
   return 'VRTM' + createHash('sha256').update(orderKey).digest('hex').slice(0, 26).toUpperCase();
 }
 
-export async function midtransPayment(orderKey: string, orderSerial: string, amount: number, requestUrl: string) {
+type MidtransClaim = {state?: string; paymentUrl?: string; claimed?: boolean; reservationUntil?: string};
+
+export async function midtransPayment(orderKey: string, orderSerial: string, amount: number, requestUrl: string, savedClaim?: MidtransClaim) {
   const config = credentials();
   const invoice = midtransInvoice(orderKey);
-  const claim = await requestMasterScript('midtransPayments', {operation: 'reserve', orderKey, orderSerial, invoice, amount});
+  const claim = savedClaim ?? await requestMasterScript('midtransPayments', {operation: 'reserve', orderKey, orderSerial, invoice, amount});
   if (["PAID", "PAID_REVIEW"].includes(claim.state)) return undefined;
   if (claim.paymentUrl) return String(claim.paymentUrl);
   if (!claim.claimed) throw new Error('Tagihan Midtrans sedang disiapkan. Coba lagi untuk pesanan yang sama.');
-  const until = Date.parse(claim.reservationUntil);
+  const until = Date.parse(claim.reservationUntil || "");
   const duration = Math.floor((until - Date.now()) / 60_000);
   if (!Number.isFinite(duration) || duration < 5) throw new Error('Waktu reservasi stok hampir habis.');
   const start = new Date(until - duration * 60_000 + 7 * 3_600_000).toISOString().slice(0, 19).replace('T', ' ');

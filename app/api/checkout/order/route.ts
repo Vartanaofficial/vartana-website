@@ -11,7 +11,7 @@ import type {CheckoutReceipt} from "@/lib/order-confirmation";
 import {readIntegrationSettings} from '@/lib/integrations-server';
 import {paymentChoices} from '@/lib/integrations';
 
-import {ensureMidtransBackend, midtransPayment} from '@/lib/midtrans';
+import {ensureMidtransBackend, midtransInvoice, midtransPayment} from '@/lib/midtrans';
 import {productionDokuPayment,ensureDokuBackend} from '@/lib/doku-production';
 import {localDokuAdmin,localDokuCredentials,localDokuPayment} from '@/lib/local-doku';
 
@@ -87,12 +87,13 @@ export async function POST(req: Request) {
         productDiscount: quote.productDiscount, promoShippingDiscount: quote.shippingDiscount,
         shippingSubsidy: quote.shippingDiscount, customerShippingFee: quote.shipping.price - quote.shippingDiscount, grandTotal: quote.total,
       };
-      const proof = signPuzzle('saveOrder', orderDetails);
-      const result = await requestMasterScript("saveRetailOrderV3", { ...orderDetails, ...proof });
+      const orderPayload = midtrans ? {...orderDetails, midtransInvoice: midtransInvoice(orderKey)} : orderDetails;
+      const proof = signPuzzle('saveOrder', orderPayload);
+      const result = await requestMasterScript("saveRetailOrderV3", { ...orderPayload, ...proof });
       if (result.status !== "success" && result.success !== true) throw new Error("Pesanan belum tersimpan.");
       const savedSerial = String(result.orderSerial || serial);
       const doku=paymentMethod==='doku'?(dokuLocal?await localDokuPayment(orderKey,quote.total):await productionDokuPayment(orderKey,savedSerial,quote.total)):null;
-      const midtransPaymentUrl = paymentMethod === 'midtrans' ? await midtransPayment(orderKey, savedSerial, quote.total, req.url) : undefined;
+      const midtransPaymentUrl = paymentMethod === 'midtrans' ? await midtransPayment(orderKey, savedSerial, quote.total, req.url, result.midtransClaim) : undefined;
       return { midtransPaymentUrl, ...(doku?{dokuPaymentUrl:doku.paymentUrl,dokuInvoice:doku.invoice}:{}),paymentMethods:quote.paymentMethods, serial: savedSerial, total: quote.total, paymentMethod, reservationUntil:result.reservationUntil, details: { ...orderDetails, orderSerial: savedSerial } };
     };
     const pendingKey=serial+':'+phone;

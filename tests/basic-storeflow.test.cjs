@@ -28,11 +28,14 @@ test('Midtrans verifies a fixed invoice, reconciles once, and keeps DOKU records
  const sheets=f.c.inventorySheets_();
  f.c.inventoryCommit_(sheets,f.c.inventoryState_(sheets),'OPEN',[{kind:'finished',id:'TEA',qty:3}],'Opening');
  const body={retailStockVersion:1,orderKey:key,orderSerial:'MIDTRANS-TEST',paymentMethod:'midtrans',phone:'081234567890',email:'internal@example.com',customerName:'Internal',itemsSummary:'Tea (1x)',inventoryItems:[{sku:'TEA',quantity:1}],subtotalProducts:50000,grandTotal:50000,rewardItems:[]};
- const order=f.c.saveRetailOrderV3_({...body,...f.signed('saveOrder',body)});
  const invoice='VRTM'+'A'.repeat(26);
+ const respond=f.c.responseJSON;
+ f.c.responseJSON=value=>({...respond(value),getContent:()=>JSON.stringify(value)});
+ const payload={...body,midtransInvoice:invoice};
+ const order=f.c.saveRetailOrderV3_({...payload,...f.signed('saveOrder',payload)});
+ assert.equal(order.midtransClaim.claimed,true);
  const payment=(operation,extra={})=>f.c.dokuPayments_({operation,...extra},'midtrans');
  assert.equal(payment('capabilities').midtransVersion,1);
- assert.equal(payment('reserve',{orderKey:key,orderSerial:order.orderSerial,invoice,amount:50000}).claimed,true);
  assert.equal(payment('reserve',{orderKey:key,orderSerial:order.orderSerial,invoice,amount:50000}).claimed,false);
  assert.throws(()=>payment('link',{invoice,paymentUrl:'https://app.midtrans.com.example.com/pay'}));
  assert.equal(payment('link',{invoice,paymentUrl:'https://app.midtrans.com/snap/v2/vtweb/token'}).success,true);

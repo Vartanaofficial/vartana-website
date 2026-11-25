@@ -4441,7 +4441,14 @@ function retailStockSnapshot_(excludeKey,products){
  return {success:true,retailStockVersion:1,reservationHours:retailReservationMs_()/3600000,items:(products||getProducts()).map(function(p){var key='finished:'+p.sku,known=Object.prototype.hasOwnProperty.call(state.balances,key),qty=known?Math.max(0,Number(state.balances[key])||0):null;return {sku:p.sku,qty:qty,reservedQty:reserved[p.sku]||0,availableQty:p.active&&known?Math.max(0,qty-(reserved[p.sku]||0)):0};})};
 }
 function retailStockAssert_(items,excludeKey){var totals=retailItems_(items),stock=retailStockSnapshot_(excludeKey),map={};stock.items.forEach(function(x){map[x.sku]=x;});Object.keys(totals).forEach(function(sku){var available=map[sku]?map[sku].availableQty:0;if(totals[sku]>available)throw new Error('Stok '+sku+' tidak cukup. Tersedia '+available+' kemasan. Perbarui keranjang sebelum melanjutkan.');});return stock;}
-function saveRetailOrderV3_(data){puzzleVerify_(data,'saveOrder');if(data.retailStockVersion!==1||JSON.stringify(data.puzzlePayload)!==JSON.stringify(puzzleOrderProof_(data)))throw new Error('Rincian stok pesanan tidak sesuai otorisasi server.');return saveRetailOrderWithPromo_(data);}
+function saveRetailOrderV3_(data){puzzleVerify_(data,'saveOrder');if(data.retailStockVersion!==1||JSON.stringify(data.puzzlePayload)!==JSON.stringify(puzzleOrderProof_(data)))throw new Error('Rincian stok pesanan tidak sesuai otorisasi server.');var saved=saveRetailOrderWithPromo_(data);
+ if(data.paymentMethod!=='midtrans'||!/^VRTM[A-F0-9]{26}$/.test(String(data.midtransInvoice||'')))return saved;
+ var order=JSON.parse(saved.getContent());
+ if(!order.success)return saved;
+ var claim=dokuPayments_({operation:'reserve',orderKey:data.orderKey,orderSerial:order.orderSerial,invoice:data.midtransInvoice,amount:Number(data.grandTotal)},'midtrans');
+ order.midtransClaim=JSON.parse(claim.getContent());
+ return responseJSON(order);
+}
 function retailCheckStatusStock_(sheet,row,serial){
  var data=sheet.getDataRange().getValues(),h=data[0],itemsCol=h.indexOf('Inventory Items'),keyCol=h.indexOf('Order Key');if(itemsCol<0||!data[row-1][itemsCol])throw new Error('Pesanan lama belum memiliki rincian SKU. Rekonsiliasi pesanan sebelum menerima pembayaran atau menyiapkan barang.');
  var state=inventoryState_(inventorySheets_());if(state.rows.some(function(r){return String(r[1])==='ORDER:'+serial;}))return;

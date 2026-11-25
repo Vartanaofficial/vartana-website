@@ -32,6 +32,10 @@ export async function POST(req: Request) {
     const orderKey = String(body.orderKey);
     const serial = `VRT-${orderKey.replaceAll("-", "").toUpperCase()}`;
     const execute = async () => {
+      const settingsRead = readIntegrationSettings().then(
+        value => ({value, error: null}),
+        (error: unknown) => ({value: null, error}),
+      );
       const data = await checkoutContext(phone,orderKey);
       const existing = (data.orders || []).find((order: { orderSerial: string; orderKey?: string }) => order.orderKey === orderKey || order.orderSerial === serial);
       if(existing){
@@ -40,7 +44,9 @@ export async function POST(req: Request) {
         const midtransPaymentUrl = existing.paymentMethod === 'midtrans' ? await midtransPayment(orderKey, existing.orderSerial, Number(existing.grandTotal), req.url) : undefined;
         return {midtransPaymentUrl,...(doku?{dokuPaymentUrl:doku.paymentUrl,dokuInvoice:doku.invoice}:{}),serial:existing.orderSerial,total:Number(existing.grandTotal),paymentMethod:existing.paymentMethod||paymentMethod,reservationUntil:existing.reservationUntil,details:existing};
       }
-      const settings=(await readIntegrationSettings()).settings;
+      const integration = await settingsRead;
+      if (!integration.value) throw integration.error;
+      const settings = integration.value.settings;
       if(!dokuLocal&&!paymentChoices(settings).some(method=>method.id===paymentMethod))throw new Error('Metode pembayaran ini sedang nonaktif. Pilih metode lain.');
       if(data.retailStockVersion!==1)throw new Error("Perbarui backend stok sebelum melanjutkan pembayaran.");
       const midtrans = paymentMethod === 'midtrans' ? settings.find(setting => setting.id === 'midtrans' && setting.enabled) : undefined;

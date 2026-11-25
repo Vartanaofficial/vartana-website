@@ -13,7 +13,7 @@ export type CheckoutItem = { sku: string; quantity: number };
 export type CheckoutInput = { items: CheckoutItem[]; promoCode?: string; phone?: string; orderKey?: string; districtId?: string; provinceName?: string; cityName?:string; districtName?:string; shippingService?: string };
 export type ShippingRate = { id: string; name: string; price: number; duration: string; estimated: boolean };
 
-async function shippingRates(districtId: string, provinceName: string, weight: number, originOverride?:string): Promise<ShippingRate[]> {
+async function fetchShippingRates(districtId: string, provinceName: string, weight: number, originOverride?:string): Promise<ShippingRate[]> {
   const key = process.env.BITESHIP_API_KEY;
   const origin=originOverride||process.env.ORIGIN_DISTRICT_ID;
   if (key && origin) {
@@ -33,6 +33,26 @@ async function shippingRates(districtId: string, provinceName: string, weight: n
   const price = /banten|jakarta|jawa barat/.test(name) ? 13000 : /jawa|yogyakarta/.test(name) ? 18000 : /maluku|papua/.test(name) ? 65000 : /kalimantan|sulawesi/.test(name) ? 42000 : 28000;
   // Preserve the existing estimated-rate mode and label it clearly in checkout.
   return [{ id: "jnt-ez", name: "J&T EZ", price: price * Math.max(1, Math.ceil(weight / 1000)), duration: "2–5 hari", estimated: true }, { id: "jne-reg", name: "JNE REG", price: (price - 1000) * Math.max(1, Math.ceil(weight / 1000)), duration: "2–5 hari", estimated: true }];
+}
+
+// Reuse a recent carrier quote for the same destination, origin and parcel weight.
+const recentRates = new Map<string, {until: number; rates: Promise<ShippingRate[]>}>();
+function shippingRates(districtId: string, provinceName: string, weight: number, originOverride?: string) {
+  const carrierConfigured = process.env.BITESHIP_API_KEY && (originOverride || process.env.ORIGIN_DISTRICT_ID);
+  if (!carrierConfigured) return fetchShippingRates(districtId, provinceName, weight, originOverride);
+  const key = JSON.stringify([districtId, provinceName, weight, originOverride || process.env.ORIGIN_DISTRICT_ID]);
+  const cached = recentRates.get(key);
+  if (cached && cached.until > Date.now()) return cached.rates;
+  const rates = fetchShippingRates(districtId, provinceName, weight, originOverride);
+  if (recentRates.size >= 200) recentRates.delete(recentRates.keys().next().value!);
+  const entry = {until: Infinity, rates};
+  recentRates.set(key, entry);
+  function forget() { if (recentRates.get(key) === entry) recentRates.delete(key); }
+  void rates.then(result => {
+    if (result.some(rate => rate.estimated)) forget();
+    else entry.until = Date.now() + 30_000;
+  }, forget);
+  return rates;
 }
 
 export async function checkoutQuote(input: CheckoutInput,options:{integrationSettings?:IntegrationSetting[];freshMaster?:boolean;masterData?:{master:MasterProduct[];promoData:{promotions:Record<string,unknown>[]}};stock?:RetailStockReport}={}) {

@@ -24,16 +24,28 @@ function signatureSecret() {
   return secret;
 }
 
+let capability: {source: string; until: number; check: Promise<void>} | undefined;
 export async function ensureMidtransBackend(environment: MidtransEnvironment) {
   credentials(environment);
   signatureSecret();
-  const result = await requestMasterScript('midtransPayments', {operation: 'capabilities'});
-  if (result.midtransVersion !== 1) throw new Error('Backend Midtrans belum siap. Perbarui deployment Apps Script.');
+  const source = process.env.GOOGLE_SCRIPT_URL || process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || '';
+  if (capability?.source === source && capability.until > Date.now()) return capability.check;
+  const check = requestMasterScript('midtransPayments', {operation: 'capabilities'}).then(result => {
+    if (result.midtransVersion !== 1) throw new Error('Backend Midtrans belum siap. Perbarui deployment Apps Script.');
+  });
+  const entry = {source, until: Date.now() + 60_000, check};
+  capability = entry;
+  try { await check; }
+  catch (error) { if (capability === entry) capability = undefined; throw error; }
+}
+
+export function midtransInvoice(orderKey: string) {
+  return 'VRTM' + createHash('sha256').update(orderKey).digest('hex').slice(0, 26).toUpperCase();
 }
 
 export async function midtransPayment(orderKey: string, orderSerial: string, amount: number, requestUrl: string) {
   const config = credentials();
-  const invoice = 'VRTM' + createHash('sha256').update(orderKey).digest('hex').slice(0, 26).toUpperCase();
+  const invoice = midtransInvoice(orderKey);
   const claim = await requestMasterScript('midtransPayments', {operation: 'reserve', orderKey, orderSerial, invoice, amount});
   if (["PAID", "PAID_REVIEW"].includes(claim.state)) return undefined;
   if (claim.paymentUrl) return String(claim.paymentUrl);
@@ -42,8 +54,9 @@ export async function midtransPayment(orderKey: string, orderSerial: string, amo
   const duration = Math.floor((until - Date.now()) / 60_000);
   if (!Number.isFinite(duration) || duration < 5) throw new Error('Waktu reservasi stok hampir habis.');
   const start = new Date(until - duration * 60_000 + 7 * 3_600_000).toISOString().slice(0, 19).replace('T', ' ');
-  const origin = new URL(requestUrl).origin;
-  const finish = (['https://vartana.id', 'https://www.vartana.id'].includes(origin) ? origin : 'https://www.vartana.id') + '/checkout';
+  const url = new URL(requestUrl);
+  const local = process.env.NODE_ENV === 'development' && ['localhost', '127.0.0.1'].includes(url.hostname);
+  const finish = (local || ['https://vartana.id', 'https://www.vartana.id'].includes(url.origin) ? url.origin : 'https://www.vartana.id') + '/checkout';
   const response = await fetch(config.app + '/snap/v1/transactions', {
     method: 'POST', headers: config.headers, signal: AbortSignal.timeout(12_000),
     body: JSON.stringify({
@@ -71,7 +84,7 @@ export function verifyMidtransNotification(data: Record<string, unknown>) {
   return invoice;
 }
 
-export async function reconcileMidtrans(invoice: string) {
+export async function reconcileMidtrans(invoice: string, onlySettled = false) {
   if (!invoicePattern.test(invoice)) throw new Error('Tagihan Midtrans tidak valid.');
   const config = credentials();
   const response = await fetch(config.api + '/v2/' + invoice + '/status', {
@@ -87,6 +100,7 @@ export async function reconcileMidtrans(invoice: string) {
       !Number.isSafeInteger(amount) || amount < 1000 || typeof data.transaction_id !== 'string' || !data.transaction_id) {
     throw new Error('Status Midtrans tidak valid.');
   }
+  if (onlySettled && status !== 'SUCCESS') return null;
   const eventHash = createHash('sha256').update(JSON.stringify([invoice, data.transaction_id, amount, status])).digest('hex');
   return requestMasterScript('midtransPayments', {operation: 'notification', invoice, amount, status, eventHash, eventId: eventHash});
 }

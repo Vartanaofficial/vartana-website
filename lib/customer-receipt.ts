@@ -45,7 +45,7 @@ export function receiptSvg(order:ReceiptOrder,logo:string){
  if(known(order.shippingSubsidy)&&order.shippingSubsidy>0)pair("Subsidi ongkir*",money(order.shippingSubsidy),false,11);
  y+=10;content.push(`<rect x="16" y="${y-20}" width="352" height="48" rx="10" fill="#eff3e9"/>`);pair("Total pembayaran",money(order.grandTotal),true,17);y+=17;
  if(order.shippingSubsidy&&order.shippingSubsidy>0)wrap("*Subsidi sudah mengurangi ongkir customer.",9);
- const method=order.paymentMethod==="qris"?"QRIS":order.paymentMethod==="bank_transfer"?"Transfer BCA":null;
+ const method=order.paymentMethod==="midtrans"?"Midtrans":order.paymentMethod==="qris"?"QRIS":order.paymentMethod==="bank_transfer"?"Transfer BCA":null;
  if(method)pair("Pembayaran",method,false,11);
  y+=5;line("STATUS PESANAN",9,true,"start","#6b785e");wrap(order.status,12,true);
  const note=sections.find(s=>/^Catatan:/i.test(s));if(note){y+=4;wrap(note,10);}

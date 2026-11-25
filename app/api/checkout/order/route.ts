@@ -42,14 +42,13 @@ export async function POST(req: Request) {
       }
       const settings=(await readIntegrationSettings()).settings;
       if(!dokuLocal&&!paymentChoices(settings).some(method=>method.id===paymentMethod))throw new Error('Metode pembayaran ini sedang nonaktif. Pilih metode lain.');
-      if (paymentMethod === 'midtrans') {
-        const midtrans = settings.find(setting => setting.id === 'midtrans' && setting.enabled);
-        if (!midtrans) throw new Error('Midtrans sedang nonaktif.');
-        await ensureMidtransBackend(midtrans.environment);
-      }
-      if(paymentMethod==='doku'&&!dokuLocal)await ensureDokuBackend();
       if(data.retailStockVersion!==1)throw new Error("Perbarui backend stok sebelum melanjutkan pembayaran.");
-      const quote = await checkoutQuote({ ...body, phone, districtId: customer.districtId, provinceName: customer.provinceName,cityName:customer.cityName,districtName:customer.districtName },{integrationSettings:settings,stock:data.retailStock?.retailStockVersion===1?data.retailStock:undefined,masterData:Array.isArray(data.products)&&Array.isArray(data.promotions)?{master:data.products,promoData:{promotions:data.promotions}}:undefined});
+      const midtrans = paymentMethod === 'midtrans' ? settings.find(setting => setting.id === 'midtrans' && setting.enabled) : undefined;
+      if (paymentMethod === 'midtrans' && !midtrans) throw new Error('Midtrans sedang nonaktif.');
+      const [quote] = await Promise.all([
+        checkoutQuote({ ...body, phone, districtId: customer.districtId, provinceName: customer.provinceName,cityName:customer.cityName,districtName:customer.districtName },{integrationSettings:settings,stock:data.retailStock?.retailStockVersion===1?data.retailStock:undefined,masterData:Array.isArray(data.products)&&Array.isArray(data.promotions)?{master:data.products,promoData:{promotions:data.promotions}}:undefined}),
+        midtrans ? ensureMidtransBackend(midtrans.environment) : paymentMethod === 'doku' && !dokuLocal ? ensureDokuBackend() : undefined,
+      ]);
       if(quote.destination?.verified){customer.cityName=quote.destination.cityName;customer.provinceName=quote.destination.provinceName;customer.districtName=quote.destination.districtName;}
       if (!quote.shipping || quote.promoError) throw new Error(quote.promoError || "Pilih layanan pengiriman.");
       if (body.expectedTotal !== quote.total || body.shippingService !== quote.shipping.id) throw new Error("Harga atau ongkir berubah. Periksa ringkasan terbaru sebelum melanjutkan.");

@@ -23,8 +23,8 @@ export function orderConfirmationMessage(receipt:CheckoutReceipt,fallback:{name:
   if(courier)rows.push(`*Layanan Kurir:* ${text(courier)}`);
   if(known(d.originalShipping))rows.push(`*Ongkir asli:* ${money(d.originalShipping)}`);
   if(known(d.customerShippingFee))rows.push(`*Biaya Pengiriman:* ${money(d.customerShippingFee)}${known(d.shippingSubsidy)?` (Subsidi Pengiriman ${money(d.shippingSubsidy)})`:""}`);
-  rows.push(`*Total Pembayaran:* ${money(receipt.total)}`,`*Metode pembayaran:* ${paymentMethod==="qris"?"QRIS":`Transfer ${PAYMENT_DETAILS.bank}`}`);
+  rows.push(`*Total Pembayaran:* ${money(receipt.total)}`,`*Metode pembayaran:* ${paymentMethod==="midtrans"?"Midtrans":paymentMethod==="qris"?"QRIS":`Transfer ${PAYMENT_DETAILS.bank}`}`);
   if(note)rows.push(`*Catatan:* ${text(note.replace(/^Catatan:\s*/i,""))}`);
-  rows.push("",paymentMethod==="qris"?"Saya akan melampirkan bukti pembayaran QRIS. Terima kasih.":`Saya akan melampirkan bukti transfer ke ${PAYMENT_DETAILS.bank} ${PAYMENT_DETAILS.account} a.n. ${PAYMENT_DETAILS.holder}. Terima kasih.`);
+  rows.push("",paymentMethod==="midtrans"?"Pembayaran sudah terverifikasi melalui Midtrans. Terima kasih.":paymentMethod==="qris"?"Saya akan melampirkan bukti pembayaran QRIS. Terima kasih.":`Saya akan melampirkan bukti transfer ke ${PAYMENT_DETAILS.bank} ${PAYMENT_DETAILS.account} a.n. ${PAYMENT_DETAILS.holder}. Terima kasih.`);
   return rows.join("\n");
 }

@@ -12,9 +12,9 @@ import {useCart} from '@/lib/use-cart';
 type Icon='home'|'catalog'|'games'|'leaf'|'about'|'journal'|'search'|'cart';
 const links:{href:string;label:string;detail:string;icon:Icon}[]=[
  {href:'/#philosophy',label:'Filosofi',detail:'Berakar dari alam',icon:'leaf'},
+ {href:'/artikel/cerita-vartana',label:'Tentang VARTANA',detail:'Dibuat dengan perhatian',icon:'about'},
  {href:'/katalog',label:'Belanja',detail:'Temukan racikanmu',icon:'catalog'},
  {href:'/#science',label:'Kenali Rempah',detail:'Bahan dan jurnal penelitian',icon:'leaf'},
- {href:'/artikel/cerita-vartana',label:'Tentang VARTANA',detail:'Dibuat dengan perhatian',icon:'about'},
  {href:'/artikel',label:'Artikel',detail:'Baca, kenali, nikmati',icon:'journal'},
  {href:'/games',label:'Games',detail:'Main sebentar, raih hadiah',icon:'games'}
 ];
@@ -38,7 +38,7 @@ export default function PublicNavigation({onTrack,onCart}:{onTrack?:()=>void;onC
    {onCart?<button type="button" className="public-cart" aria-label={'Keranjang belanja, '+count+' kemasan'} onClick={onCart}>{cartContents}</button>:<Link href="/checkout" className="public-cart" aria-label={'Keranjang belanja, '+count+' kemasan'}>{cartContents}</Link>}
    <LanguageToggle/><button className="public-menu-button" type="button" aria-expanded={open} aria-controls="public-menu" aria-label={open?'Tutup menu':'Buka menu'} onClick={()=>setOpen(value=>!value)}><span className={open?'menu-lines open':'menu-lines'} aria-hidden="true"><i/><i/></span><span>Menu</span></button>
   </div></div>
-  <nav className="public-shortcuts" aria-label="Akses cepat">{onTrack?<button type="button" onClick={onTrack}>{trackingContents}</button>:<Link href="/?track=1">{trackingContents}</Link>}{links.filter(link=>['Belanja','Games','Kenali Rempah','Tentang VARTANA'].includes(link.label)).map(link=><Link key={link.href} href={link.href} aria-current={active(link.href)?'page':undefined}><PublicIcon name={link.icon}/>{link.label}</Link>)}</nav>
+  <nav className="public-shortcuts" aria-label="Akses cepat">{onTrack?<button type="button" onClick={onTrack}>{trackingContents}</button>:<Link href="/?track=1">{trackingContents}</Link>}{links.filter(link=>['Filosofi','Tentang VARTANA','Belanja','Kenali Rempah','Games'].includes(link.label)).map(link=><Link key={link.href} href={link.href} aria-current={active(link.href)?'page':undefined}><PublicIcon name={link.icon}/>{link.label}</Link>)}</nav>
  </header>
  {open&&<div className="public-menu-overlay" onClick={()=>setOpen(false)}><section ref={panel} id="public-menu" role="dialog" aria-modal="true" aria-label="Jelajahi VARTANA" className="public-menu-panel" onClick={event=>event.stopPropagation()}><div className="public-menu-heading"><div><small>ROOTED IN EARTH</small><h2>Jelajahi VARTANA.</h2></div><button type="button" aria-label="Tutup menu" onClick={()=>setOpen(false)}>×</button></div><nav>{links.map((link,index)=><Link key={link.href} href={link.href} aria-current={active(link.href)?'page':undefined} onClick={()=>setOpen(false)} style={{animationDelay:index*25+'ms'}}><span className="public-menu-icon"><PublicIcon name={link.icon}/></span><span><strong>{link.label}</strong><small>{link.detail}</small></span><span aria-hidden="true">↗</span></Link>)}</nav><p>Rempah Indonesia. Rasa yang berkarakter.</p></section></div>}
  <nav className="public-bottom-nav" aria-label="Navigasi bawah">{([{href:path==='/'?'/#home':'/',label:'Home',icon:'home'},{href:'/katalog',label:'Belanja',icon:'catalog'},{href:'/games',label:'Games',icon:'games'},{href:'/?track=1',label:'Lacak',icon:'search'},{href:'/checkout',label:'Cart',icon:'cart'}] as {href:string;label:string;icon:Icon}[]).map(link=>{

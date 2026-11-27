@@ -4,6 +4,7 @@ import {clientId} from '@/lib/client-id';
 import {useCallback, useEffect, useState} from 'react';
 import {articleVideoEmbed} from '@/lib/article-video';
 import VideoShield from '@/app/components/VideoShield';
+import VideoPoster from '@/app/components/VideoPoster';
 import {MAX_VIDEOS, tiktokLink, validateVideoLibrary, type VartanaVideo} from '@/lib/videos';
 
 const field = 'mt-1 w-full rounded-xl border border-[#cfd9c7] bg-white p-3 text-sm text-[#173d2b]';
@@ -145,7 +146,7 @@ export default function VideosAdmin() {
         </div>;
         if (!isEditing) return <article key={video.id} className={'flex items-center gap-4 rounded-2xl border bg-white p-3 sm:p-4 ' + (video.visible ? 'border-[#cfd9c7]' : 'border-dashed border-[#d8d2c2]')}>
           <div className="relative aspect-[9/16] w-16 shrink-0 overflow-hidden rounded-lg bg-[#0f2e22] sm:w-20">
-            {embed && <img src={embed.poster} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy"/>}
+            {embed && <VideoPoster key={embed.poster} sources={embed.posters} className="absolute inset-0 h-full w-full object-cover"/>}
             <span className="absolute bottom-1 left-1 rounded bg-black/50 px-1 text-[10px] text-white">{String(index + 1).padStart(2, '0')}</span>
           </div>
           <div className="min-w-0 flex-1">
@@ -167,7 +168,7 @@ export default function VideosAdmin() {
             <strong className="text-sm">{index + 1}. {video.title || 'Video baru'} <span className="ml-1 font-normal text-[#8a6a2c]">· sedang diedit</span></strong>
             {tools}
           </div>
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_200px]">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
             <div className="grid gap-3">
               <label className="text-xs">Link Google Drive / YouTube<input maxLength={2000} value={video.url} onChange={e => change(video.id, {url: e.target.value})} className={field} placeholder="https://drive.google.com/file/d/.../view"/></label>
               {video.url && !embed && <small className="text-xs text-red-700">Link belum dikenali. Tempel link berbagi Google Drive atau link YouTube.</small>}
@@ -179,11 +180,11 @@ export default function VideosAdmin() {
               <label className="text-xs">Detail (opsional)<textarea maxLength={2000} rows={4} value={video.details} onChange={e => change(video.id, {details: e.target.value})} className={field} placeholder="Penjelasan lengkap yang tampil saat video diputar"/></label>
               <div><button type="button" onClick={() => { setEditing(ids => ids.filter(id => id !== video.id)); if (previewId === video.id) setPreviewId(''); }} className={button}>Selesai mengedit</button><span className="ml-3 text-xs text-slate-500">Jangan lupa klik “Simpan semua perubahan”.</span></div>
             </div>
-            <div className="relative mx-auto aspect-[9/16] w-full max-w-[200px] overflow-hidden rounded-xl bg-[#0f2e22]">
+            <div className="relative mx-auto aspect-[9/16] w-full max-w-[240px] overflow-hidden rounded-xl bg-[#0f2e22]">
               {embed && previewId === video.id
                 ? <><iframe src={embed.src} title={'Pratinjau ' + video.title} className="absolute inset-0 h-full w-full" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen/>{embed.provider === 'drive' && <VideoShield/>}</>
                 : <button type="button" disabled={!embed} onClick={() => setPreviewId(video.id)} className="absolute inset-0 grid place-items-center text-xs text-[#d8c28b] disabled:opacity-50">
-                    {embed && <img src={embed.poster} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70"/>}
+                    {embed && <VideoPoster key={embed.poster} sources={embed.posters} className="absolute inset-0 h-full w-full object-cover opacity-70"/>}
                     <span className="relative rounded-full bg-[#0f2e22cc] px-3 py-2">{embed ? '▶ Putar pratinjau' : 'Pratinjau muncul setelah link valid'}</span>
                   </button>}
             </div>

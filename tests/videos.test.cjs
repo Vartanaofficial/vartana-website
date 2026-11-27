@@ -3,7 +3,8 @@ const {articleVideoEmbed}=load('lib/article-video.ts'),{validateVideoLibrary}=lo
 const video=(o={})=>({id:'VID-test-0001',title:'Mengenal VARTANA',url:'https://drive.google.com/file/d/ABCDE12345/view?usp=sharing',caption:'Cerita singkat',details:'Detail video',visible:true,...o});
 test('video links accept Google Drive and YouTube share links and reject other hosts',()=>{
  assert.equal(articleVideoEmbed('https://drive.google.com/file/d/ABCDE12345/view?usp=sharing').src,'https://drive.google.com/file/d/ABCDE12345/preview');
- assert.equal(articleVideoEmbed('https://youtu.be/dQw4w9WgXcQ?si=abc').src,'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1');
+ assert.equal(articleVideoEmbed('https://youtu.be/dQw4w9WgXcQ?si=abc').src,'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1&loop=1&playlist=dQw4w9WgXcQ');
+ assert.equal(articleVideoEmbed('https://youtube.com/shorts/dQw4w9WgXcQ').poster,'https://i.ytimg.com/vi/dQw4w9WgXcQ/oardefault.jpg');
  assert.equal(articleVideoEmbed('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10').provider,'youtube');
  assert.equal(articleVideoEmbed('https://youtube.com/shorts/dQw4w9WgXcQ').provider,'youtube');
  for(const bad of ['https://evil.example/v.mp4','http://drive.google.com/file/d/ABCDE12345/view','javascript:alert(1)',''])assert.equal(articleVideoEmbed(bad),null);

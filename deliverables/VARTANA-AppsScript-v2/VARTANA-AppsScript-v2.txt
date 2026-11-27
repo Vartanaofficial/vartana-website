@@ -597,7 +597,7 @@ function doPost(e) {
     if (data.action === 'getCheckoutContext'){puzzleVerify_(data,'getCheckoutContext');return getCheckoutContext_(data.puzzlePayload);}
     // Explicit read RPCs share the same response contracts as GET. They never
     // fall through into order creation when master data is requested via POST.
-    if (['getProductStock','getProducts','getPricing','getPromotions','getStoreCatalog','getIngredients','getAdminData','fetchOrders','getInventory','getInventoryCapabilities','getCatalogTranslations','getPublicContentTranslations','getRawMaterials','getProductCosting','getArticles'].indexOf(data.action)>=0 || String(data.action||'').indexOf('getKonsinyasi')===0) return doGet({parameter:{action:data.action},internalSecurity:true});
+    if (['getProductStock','getProducts','getPricing','getPromotions','getStoreCatalog','getIngredients','getAdminData','fetchOrders','getInventory','getInventoryCapabilities','getCatalogTranslations','getPublicContentTranslations','getRawMaterials','getProductCosting','getArticles','getVideos'].indexOf(data.action)>=0 || String(data.action||'').indexOf('getKonsinyasi')===0) return doGet({parameter:{action:data.action},internalSecurity:true});
 
 
     // ========================================================
@@ -875,6 +875,10 @@ function doPost(e) {
 
     if (data.action === "saveArticle") return saveArticle_(data);
 
+    if (data.action === 'getAdminVideos') { verifyArticleAdmin_(data); var adminLib=readVideoLibrary_(); return responseJSON({success:true,videoVersion:1,videos:adminLib.videos,updatedAt:adminLib.updatedAt}); }
+
+    if (data.action === 'saveVideos') return saveVideoLibrary_(data);
+
     if (data.action === "saveInventory") return saveInventory_(data);
 
     if (data.action === "saveRawMaterials") return saveRawMaterials_(data);
@@ -957,6 +961,8 @@ function doGet(e) {
     // ========================================================
     // GET PRODUCTS
     // ========================================================
+
+    if (action === 'getVideos') { var publicLib=readVideoLibrary_(); return responseJSON({success:true,videoVersion:1,videos:publicLib.videos.filter(function(v){return v.visible===true;})}); }
 
     if (action === 'getArticles') { var articles=readArticles_(); return responseJSON({success:true,articleVersion:1,articles:articles.filter(function(a){return a.status==='PUBLISHED';}),hiddenSlugs:articles.filter(function(a){return a.status!=='PUBLISHED';}).map(function(a){return a.slug;})}); }
 
@@ -3686,6 +3692,28 @@ function verifyArticleAdmin_(data){
  var timestamp=String(data.authTime||'');if(!/^\d{13}$/.test(timestamp)||Math.abs(Date.now()-Number(timestamp))>300000)throw new Error('Otorisasi artikel kedaluwarsa. Coba simpan lagi.');
  var message=String(data.action)+'\n'+timestamp+'\n'+JSON.stringify(data.article||null)+'\n'+String(data.expectedUpdatedAt||''),bytes=Utilities.computeHmacSha256Signature(message,key),expected=bytes.map(function(v){return ('0'+((v+256)%256).toString(16)).slice(-2);}).join(''),provided=String(data.authSignature||'');
  if(provided.length!==expected.length)throw new Error('Otorisasi artikel tidak valid.');var diff=0;for(var i=0;i<expected.length;i++)diff|=expected.charCodeAt(i)^provided.charCodeAt(i);if(diff)throw new Error('Otorisasi artikel tidak valid.');
+}
+
+// VIDEO LIBRARY: separate "Videos" tab holding one JSON document; never touches Products, stock or articles.
+// Admin reads/writes reuse the article admin signature (the library travels in data.article).
+function videoSheet_(){var ss=SpreadsheetApp.getActiveSpreadsheet(),headers=['Library JSON','Updated At'],sh=ss.getSheetByName('Videos');if(!sh){sh=ss.insertSheet('Videos');sh.getRange(1,1,1,2).setValues([headers]);sh.setFrozenRows(1);}if(sh.getRange(1,1,1,2).getValues()[0].join('|')!==headers.join('|'))throw new Error('Header Videos berbeda. Data tidak diubah.');return sh;}
+function readVideoLibrary_(){var sh=videoSheet_();if(sh.getLastRow()<2)return {videos:[],updatedAt:''};var r=sh.getRange(2,1,1,2).getValues()[0];if(!r[0])return {videos:[],updatedAt:''};var doc=JSON.parse(String(r[0]));return {videos:Array.isArray(doc.videos)?doc.videos:[],updatedAt:r[1] instanceof Date?r[1].toISOString():String(r[1]||'')};}
+function videoUrlValid_(v){if(typeof v!=='string'||v.length>2000||!/^https:\/\/[^\s@\\]+$/i.test(v))return false;return /^https:\/\/(www\.)?drive\.google\.com\/(file\/d\/[a-zA-Z0-9_-]{5,200}|open\?|uc\?)/i.test(v)||/^https:\/\/((www|m)\.)?(youtube\.com|youtube-nocookie\.com|youtu\.be)\//i.test(v);}
+function videoTiktokValid_(v){return typeof v==='string'&&v.length<=500&&(!v||/^https:\/\/((www|vm|vt|m)\.)?tiktok\.com(\/[^\s<>"']*)?$/i.test(v));}
+function saveVideoLibrary_(data){
+ verifyArticleAdmin_(data);
+ var lib=data.article;if(!lib||typeof lib!=='object'||!Array.isArray(lib.videos)||lib.videos.length>50)return responseJSON({success:false,message:'Daftar video tidak valid (maksimal 50 video).'});
+ function text(v,max){return typeof v==='string'&&v.length<=max;}
+ var seen={},clean=[];
+ for(var i=0;i<lib.videos.length;i++){var v=lib.videos[i];
+  if(!v||!/^VID-[a-zA-Z0-9-]{3,80}$/.test(v.id)||seen[v.id]||!text(v.title,120)||!v.title.trim()||!videoUrlValid_(v.url)||!text(v.caption||'',300)||!text(v.details||'',2000)||typeof v.visible!=='boolean'||!videoTiktokValid_(String(v.tiktokUrl||'').trim()))return responseJSON({success:false,message:'Lengkapi judul dan link Google Drive / YouTube setiap video.'});
+  seen[v.id]=true;clean.push({id:v.id,title:v.title.trim(),url:v.url.trim(),caption:(v.caption||'').trim(),details:(v.details||'').trim(),visible:v.visible,tiktokUrl:String(v.tiktokUrl||'').trim()});}
+ var lock=LockService.getScriptLock();lock.waitLock(20000);try{
+  var sh=videoSheet_(),old=readVideoLibrary_();
+  if(String(data.expectedUpdatedAt||'')!==old.updatedAt)return responseJSON({success:false,message:'Daftar video berubah di perangkat lain. Muat ulang sebelum menyimpan.'});
+  var now=new Date().toISOString();sh.getRange(2,1,1,2).setValues([[JSON.stringify({videos:clean}),now]]);
+  return responseJSON({success:true,videoVersion:1,videos:clean,updatedAt:now});
+ }finally{lock.releaseLock();}
 }
 
 // CONSIGNMENT SALES V2: append-only revisions, one atomic row per sale/payment.

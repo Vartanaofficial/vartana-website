@@ -15,7 +15,9 @@ export default function AdminMenuGrid({menus}:{menus:Menu[]}){
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState('Memuat urutan menu…');
   const [dragged,setDragged]=useState('');
-  function normalize(input:string[]){return [...new Set([...input,...menus.map(menu=>menu.href)])].filter(href=>menus.some(menu=>menu.href===href));}
+  // Keep the saved order; a menu added later is placed right after its neighbour in the default list
+  // (e.g. Video after Artikel) instead of at the very end of the grid.
+  function normalize(input:string[]){const known=new Set(menus.map(menu=>menu.href)),order=[...new Set(input)].filter(href=>known.has(href));menus.forEach((menu,index)=>{if(order.includes(menu.href))return;const before=menus.slice(0,index).reverse().find(previous=>order.includes(previous.href));order.splice(before?order.indexOf(before.href)+1:order.length,0,menu.href);});return order;}
   async function load(){
     try{const data=await adminManagement({operation:'menuRead'});const current=normalize(data.order);setOrder(current);setSaved(current);setRevision(data.revision);setReady(true);setMessage('');}
     catch(error){setMessage(error instanceof Error?error.message:'Urutan belum dimuat.');}

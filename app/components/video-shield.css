@@ -1,0 +1,6 @@
+/* An opaque corner tab with the VARTANA seal. It fully hides the Drive player's top-right
+   pop-out button (which cannot be removed from inside Google's player) and reads as a watermark. */
+.vt-video-shield{position:absolute;top:0;right:0;z-index:3;display:grid;place-items:center;width:60px;height:60px;border-bottom-left-radius:18px;
+ background:#0f2e22;box-shadow:-2px 2px 10px #0000002e;cursor:default;user-select:none}
+.vt-video-shield img{width:30px;height:30px;border-radius:50%;opacity:.92;box-shadow:0 0 0 1.5px #d8c28b80;pointer-events:none}
+@media(max-width:600px){.vt-video-shield{width:58px;height:58px;border-bottom-left-radius:16px}.vt-video-shield img{width:28px;height:28px}}

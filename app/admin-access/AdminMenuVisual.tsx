@@ -4,6 +4,7 @@ function visualFor(href:string):Visual {
   if(href.includes('integrations'))return {image:'/Vartana Botanical Wellness Tea Collection.png',paths:'M8 3v4M16 3v4M5 7h14v4a7 7 0 0 1-7 7v4M8 11h8',category:'CONNECTIONS & SERVICES',tone:'sage'};
   if(href.includes('members'))return {image:'/vartana-spices-hero.jpg',paths:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3a4 4 0 0 1 0 8M22 21v-2a4 4 0 0 0-3-3.9M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0',category:'CUSTOMER RELATIONS',tone:'sage'};
   if(href.includes('games'))return {image:'/vartana-spices-hero.jpg',paths:'M7 7h10a4 4 0 0 1 4 4l1 6a2 2 0 0 1-3 2l-3-3H8l-3 3a2 2 0 0 1-3-2l1-6a4 4 0 0 1 4-4M6 10v5M3.5 12.5h5M16 11h.1M19 14h.1',category:'PLAY & CONNECT',tone:'gold'};
+  if(href.includes('videos'))return {image:'/vartana-spices-hero.jpg',paths:'M3 6h13v12H3zM16 10l5-3v10l-5-3M8 9.5v5l4-2.5z',category:'FILM & STORIES',tone:'gold'};
   if(href.includes('articles'))return {image:'/vartana-spices-hero.jpg',paths:'M4 3h7l2 2 2-2h5v17h-5l-2 1-2-1H4zM13 5v16M7 8h3M7 12h3M16 9h1M16 13h1',category:'STORIES & EDITORIAL',tone:'oat'};
   if(href.includes('production'))return {image:'/Kemasan Vartana Signature Blend Herbal.png',paths:'M3 21V9l6 3V6l6 6V3h6v18H3M7 16h1M12 16h1M17 16h1',category:'CRAFT & PRODUCTION',tone:'sage'};
   if(href.includes('stock')||href.includes('view=stock'))return {image:'/Stoples Teh Herbal Vartana.png',paths:'m3 7 9-5 9 5v10l-9 5-9-5V7m0 0 9 5 9-5M12 12v10M7 4l10 5',category:'INVENTORY & SUPPLY',tone:'oat'};

@@ -13,6 +13,7 @@ const menus = [
  {title:'Member',description:'Cari dan edit nama, WhatsApp, serta alamat member.',href:'/admin/members',number:'12',symbol:''},
  {title:'Games',description:'Atur puzzle 20 keping, foto Drive, waktu, hitungan angka, simulasi dan data peserta.',href:'/admin/games',number:'11',symbol:''},
  {title:'Artikel',description:'Tulis, edit, terbitkan dan hapus artikel; foto lewat link dan salin URL artikel.',href:'/admin/articles',number:'10',symbol:''},
+ {title:'Video VARTANA',description:'Kumpulan video dari Google Drive / YouTube: judul, caption, detail dan urutan tampil di Tentang VARTANA.',href:'/admin/videos',number:'14',symbol:''},
  {title:'Produksi / PPIC',description:'Resep, rencana produksi, pemakaian aktual dan hasil kemasan jual.',href:'/admin/production',number:'07',symbol:''},
  {title:'Stok Opname Tim',description:'Daftar SKU Master Product dan stok fisik barang jual.',href:'/admin/stocktake',number:'08',symbol:''},
  {title:'Laporan Direksi',description:'Penjualan, P&L, persediaan dan produksi dalam PDF / PowerPoint.',href:'/admin/reports',number:'09',symbol:''},

@@ -24,3 +24,12 @@
  .vartana-radio-panel :is(button,select){min-height:44px}
 }
 .vartana-radio-dock,.vartana-radio-open{touch-action:none;user-select:none;-webkit-user-select:none}.vartana-radio-dock svg{pointer-events:none}
+
+/* Phones: the radio becomes a small round button so it never covers page content */
+@media(max-width:760px){
+ .vartana-radio-dock{border-radius:99px;box-shadow:0 6px 18px #102d2630}
+ .vartana-radio-open{width:46px;height:46px;justify-content:center;padding:0;gap:0}
+ .vartana-radio-open>span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+ .vartana-radio-open svg{width:22px;height:22px}
+ .vartana-radio-drag{width:24px;min-width:24px;min-height:46px;padding:0;font-size:12px}
+}
